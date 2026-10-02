@@ -1,0 +1,217 @@
+<div id="host-table-container" class="space-y-3">
+    <!-- Search and Filter Bar -->
+    <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+        <form id="host-filter-form"
+              hx-get="{{ url_for('assessments.host_inventory', id=assessment.id) }}"
+              hx-target="#host-table-container"
+              hx-swap="outerHTML"
+              hx-trigger="change, submit"
+              class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+            
+            <!-- Hostname Search -->
+            <div class="lg:col-span-2">
+                <label for="filter-q" class="sr-only">Search Hostnames</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input type="text"
+                           id="filter-q"
+                           name="q"
+                           value="{{ current_filters.q or '' }}"
+                           placeholder="Filter by hostname (e.g. api, auth)..."
+                           hx-get="{{ url_for('assessments.host_inventory', id=assessment.id) }}"
+                           hx-target="#host-table-container"
+                           hx-swap="outerHTML"
+                           hx-trigger="keyup changed delay:300ms"
+                           class="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-md bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                           tabindex="0" />
+                </div>
+            </div>
+
+            <!-- Country Filter -->
+            <div>
+                <label for="filter-country" class="sr-only">Country</label>
+                <select id="filter-country"
+                        name="country"
+                        class="w-full py-1.5 px-2.5 text-xs rounded-md bg-white border border-slate-300 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                        tabindex="0">
+                    <option value="">All Countries</option>
+                    {% for code in filter_options.countries %}
+                    <option value="{{ code }}" {% if current_filters.country == code %}selected{% endif %}>{{ code }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- TLS Status Filter -->
+            <div>
+                <label for="filter-tls" class="sr-only">TLS Status</label>
+                <select id="filter-tls"
+                        name="tls_status"
+                        class="w-full py-1.5 px-2.5 text-xs rounded-md bg-white border border-slate-300 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                        tabindex="0">
+                    <option value="">All TLS Statuses</option>
+                    <option value="valid" {% if current_filters.tls_status == 'valid' %}selected{% endif %}>Valid TLS</option>
+                    <option value="invalid" {% if current_filters.tls_status == 'invalid' %}selected{% endif %}>Invalid / Untrusted TLS</option>
+                    <option value="expired" {% if current_filters.tls_status == 'expired' %}selected{% endif %}>Expired TLS</option>
+                    <option value="untested" {% if current_filters.tls_status == 'untested' %}selected{% endif %}>Untested</option>
+                </select>
+            </div>
+
+            <!-- Severity Filter -->
+            <div>
+                <label for="filter-severity" class="sr-only">Finding Severity</label>
+                <select id="filter-severity"
+                        name="severity"
+                        class="w-full py-1.5 px-2.5 text-xs rounded-md bg-white border border-slate-300 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                        tabindex="0">
+                    <option value="">All Severities</option>
+                    <option value="critical" {% if current_filters.severity == 'critical' %}selected{% endif %}>Critical</option>
+                    <option value="high" {% if current_filters.severity == 'high' %}selected{% endif %}>High</option>
+                    <option value="medium" {% if current_filters.severity == 'medium' %}selected{% endif %}>Medium</option>
+                    <option value="low" {% if current_filters.severity == 'low' %}selected{% endif %}>Low</option>
+                    <option value="informational" {% if current_filters.severity == 'informational' %}selected{% endif %}>Informational</option>
+                </select>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table Container -->
+    <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden" role="region" aria-label="Host Inventory Table">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-xs" role="table">
+                <thead class="bg-slate-50 text-slate-700 uppercase tracking-wider font-semibold text-[11px]">
+                    <tr>
+                        <th scope="col" class="px-3.5 py-2.5">Hostname</th>
+                        <th scope="col" class="px-3.5 py-2.5">TLS Certificate</th>
+                        <th scope="col" class="px-3.5 py-2.5">Hosting & Location</th>
+                        <th scope="col" class="px-3.5 py-2.5">Open Ports / Services</th>
+                        <th scope="col" class="px-3.5 py-2.5">Max Severity</th>
+                        <th scope="col" class="px-3.5 py-2.5 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white text-slate-800">
+                    {% if hosts %}
+                        {% for item in hosts %}
+                        <tr class="hover:bg-slate-50 transition-colors focus-within:bg-slate-50" tabindex="0">
+                            <!-- Hostname -->
+                            <td class="px-3.5 py-2 font-mono font-medium text-slate-900 truncate max-w-xs">
+                                <span title="{{ item.host.name_ascii }}">{{ item.host.name_ascii }}</span>
+                            </td>
+
+                            <!-- TLS Status -->
+                            <td class="px-3.5 py-2">
+                                {% if item.tls_status == 'valid' %}
+                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                        Valid ({{ item.tls_days_left }}d)
+                                    </span>
+                                {% elif item.tls_status == 'invalid' or item.tls_status == 'expired' %}
+                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-medium bg-rose-50 text-rose-800 border border-rose-200" title="{{ item.tls_reason }}">
+                                        {{ item.tls_status|upper }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-slate-400 font-mono text-[11px]">untested</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Location & Hosting -->
+                            <td class="px-3.5 py-2">
+                                {% if item.country_code %}
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="font-mono text-[10px] px-1 py-0.2 rounded bg-slate-100 border border-slate-200 text-slate-700 font-semibold">{{ item.country_code }}</span>
+                                        <span class="truncate max-w-[140px] text-slate-700 text-xs" title="{{ item.provider or item.as_org }}">{{ item.provider or item.as_org or 'Unknown' }}</span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-slate-400 text-[11px]">&mdash;</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Open Ports -->
+                            <td class="px-3.5 py-2 font-mono text-[11px]">
+                                {% if item.ports %}
+                                    <span class="text-slate-700">{{ item.ports|join(', ') }}</span>
+                                {% else %}
+                                    <span class="text-slate-400">443/tcp</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Max Severity -->
+                            <td class="px-3.5 py-2">
+                                {% if item.max_severity %}
+                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold uppercase
+                                        {% if item.max_severity == 'critical' %}bg-rose-50 text-rose-800 border border-rose-200
+                                        {% elif item.max_severity == 'high' %}bg-orange-50 text-orange-800 border border-orange-200
+                                        {% elif item.max_severity == 'medium' %}bg-amber-50 text-amber-800 border border-amber-200
+                                        {% elif item.max_severity == 'low' %}bg-blue-50 text-blue-800 border border-blue-200
+                                        {% else %}bg-slate-100 text-slate-700 border border-slate-200{% endif %}">
+                                        {{ item.max_severity }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-emerald-700 text-[11px] font-medium">None</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="px-3.5 py-2 text-right">
+                                <button hx-get="{{ url_for('assessments.host_detail', id=assessment.id, host_id=item.host.id) }}"
+                                        hx-target="#modal-container"
+                                        hx-swap="innerHTML"
+                                        class="px-2 py-1 text-xs font-medium rounded text-teal-800 bg-teal-50 border border-teal-200 hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                                        tabindex="0"
+                                        aria-label="Inspect details for {{ item.host.name_ascii }}">
+                                    Inspect
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="px-4 py-6 text-center text-slate-500 italic">
+                                No hosts matching the specified filters were found.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="px-3.5 py-2.5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-slate-600">
+            <div>
+                Showing <span class="font-semibold text-slate-900">{{ pagination.start_idx }}</span> to <span class="font-semibold text-slate-900">{{ pagination.end_idx }}</span> of <span class="font-semibold text-slate-900">{{ pagination.total_hosts }}</span> hosts
+            </div>
+
+            <div class="flex items-center space-x-1.5">
+                {% if pagination.has_prev %}
+                <button hx-get="{{ url_for('assessments.host_inventory', id=assessment.id, page=pagination.page - 1, q=current_filters.q, country=current_filters.country, tls_status=current_filters.tls_status, severity=current_filters.severity, per_page=pagination.per_page) }}"
+                        hx-target="#host-table-container"
+                        hx-swap="outerHTML"
+                        class="px-2.5 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                        tabindex="0">
+                    &larr; Previous
+                </button>
+                {% else %}
+                <span class="px-2.5 py-1 rounded border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">&larr; Previous</span>
+                {% endif %}
+
+                <span class="px-2 py-1 font-mono text-slate-700">
+                    Page {{ pagination.page }} of {{ pagination.total_pages or 1 }}
+                </span>
+
+                {% if pagination.has_next %}
+                <button hx-get="{{ url_for('assessments.host_inventory', id=assessment.id, page=pagination.page + 1, q=current_filters.q, country=current_filters.country, tls_status=current_filters.tls_status, severity=current_filters.severity, per_page=pagination.per_page) }}"
+                        hx-target="#host-table-container"
+                        hx-swap="outerHTML"
+                        class="px-2.5 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                        tabindex="0">
+                    Next &rarr;
+                </button>
+                {% else %}
+                <span class="px-2.5 py-1 rounded border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">Next &rarr;</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
