@@ -1,0 +1,28 @@
+# Exclude node_modules directory
+node_modules
+
+# Exclude all log files
+*.log
+
+# Exclude environment files
+.venv
+.env.local
+
+# Ignore build directories
+/build
+/dist
+
+# Include only the package.json file from the root directory
+!package.json
+
+/compose/data/pg_data
+/compose/data/
+.git
+.gitignore
+config/.env
+config/.env.sample
+__pycache__/
+*.pyc
+node_modules/
+data
+/scripts
