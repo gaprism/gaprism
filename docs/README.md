@@ -1,3 +1,5 @@
+> ⚠️ **Superseded on 2026-10-04.** The project restarted as an MVP-first plan. Read [roadmap.md](roadmap.md), [checks-catalog.md](checks-catalog.md), [improvement-plan.md](improvement-plan.md) and the [design spec](superpowers/specs/2026-10-04-mvp-restart-design.md) instead. Everything below is the previous baseline and moves to `docs/archive/` in story S0.1 — **do not follow its reading order.**
+
 # Coding-agent documentation index
 
 Design baseline 1, 2026-10-01. Documentation only: no application, migrations, dependency lockfiles or runtime tests have been implemented. The following contracts guide future authorised implementation; they do not authorise deployment, publication or live collection by themselves.
