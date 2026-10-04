@@ -1,0 +1,3 @@
+{# Flask-Security-Too pages (login, MFA, password change) render inside our layouts. #}
+{% extends "base.html" if current_user.is_authenticated else "public.html" %}
+{% block title %}{{ title|default('') }}{% endblock %}

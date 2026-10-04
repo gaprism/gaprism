@@ -1,7 +1,6 @@
 @import "tailwindcss" source(none);
 @import "./tokens.css";
 @source "../app/templates";
-@source "../app/static/js/preview.js";
 
 @layer base {
   body { @apply bg-canvas text-ink font-sans text-base antialiased; }
@@ -56,8 +55,17 @@
   .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }
   dialog { @apply m-auto w-[calc(100%-2rem)] max-w-lg rounded-lg border border-line bg-panel p-6 text-ink shadow-xl; }
   dialog::backdrop { background: rgb(15 23 42 / 45%); }
-  .spec-grid { @apply grid gap-4 md:grid-cols-2; }
-  .spec-block { @apply rounded-lg border border-line bg-panel p-4; }
+  /* Flask-Security-Too renders plain markup (login, MFA, password change); style it here. */
+  .fs-div { @apply mb-3 flex flex-col gap-1.5; }
+  .fs-div label { @apply text-sm font-medium; }
+  .fs-error-msg { @apply list-none text-sm text-danger; }
+  .fs-gap { @apply mt-5; }
+  .fs-center { @apply text-center; }
+  .fs-important { @apply font-semibold; }
+  .fs-menu { @apply mt-6 flex list-none flex-wrap gap-x-4 gap-y-2 border-t border-line p-0 pt-4 text-sm; }
+  .fs-menu a, .panel h3 + a { @apply text-action underline underline-offset-4; }
+  input[type=submit], input[type=button] { @apply inline-flex min-h-10 cursor-pointer items-center justify-center rounded-md border border-action bg-action px-4 py-2 text-sm font-semibold text-white hover:bg-action-hover; }
+  hr { @apply my-5 border-line; }
 }
 
 @media (min-width: 1024px) {

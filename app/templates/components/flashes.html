@@ -1,0 +1,6 @@
+{% from 'components/ui.html' import notice %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="mb-4">{{ notice(message, tone='danger' if category in ['error', 'danger'] else 'warning' if category == 'warning' else 'info') }}</div>
+  {% endfor %}
+{% endwith %}

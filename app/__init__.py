@@ -2,9 +2,11 @@
 
 import os
 
-from flask import Flask, Response, jsonify
+from flask import Flask
 from flask_security.datastore import SQLAlchemyUserDatastore
 
+from app.blueprints.assessments import assessments_bp
+from app.blueprints.core import core_bp
 from app.commands import register_cli_commands
 from app.config import (
     BaseConfig,
@@ -16,8 +18,10 @@ from app.config import (
     validate_config,
 )
 from app.extensions import csrf, db, migrate, security
+from app.i18n import init_i18n
 from app.models.auth import Role, User
 from app.service.auth.rate_limit import register_auth_rate_limit
+from app.web import register_error_pages, register_security_headers
 
 
 def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
@@ -71,31 +75,13 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
     security.init_app(app, user_datastore)
     register_auth_rate_limit(app)
 
-    # Register basic security headers
-    @app.after_request
-    def set_security_headers(response: Response) -> Response:
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data:;"
-        )
-        return response
+    init_i18n(app)
+    register_security_headers(app)
+    register_error_pages(app)
 
-    # Register CLI commands
+    app.register_blueprint(core_bp)
+    app.register_blueprint(assessments_bp)
+
     register_cli_commands(app)
-
-    # Basic healthcheck endpoint (no DB access, pure uptime check)
-    @app.route("/healthz")
-    def healthz() -> Response:
-        return jsonify({"status": "healthy", "env": app.config.get("ENV")})
-
-    # Default index route
-    @app.route("/")
-    def index() -> Response:
-        return jsonify({"status": "ok", "message": "SaaS Technical Due Diligence Platform"})
 
     return app

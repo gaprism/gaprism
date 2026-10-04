@@ -1,35 +1,31 @@
-{% from 'components/ui.html' import icon, action with context %}
-<!doctype html>
-<html lang="{{ g.locale }}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}{{ _('Technical verification') }}{% endblock %} · Due Diligence</title>
-<meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"includeIndicatorStyles":false,"historyCacheSize":0,"selfRequestsOnly":true}'>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-<script src="{{ url_for('static', filename='js/htmx.min.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/preview.js') }}" defer></script>
-</head>
-<body hx-history="false">
-<a class="skip link" href="#main">{{ _('Skip to content') }}</a>
+{% extends "layout.html" %}
+{% from 'components/ui.html' import icon %}
+{% block body %}
 <div class="shell">
-<aside class="sidebar flex flex-col border-b border-line bg-panel lg:border-r">
-  <a href="{{ page_url('cases') }}" class="flex min-h-16 items-center gap-2 px-5 font-semibold tracking-tight">{{ icon('shield') }} Due Diligence</a>
-  <details class="px-3 pb-3 sm:hidden"><summary class="nav-link">{{ _('Navigation') }}</summary><nav aria-label="{{ _('Main navigation') }}">{% for item,label in [('cases','Assessments'),('overview','Current assessment'),('components','Design system')] %}<a class="nav-link" href="{{ page_url(item) }}">{{ _(label) }}</a>{% endfor %}</nav></details>
-  <div class="hidden px-3 pb-3 sm:block lg:pt-5">
-    <p class="eyebrow mb-2 hidden px-3 lg:block">{{ _('Workspace') }}</p>
-    <nav aria-label="{{ _('Main navigation') }}" class="flex flex-wrap gap-1 lg:flex-col">
-      {% for item,label,symbol in [('cases','Assessments','grid'),('overview','Current assessment','globe'),('components','Design system','hosts')] %}
-      <a class="nav-link" href="{{ page_url(item) }}" {% if view == item or (item == 'overview' and view in ['infrastructure','providers','security','evidence','reports','sharing']) %}aria-current="page"{% endif %}>{{ icon(symbol) }}{{ _(label) }}</a>{% endfor %}
-    </nav>
+  <aside class="sidebar flex flex-col border-b border-line bg-panel lg:border-r">
+    <a href="{{ url_for('assessments.index') }}" class="flex min-h-16 items-center gap-2 px-5 font-semibold tracking-tight">{{ icon('shield') }} {{ _('Web Due Diligence') }}</a>
+    <div class="px-3 pb-3 lg:pt-5">
+      <nav aria-label="{{ _('Main navigation') }}" class="flex flex-wrap gap-1 lg:flex-col">
+        <a class="nav-link" href="{{ url_for('assessments.index') }}" {% if request.blueprint == 'assessments' %}aria-current="page"{% endif %}>{{ icon('grid') }}{{ _('Assessments') }}</a>
+      </nav>
+    </div>
+  </aside>
+  <div class="min-w-0">
+    <header class="flex min-h-13 flex-wrap items-center justify-between gap-2 border-b border-line bg-panel px-4 py-2 lg:px-6">
+      <p class="text-sm text-muted">{{ _('Technical verification') }}</p>
+      <div class="flex flex-wrap items-center gap-3 text-sm">
+        <span class="text-muted">{{ current_user.email }}</span>
+        <a class="link" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a>
+        <form action="{{ url_for_security('logout') }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-quiet" type="submit">{{ _('Sign out') }}</button>
+        </form>
+      </div>
+    </header>
+    <main id="main" tabindex="-1" class="min-w-0 p-4 lg:p-6">
+      {% include 'components/flashes.html' %}
+      {% block content %}{% endblock %}
+    </main>
   </div>
-  <div class="mt-auto hidden border-t border-line p-5 lg:block"><p class="text-sm font-medium">{{ _('IT Security') }}</p><p class="mt-1 text-xs text-muted">{{ _('Local design preview') }}</p></div>
-</aside>
-<div class="min-w-0">
-  <header class="flex min-h-13 flex-wrap items-center justify-between gap-2 border-b border-line bg-panel px-4 py-2 lg:px-6">
-    <p class="text-sm text-muted">{{ _('Technical verification') }} <span class="mx-2 text-control">/</span> <span class="text-ink">{{ _('Team workspace') }}</span></p>
-    <nav class="flex items-center gap-1" aria-label="{{ _('Interface language') }}"><a class="btn btn-quiet" href="{{ locale_url('en') }}" lang="en" {% if g.locale == 'en' %}aria-current="page"{% endif %}>EN</a><a class="btn btn-quiet" href="{{ locale_url('de-CH') }}" lang="de-CH" {% if g.locale == 'de-CH' %}aria-current="page"{% endif %}>DE</a></nav>
-  </header>
-  <div class="border-b border-line bg-subtle px-4 py-2 text-xs leading-5 text-muted lg:px-6"><strong>{{ _('Synthetic preview') }}</strong> · {{ _('Example data only. No live collection, authentication or sharing.') }}</div>
-  <main id="main" tabindex="-1" class="min-w-0 p-4 lg:p-6">{% block content %}{% endblock %}</main>
 </div>
-</div>
-</body></html>
+{% endblock %}

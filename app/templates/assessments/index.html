@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from 'components/ui.html' import badge, empty %}
+{% block title %}{{ _('Assessments') }}{% endblock %}
+{% block content %}
+<div class="mb-5">
+  <p class="eyebrow">{{ _('Team workspace') }}</p>
+  <h1 class="mt-1">{{ _('Assessments') }}</h1>
+</div>
+<div class="panel">
+  {% if assessments %}
+  <div class="table-scroll">
+    <table class="data-table">
+      <caption class="sr-only">{{ _('Assessments you can open') }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{{ _('Domain') }}</th>
+          <th scope="col">{{ _('Label') }}</th>
+          <th scope="col">{{ _('Visibility') }}</th>
+          <th scope="col">{{ _('Created') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in assessments %}
+        <tr>
+          <td><bdi class="font-mono">{{ item.domain_display }}</bdi></td>
+          <td>{{ item.label or '—' }}</td>
+          <td>{{ badge(_('Team') if item.visibility == 'team' else _('Private'), 'ok' if item.visibility == 'team' else 'muted') }}</td>
+          <td><time datetime="{{ item.created_at.isoformat() }}">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  {{ empty(_('No assessments yet'), _('Create an assessment to review a vendor domain.')) }}
+  {% endif %}
+</div>
+{% endblock %}

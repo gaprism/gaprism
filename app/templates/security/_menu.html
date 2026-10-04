@@ -1,0 +1,7 @@
+{# Minimal account menu; sign-out lives in the header. No registration, no password recovery. #}
+{% if _fs_is_user_authenticated(current_user) %}
+  <menu class="fs-menu">
+    {% if security.changeable %}<li><a href="{{ url_for_security('change_password') }}">{{ _fsdomain('Change Password') }}</a></li>{% endif %}
+    {% if security.two_factor %}<li><a href="{{ url_for_security('two_factor_setup') }}">{{ _fsdomain('Two-Factor Setup') }}</a></li>{% endif %}
+  </menu>
+{% endif %}

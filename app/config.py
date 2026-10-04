@@ -35,6 +35,13 @@ class BaseConfig:
     WTF_CSRF_CHECK_DEFAULT: bool = True
     WTF_CSRF_TIME_LIMIT: int | None = 3600
 
+    # MFA is always available; REQUIRE_MFA decides whether enrolment is forced at first login.
+    # Derived into SECURITY_TWO_FACTOR_REQUIRED by resolve_config(). On by default.
+    REQUIRE_MFA: bool = True
+
+    # UI languages offered (first = default); catalogs live in app/translations
+    LANGUAGES: ClassVar[list[str]] = ["en"]
+
     # Flask-Security-Too defaults
     SECURITY_REGISTERABLE: bool = False
     SECURITY_SEND_REGISTER_EMAIL: bool = False
@@ -89,6 +96,7 @@ class DevelopmentConfig(BaseConfig):
     DEBUG: bool = True
     TESTING: bool = False
     SESSION_COOKIE_SECURE: bool = False
+    REQUIRE_MFA: bool = False  # convenient locally; production defaults to True
 
     SECRET_KEY: str = "dev-insecure-secret-key-do-not-use-in-production-32b"
     SECURITY_PASSWORD_SALT: str = "dev-password-salt-key"
@@ -212,6 +220,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             if config_class.TESTING
             else "DATABASE_URL",
             "DB_SCHEMA": "DB_SCHEMA",
+            "REQUIRE_MFA": "REQUIRE_MFA",
             "MAX_HOSTS_PER_RUN": "MAX_HOSTS_PER_RUN",
             "MAX_DISCOVERY_PAGES": "MAX_DISCOVERY_PAGES",
         }
@@ -231,6 +240,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             else:
                 values[key] = raw
     values["SECURITY_TOTP_SECRETS"] = {"1": values["MFA_ENCRYPTION_KEY"]}
+    values["SECURITY_TWO_FACTOR_REQUIRED"] = bool(values["REQUIRE_MFA"])
 
     schema = str(values.get("DB_SCHEMA", ""))
     validate_db_schema(schema)
