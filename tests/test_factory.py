@@ -160,6 +160,24 @@ def test_production_still_fails_fast_when_a_secret_is_empty(
         create_app("production")
 
 
+@pytest.mark.parametrize("setting", ["PROVIDER_TIMEOUT_SECONDS", "DISCOVERY_BUDGET_SECONDS"])
+@pytest.mark.parametrize("bad", [0, -1, True, float("nan"), float("inf"), "30"])
+def test_time_limits_must_be_positive_finite_numbers(setting: str, bad: object) -> None:
+    config = type("BadLimit", (TestingConfig,), {setting: bad})
+    with pytest.raises(ConfigurationError, match=f"{setting} must be a positive number"):
+        validate_config(config)
+
+
+def test_the_discovery_budget_can_be_set_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DISCOVERY_BUDGET_SECONDS", "12.5")
+    assert create_app("development").config["DISCOVERY_BUDGET_SECONDS"] == 12.5
+    monkeypatch.setenv("DISCOVERY_BUDGET_SECONDS", "soon")
+    with pytest.raises(ConfigurationError, match="DISCOVERY_BUDGET_SECONDS must be a number"):
+        create_app("development")
+
+
 def test_ct_settings_are_validated() -> None:
     class UnknownSource(TestingConfig):
         CT_SOURCES: ClassVar[list[str]] = ["ctlogs", "nonsense"]

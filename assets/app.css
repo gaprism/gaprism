@@ -66,6 +66,11 @@
   .fs-menu a, .panel h3 + a { @apply text-action underline underline-offset-4; }
   input[type=submit], input[type=button] { @apply inline-flex min-h-10 cursor-pointer items-center justify-center rounded-md border border-action bg-action px-4 py-2 text-sm font-semibold text-white hover:bg-action-hover; }
   hr { @apply my-5 border-line; }
+  progress { appearance: none; @apply block h-2 w-full overflow-hidden rounded-full border-0 bg-subtle; }
+  progress::-webkit-progress-bar { @apply bg-subtle; }
+  progress::-webkit-progress-value { @apply bg-action; transition: width 300ms; }
+  progress::-moz-progress-bar { @apply bg-action; }
+  textarea { @apply w-full; }
 }
 
 @media (min-width: 1024px) {

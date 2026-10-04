@@ -7,8 +7,11 @@ are counted and excluded, and everything the sources could not tell us stays vis
 
 from __future__ import annotations
 
+import logging
 import re
+import time
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
@@ -17,6 +20,8 @@ from app.service.discovery.scope import DomainScope, is_in_scope
 from app.service.discovery.sources.base import DiscoverySource, SourceOutcome
 
 DiscoveryMode = Literal["union", "first"]
+
+log = logging.getLogger(__name__)
 
 _LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
 
@@ -157,22 +162,75 @@ def merge_outcomes(
     )
 
 
+DEFAULT_BUDGET_SECONDS = 45.0
+
+
+def _fetch_safely(source: DiscoverySource, domain: str) -> SourceOutcome:
+    """Ask one source. Adapters report provider trouble themselves; this catches their bugs."""
+    started = time.monotonic()
+    try:
+        return source.fetch(domain)
+    except Exception:
+        log.exception("CT source %s crashed for %s", source.key, domain)
+        return SourceOutcome(
+            source.key,
+            "error",
+            "internal_error",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+
+
+def _fetch_in_parallel(
+    domain: str, sources: Sequence[DiscoverySource], budget_seconds: float
+) -> list[SourceOutcome]:
+    """Ask all sources at once; one that exceeds the shared time budget is reported, not awaited.
+
+    A straggler thread is left to finish on its own: every adapter bounds its own retries and
+    timeouts, so it ends soon, and its late answer is ignored.
+    """
+    pool = ThreadPoolExecutor(max_workers=len(sources), thread_name_prefix="ct-source")
+    try:
+        futures = [pool.submit(_fetch_safely, source, domain) for source in sources]
+        deadline = time.monotonic() + budget_seconds
+        outcomes: list[SourceOutcome] = []
+        for source, future in zip(sources, futures, strict=True):
+            try:
+                outcomes.append(future.result(timeout=max(0.0, deadline - time.monotonic())))
+            except TimeoutError:
+                outcomes.append(
+                    SourceOutcome(
+                        source.key,
+                        "error",
+                        "budget_exceeded",
+                        duration_ms=int(budget_seconds * 1000),
+                    )
+                )
+        return outcomes
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+
 def run_discovery(
     scope: DomainScope,
     sources: Sequence[DiscoverySource],
     *,
     mode: DiscoveryMode = "union",
     max_hosts: int = 200,
+    budget_seconds: float = DEFAULT_BUDGET_SECONDS,
 ) -> DiscoveryResult:
     """Ask the sources about ``scope`` and merge the answers.
 
-    ``union`` asks every source (best coverage; a failing source never fails the discovery);
-    ``first`` stops after the first source that answered successfully (saves provider quota).
+    ``union`` asks every source at the same time (best coverage; a failing or slow source never
+    fails the discovery, it just reports why); ``first`` asks them in order and stops after the
+    first one that answered successfully (saves provider quota).
     """
-    outcomes: list[SourceOutcome] = []
-    for source in sources:
-        outcome = source.fetch(scope.canonical)
-        outcomes.append(outcome)
-        if mode == "first" and outcome.status == "ok":
-            break
+    if mode == "union" and len(sources) > 1:
+        outcomes = _fetch_in_parallel(scope.canonical, sources, budget_seconds)
+    else:
+        outcomes = []
+        for source in sources:
+            outcome = _fetch_safely(source, scope.canonical)
+            outcomes.append(outcome)
+            if mode == "first" and outcome.status == "ok":
+                break
     return merge_outcomes(scope, outcomes, max_hosts=max_hosts)

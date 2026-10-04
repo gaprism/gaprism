@@ -84,7 +84,7 @@ Deferred (kept in the archive, not deleted): RLS and per-report grants (INV-01/0
   - **ctlogs.dev** — `GET /v1/hosts/{domain}`, `?after=` cursor, `Authorization: Bearer` key optional. Port of the existing adapter (verified against the live API on 2026-10-04); its rows also carry live DNS (`dns`, `a`), kept as a hint only.
   - **CertSpotter** — `GET /v1/issuances?domain=…&include_subdomains=true&expand=dns_names`, token optional, paged with `after`.
   - **crt.sh** — keyless; 30 s timeout, 3 retries with jittered backoff (it failed 4 of 4 probes on 2026-10-04).
-- `CT_SOURCES` (order) and `CT_MODE=union|first`. Default **union**: every enabled source runs, names are merged and deduplicated, and each source's contribution is shown ("ctlogs 98 · CertSpotter 120 · crt.sh failed → 151 names"). A failing source never fails the scan.
+- `CT_SOURCES` (order) and `CT_MODE=union|first`. Default **union**: every enabled source runs (in parallel, within `DISCOVERY_BUDGET_SECONDS`), names are merged and deduplicated, and each source's contribution is shown ("ctlogs 98 · CertSpotter 120 · crt.sh failed → 151 names"). A failing or slow source never fails the scan; the page says that discovery may be incomplete.
 - Wildcards are kept as patterns, never as hosts; out-of-scope SANs are counted and excluded; host cap (default 200, configurable) with a visible "truncated" notice. Keys come from `CTLOGS_API_KEY` / `CERTSPOTTER_TOKEN`, are never logged and never shown.
 - Each source outcome is stored (`ok` / `unavailable` / `error` + reason). If all sources fail, the scan continues with the apex (+ `www`) tagged `fallback` and a warning banner.
 - Fixture tests per source; no live network in unit tests.

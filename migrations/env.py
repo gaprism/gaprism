@@ -9,9 +9,9 @@ from sqlalchemy import text
 # access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-fileConfig(config.config_file_name)
+# Interpret the config file for Python logging. Existing loggers stay enabled: migrations also
+# run inside the test process and the app, where silencing their loggers would hide real errors.
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 logger = logging.getLogger("alembic.env")
 target_db = current_app.extensions["migrate"].db
 

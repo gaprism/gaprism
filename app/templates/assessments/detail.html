@@ -1,18 +1,53 @@
 {% extends "base.html" %}
-{% from 'components/ui.html' import badge %}
+{% from 'components/ui.html' import action, badge %}
 {% block title %}{{ assessment.domain_display }}{% endblock %}
 {% block content %}
-<div class="mb-5">
-  <a class="link text-sm" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
-  <div class="mt-2 flex flex-wrap items-center gap-3">
-    <h1><bdi class="font-mono">{{ assessment.domain_display }}</bdi></h1>
-    {{ badge(_('Team') if assessment.visibility == 'team' else _('Private'), 'ok' if assessment.visibility == 'team' else 'muted') }}
+<div class="mb-2 flex flex-wrap items-start justify-between gap-3">
+  <div>
+    <a class="link text-sm" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
+    <div class="mt-2 flex flex-wrap items-center gap-3">
+      <h1><bdi class="font-mono">{{ assessment.domain_display }}</bdi></h1>
+      {{ badge(_('Team') if assessment.visibility == 'team' else _('Private'), 'ok' if assessment.visibility == 'team' else 'muted') }}
+    </div>
+    <p class="mt-1 text-sm text-muted">
+      {% if assessment.domain != assessment.domain_display %}<bdi class="font-mono">{{ assessment.domain }}</bdi> · {% endif %}
+      {% if assessment.label %}{{ assessment.label }} · {% endif %}
+      {{ _('Created') }} <time datetime="{{ assessment.created_at.isoformat() }}">{{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+    </p>
   </div>
-  <p class="mt-1 text-sm text-muted">
-    {% if assessment.domain != assessment.domain_display %}<bdi class="font-mono">{{ assessment.domain }}</bdi> · {% endif %}
-    {% if assessment.label %}{{ assessment.label }} · {% endif %}
-    {{ _('Created') }} <time datetime="{{ assessment.created_at.isoformat() }}">{{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
-  </p>
+  <form method="post" action="{{ url_for('assessments.start_scan', assessment_id=assessment.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {{ action(_('Re-scan') if overview else _('Start scan'), variant='primary', type='submit') }}
+  </form>
 </div>
-<div class="panel p-5 text-sm text-muted">{{ _('No scan has run yet.') }}</div>
+
+{% include "assessments/_scan_panel.html" %}
+
+<section class="panel mt-6 p-5" aria-labelledby="manual-hosts-title">
+  <h2 id="manual-hosts-title">{{ _('Additional hosts') }}</h2>
+  <p class="mt-1 max-w-3xl text-sm text-muted">{{ _('Hosts that Certificate Transparency does not show, or that you want reviewed even when the logs are unavailable. They join every new scan.') }}</p>
+  {% if assessment.manual_hosts %}
+  <ul class="mt-4 flex flex-wrap gap-2">
+    {% for hostname in assessment.manual_hosts %}
+    <li>
+      <form method="post" action="{{ url_for('assessments.remove_host', assessment_id=assessment.id) }}" class="inline-flex items-center gap-1 rounded-md border border-line bg-canvas py-1 pl-3 pr-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="hostname" value="{{ hostname }}">
+        <bdi class="font-mono text-sm">{{ hostname }}</bdi>
+        <button class="btn btn-quiet min-h-8 px-2 py-0" type="submit" aria-label="{{ _('Remove %(host)s', host=hostname) }}">×</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="{{ url_for('assessments.add_hosts', assessment_id=assessment.id) }}" class="mt-4 max-w-2xl">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="hostnames">{{ _('Hostnames') }}</label>
+      <textarea id="hostnames" name="hostnames" rows="3" maxlength="20000" class="min-h-20 rounded-md border border-control bg-panel px-3 py-2 font-mono text-sm" placeholder="vpn.{{ assessment.domain }}" aria-describedby="hostnames-help"></textarea>
+      <p class="field-help" id="hostnames-help">{{ _('One or more hostnames below %(domain)s, separated by spaces, commas or new lines.', domain=assessment.domain_display) }}</p>
+    </div>
+    <div class="mt-3">{{ action(_('Add hosts'), type='submit') }}</div>
+  </form>
+</section>
 {% endblock %}

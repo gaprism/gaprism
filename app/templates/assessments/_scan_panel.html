@@ -1,0 +1,129 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set tones = {'queued': 'info', 'running': 'info', 'completed': 'ok', 'partial': 'medium', 'failed': 'critical', 'cancelled': 'muted'} %}
+{% set labels = {'queued': _('Queued'), 'running': _('Running'), 'completed': _('Completed'), 'partial': _('Completed with gaps'), 'failed': _('Failed'), 'cancelled': _('Cancelled')} %}
+{% set source_names = {'ctlogs': 'ctlogs.dev', 'certspotter': 'CertSpotter', 'crtsh': 'crt.sh'} %}
+{% set reasons = {'rate_limited': _('Rate limited'), 'forbidden': _('Not allowed without a valid key'), 'invalid_key': _('API key rejected'), 'timeout': _('Timed out'), 'budget_exceeded': _('Took too long'), 'connection_failed': _('Connection failed'), 'invalid_response': _('Unexpected response'), 'response_too_large': _('Response too large'), 'pagination_stalled': _('Paging did not advance'), 'internal_error': _('Internal error')} %}
+{% macro reason_text(code) -%}
+{%- if code in reasons %}{{ reasons[code] }}{% elif code.startswith('http_') %}{{ _('HTTP error %(code)s', code=code[5:]) }}{% else %}{{ code }}{% endif -%}
+{%- endmacro %}
+{# Polled by HTMX while a scan is active; once it finishes the attributes disappear and polling stops. #}
+<section id="scan-panel" class="mt-6" aria-live="polite" aria-busy="{{ 'true' if overview and overview.is_active else 'false' }}"
+  {% if overview and overview.is_active %}hx-get="{{ url_for('assessments.scan_panel', assessment_id=assessment.id, q=q or none, page=page if page > 1 else none) }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+{% if not overview %}
+  <div class="panel p-5 text-sm text-muted">{{ _('No scan has run yet. Start one to discover and review the hosts of this domain.') }}</div>
+{% else %}
+  {% set scan = overview.scan %}
+  {% set progress = overview.progress %}
+  <div class="panel p-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <h2>{{ _('Latest scan') }}</h2>
+        {{ badge(labels[scan.status], tones[scan.status]) }}
+      </div>
+      <p class="text-sm text-muted">
+        {{ _('Queued') }} <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+        {% if scan.finished_at %} · {{ _('finished') }} <time datetime="{{ scan.finished_at.isoformat() }}">{{ scan.finished_at.strftime('%H:%M:%S') }} UTC</time>{% endif %}
+      </p>
+    </div>
+    <dl class="mt-4 grid gap-4 sm:grid-cols-3">
+      <div><dt>{{ _('Hosts') }}</dt><dd class="text-lg font-semibold">{{ progress.hosts }}</dd></div>
+      <div><dt>{{ _('Checks done') }}</dt><dd class="text-lg font-semibold">{{ progress.checks_done }} / {{ progress.checks_total }}</dd></div>
+      <div><dt>{{ _('Checks with problems') }}</dt><dd class="text-lg font-semibold">{{ progress.checks_problem }}</dd></div>
+    </dl>
+    {% if overview.is_active %}
+    <progress class="mt-4" max="100" value="{{ progress.percent }}" aria-label="{{ _('Scan progress') }}">{{ progress.percent }}%</progress>
+    {% endif %}
+  </div>
+
+  {% if overview.waiting_for_worker %}
+  <div class="mt-4">{{ notice(_('Waiting for a worker'), _('No worker has picked this scan up yet. Start one with: flask worker'), 'warning') }}</div>
+  {% endif %}
+  {% if overview.discovery_failed %}
+  <div class="mt-4">{{ notice(_('No certificate source answered'), _('Only the domain itself and www were reviewed. Add hosts by hand below, or run the scan again later.'), 'warning') }}</div>
+  {% endif %}
+  {% if overview.coverage_gaps %}
+  {% set gaps = namespace(names=[]) %}
+  {% for line in overview.coverage_gaps %}{% set gaps.names = gaps.names + [source_names.get(line.source, line.source)] %}{% endfor %}
+  <div class="mt-4">{{ notice(_('Discovery may be incomplete'), _('Not every certificate source delivered everything (%(sources)s). Hosts that only those sources know are missing from this list; run the scan again later to fill the gap.', sources=gaps.names|join(', ')), 'warning') }}</div>
+  {% endif %}
+  {% if overview.dropped_by_cap %}
+  <div class="mt-4">{{ notice(_('Some hosts were not reviewed'), _('%(count)s hosts exceeded the limit of %(limit)s per scan.', count=overview.dropped_by_cap, limit=scan.options.get('max_hosts')), 'warning') }}</div>
+  {% endif %}
+
+  {% if overview.sources %}
+  <div class="panel mt-4">
+    <div class="section-head"><h2>{{ _('Discovery sources') }}</h2>
+      <p class="text-sm text-muted">{{ _('%(names)s certificate names seen · %(out)s outside the domain ignored · %(wild)s wildcard patterns noted, not scanned', names=overview.names_seen, out=overview.out_of_scope, wild=overview.wildcard_patterns|length) }}</p></div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <caption class="sr-only">{{ _('What each Certificate Transparency source reported') }}</caption>
+        <thead><tr><th scope="col">{{ _('Source') }}</th><th scope="col">{{ _('Result') }}</th><th scope="col">{{ _('Names') }}</th><th scope="col">{{ _('Pages') }}</th></tr></thead>
+        <tbody>
+          {% for line in overview.sources %}
+          <tr>
+            <td>{{ source_names.get(line.source, line.source) }}</td>
+            <td>
+              {% if line.status == 'ok' %}{{ badge(_('Answered') ~ (' · ' ~ _('partial') if line.truncated else ''), 'medium' if line.truncated else 'ok') }}
+              {% elif line.status == 'unavailable' %}{{ badge(_('Unavailable'), 'medium') }}{% else %}{{ badge(_('Failed'), 'high') }}{% endif %}
+              {% if line.reason %}<span class="ml-1 text-sm text-muted">{{ reason_text(line.reason) }}</span>{% endif %}
+            </td>
+            <td>{{ line.names }}</td>
+            <td>{{ line.pages }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% set hosts = overview.hosts %}
+  <div class="panel mt-4">
+    <div class="section-head">
+      <h2>{{ _('Hosts') }} <span class="text-sm font-normal text-muted">({{ hosts.total }})</span></h2>
+      <form method="get" class="flex gap-2" role="search">
+        <label class="sr-only" for="host-q">{{ _('Filter hosts') }}</label>
+        <input id="host-q" name="q" type="search" value="{{ q }}" placeholder="{{ _('Filter by hostname') }}" maxlength="100">
+        <button class="btn btn-secondary" type="submit">{{ _('Filter') }}</button>
+      </form>
+    </div>
+    {% if hosts.rows %}
+    <div class="table-scroll">
+      <table class="data-table">
+        <caption class="sr-only">{{ _('Hosts of the latest scan') }}</caption>
+        <thead><tr><th scope="col">{{ _('Hostname') }}</th><th scope="col">{{ _('Found by') }}</th><th scope="col">{{ _('Last seen in certificates') }}</th><th scope="col">{{ _('Checks') }}</th></tr></thead>
+        <tbody>
+          {% for host in hosts.rows %}
+          <tr>
+            <td><bdi class="font-mono">{{ host.hostname }}</bdi></td>
+            <td>
+              {% if host.source == 'ct' %}{{ _('Certificate Transparency') }}{% if host.ct_sources %} <span class="text-muted">({{ host.ct_sources|map('replace', 'ctlogs', 'ctlogs.dev')|join(', ') }})</span>{% endif %}
+              {% elif host.source == 'apex' %}{{ _('The domain itself') }}
+              {% elif host.source == 'manual' %}{{ _('Added by hand') }}
+              {% else %}{{ _('Fallback (no source answered)') }}{% endif %}
+            </td>
+            <td>{% if host.last_seen %}<time datetime="{{ host.last_seen.isoformat() }}">{{ host.last_seen.strftime('%Y-%m-%d') }}</time>{% else %}—{% endif %}</td>
+            <td>
+              {% set summary = overview.host_checks.get(host.id) %}
+              {% if summary %}{% for status, count in summary.items() %}<span class="mr-1">{{ badge(count ~ ' ' ~ status, 'ok' if status == 'ok' else 'muted' if status in ['queued', 'running', 'skipped', 'no_data'] else 'high') }}</span>{% endfor %}{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if hosts.pages > 1 %}
+    <nav class="flex items-center justify-between gap-3 border-t border-line px-4 py-3 text-sm" aria-label="{{ _('Pages') }}">
+      <span class="text-muted">{{ _('Page %(page)s of %(pages)s', page=hosts.page, pages=hosts.pages) }}</span>
+      <span class="flex gap-2">
+        {% if hosts.page > 1 %}<a class="btn btn-secondary" href="{{ url_for('assessments.detail', assessment_id=assessment.id, q=q or none, page=hosts.page - 1 if hosts.page > 2 else none) }}">{{ _('Previous') }}</a>{% endif %}
+        {% if hosts.page < hosts.pages %}<a class="btn btn-secondary" href="{{ url_for('assessments.detail', assessment_id=assessment.id, q=q or none, page=hosts.page + 1) }}">{{ _('Next') }}</a>{% endif %}
+      </span>
+    </nav>
+    {% endif %}
+    {% else %}
+    <p class="p-5 text-sm text-muted">{% if q %}{{ _('No host matches this filter.') }}{% elif overview.is_active %}{{ _('Hosts appear here as discovery finishes.') }}{% else %}{{ _('This scan has no hosts.') }}{% endif %}</p>
+    {% endif %}
+  </div>
+{% endif %}
+</section>

@@ -6,10 +6,10 @@ import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseUUIDModel, TimestampMixin, sql_in
+from app.models.base import JSONB_EMPTY_ARRAY, BaseUUIDModel, TimestampMixin, sql_in
 
 if TYPE_CHECKING:
     from app.models.scan import Scan
@@ -31,6 +31,10 @@ class Assessment(BaseUUIDModel, TimestampMixin):
         ForeignKey("user.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
+    )
+    # Hostnames an analyst added by hand (e.g. when CT is down); they join every new scan.
+    manual_hosts: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=JSONB_EMPTY_ARRAY
     )
 
     scans: Mapped[list[Scan]] = relationship(

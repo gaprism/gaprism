@@ -74,7 +74,7 @@
 
 ### CT discovery sources (S1.2)
 
-Default `CT_MODE=union`: every enabled source runs, names are merged and deduplicated, and the UI shows what each source contributed. A failing source never fails the scan.
+Default `CT_MODE=union`: every enabled source runs (in parallel, within `DISCOVERY_BUDGET_SECONDS`), names are merged and deduplicated, and the UI shows what each source contributed. A failing or slow source never fails the scan; the UI then warns that discovery may be incomplete.
 
 | Source | Endpoint | Auth | Limits seen / documented | History | Notes |
 |---|---|---|---|---|---|

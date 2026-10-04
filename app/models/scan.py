@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,7 +46,17 @@ class Scan(BaseUUIDModel, TimestampMixin):
 
     assessment: Mapped[Assessment] = relationship("Assessment", back_populates="scans")
 
-    __table_args__ = (CheckConstraint(sql_in("status", SCAN_STATUSES), name="ck_scan_status"),)
+    __table_args__ = (
+        CheckConstraint(sql_in("status", SCAN_STATUSES), name="ck_scan_status"),
+        # At most one queued or running scan per assessment, enforced by the database so that two
+        # simultaneous "start scan" requests cannot both succeed.
+        Index(
+            "uq_scan_active_per_assessment",
+            "assessment_id",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ),
+    )
 
     @property
     def is_terminal(self) -> bool:

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from datetime import UTC, datetime
 
 import httpx
@@ -10,6 +12,7 @@ import pytest
 
 from app.config import CT_SOURCE_KEYS
 from app.service.discovery import canonicalise_domain, merge_outcomes, normalise_name, run_discovery
+from app.service.discovery.service import DiscoveryMode
 from app.service.discovery.sources import SOURCE_KEYS, build_sources
 from app.service.discovery.sources.base import DiscoveredName, SourceOutcome
 
@@ -173,6 +176,89 @@ def test_first_mode_stops_after_the_first_source_that_answers() -> None:
     result = run_discovery(SCOPE, sources, mode="first")
     assert [len(s.calls) for s in sources] == [1, 1, 0]
     assert [host.hostname for host in result.hosts] == ["x.example.com"]
+
+
+class BarrierSource:
+    """Answers only once every source of the barrier is running at the same time."""
+
+    def __init__(self, key: str, barrier: threading.Barrier, *names: str) -> None:
+        self.key = key
+        self.barrier = barrier
+        self.names = names
+
+    def fetch(self, domain: str) -> SourceOutcome:
+        self.barrier.wait(timeout=5)  # run one after the other, this would break
+        return outcome(self.key, *self.names)
+
+
+class StuckSource:
+    """Does not answer until the test lets it."""
+
+    key = "stuck"
+
+    def __init__(self) -> None:
+        self.release = threading.Event()
+
+    def fetch(self, domain: str) -> SourceOutcome:
+        self.release.wait(timeout=10)
+        return outcome(self.key, "late.example.com")
+
+
+class CrashingSource:
+    key = "boom"
+
+    def fetch(self, domain: str) -> SourceOutcome:
+        raise RuntimeError("provider bug")
+
+
+def test_union_asks_the_sources_at_the_same_time() -> None:
+    barrier = threading.Barrier(3)
+    sources = [
+        BarrierSource("a", barrier, "x.example.com"),
+        BarrierSource("b", barrier, "y.example.com"),
+        BarrierSource("c", barrier),
+    ]
+    result = run_discovery(SCOPE, sources, mode="union", budget_seconds=10)
+    assert [(o.source, o.status) for o in result.outcomes] == [
+        ("a", "ok"),
+        ("b", "ok"),
+        ("c", "ok"),
+    ]
+    assert sorted(host.hostname for host in result.hosts) == ["x.example.com", "y.example.com"]
+
+
+def test_a_source_over_the_budget_is_reported_and_does_not_hold_the_scan_up() -> None:
+    stuck = StuckSource()
+    fast = FakeSource("fast", outcome("fast", "x.example.com"))
+    started = time.monotonic()
+    try:
+        # The stuck source comes first: after its deadline passes, the fast answer must still count.
+        result = run_discovery(SCOPE, [stuck, fast], mode="union", budget_seconds=0.3)
+    finally:
+        stuck.release.set()
+    assert time.monotonic() - started < 5  # waited for the budget, not for the stuck source
+
+    assert [(o.source, o.status, o.reason_code) for o in result.outcomes] == [
+        ("stuck", "error", "budget_exceeded"),
+        ("fast", "ok", None),
+    ]
+    assert [host.hostname for host in result.hosts] == [
+        "x.example.com"
+    ]  # the late answer is ignored
+
+
+@pytest.mark.parametrize("mode", ["union", "first"])
+def test_a_crashing_source_is_reported_and_the_others_still_count(
+    mode: DiscoveryMode, caplog: pytest.LogCaptureFixture
+) -> None:
+    sources = [CrashingSource(), FakeSource("b", outcome("b", "x.example.com"))]
+    result = run_discovery(SCOPE, sources, mode=mode)
+    assert [(o.source, o.status, o.reason_code) for o in result.outcomes] == [
+        ("boom", "error", "internal_error"),
+        ("b", "ok", None),
+    ]
+    assert [host.hostname for host in result.hosts] == ["x.example.com"]
+    assert "CT source boom crashed" in caplog.text
 
 
 def test_sources_are_built_from_config_in_the_configured_order() -> None:

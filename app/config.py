@@ -1,6 +1,7 @@
 """Centralized, validated environment configuration profiles."""
 
 import datetime
+import math
 import os
 import re
 from copy import deepcopy
@@ -95,6 +96,9 @@ class BaseConfig:
     CT_MODE: str = "union"
     CTLOGS_API_KEY: str = ""  # optional: lifts the keyless page and rate limits
     CERTSPOTTER_TOKEN: str = ""  # optional: raises the unauthenticated rate limit
+    # Total time discovery waits for its sources (they run in parallel); a slower source is
+    # reported as "budget_exceeded" instead of holding the scan up.
+    DISCOVERY_BUDGET_SECONDS: float = 45.0
 
     # Outgoing requests to public provider APIs
     USER_AGENT: str = "WebDueDiligence/0.1 (+https://github.com/stalpers/web_due_diligence)"
@@ -188,9 +192,15 @@ def validate_config(config_obj: Any) -> None:
         )
     if getattr(config_obj, "CT_MODE", "") not in ("union", "first"):
         raise ConfigurationError("CT_MODE must be 'union' or 'first'.")
-    timeout = getattr(config_obj, "PROVIDER_TIMEOUT_SECONDS", 0)
-    if not isinstance(timeout, int | float) or isinstance(timeout, bool) or timeout <= 0:
-        raise ConfigurationError("PROVIDER_TIMEOUT_SECONDS must be a positive number.")
+    for name in ("PROVIDER_TIMEOUT_SECONDS", "DISCOVERY_BUDGET_SECONDS"):
+        number = getattr(config_obj, name, 0)
+        if (
+            not isinstance(number, int | float)
+            or isinstance(number, bool)
+            or not math.isfinite(number)
+            or number <= 0
+        ):
+            raise ConfigurationError(f"{name} must be a positive number.")
 
     if not isinstance(auth_rate_limit_failures, int) or auth_rate_limit_failures <= 0:
         raise ConfigurationError("AUTH_RATE_LIMIT_FAILURES must be a positive integer.")
@@ -260,6 +270,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "CERTSPOTTER_TOKEN": "CERTSPOTTER_TOKEN",
             "USER_AGENT": "USER_AGENT",
             "PROVIDER_TIMEOUT_SECONDS": "PROVIDER_TIMEOUT_SECONDS",
+            "DISCOVERY_BUDGET_SECONDS": "DISCOVERY_BUDGET_SECONDS",
         }
         for key, env_key in environment_keys.items():
             if env_key not in os.environ:
