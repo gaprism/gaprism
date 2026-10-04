@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import ipaddress
 import socket
@@ -262,8 +263,12 @@ def probe_tls_endpoint(
         or "HOSTNAME_MISMATCH" in str(failure_reasons)
         or "TLS_HANDSHAKE_FAILED" in str(failure_reasons)
     ):
-        try:
-            unverified_context = ssl._create_unverified_context()
+        # Best effort: the verified attempt already failed, so network and TLS errors here only
+        # mean that no forensic metadata is available. SSRF violations still propagate.
+        with contextlib.suppress(OSError):
+            # Reads certificate facts only; nothing is sent and nothing from this connection is
+            # trusted (hence no verification). `is_valid` stays False.
+            unverified_context = ssl._create_unverified_context()  # noqa: S323
             with socket.create_connection((connect_host, port), timeout=timeout) as unverified_sock:
                 if ipaddress.ip_address(unverified_sock.getpeername()[0]) != ipaddress.ip_address(
                     connect_host
@@ -281,8 +286,6 @@ def probe_tls_endpoint(
                         cipher_suite = cipher_info[0]
                     protocol_version = ssock.version()
                     alpn_negotiated = ssock.selected_alpn_protocol()
-        except Exception:
-            pass
 
     # 3. Parse certificate metadata if available
     cert_meta: dict[str, Any] = {}

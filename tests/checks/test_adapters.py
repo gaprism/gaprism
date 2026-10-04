@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import httpx
 
 from app.service.checks.geoip import lookup_geoip
@@ -14,10 +16,16 @@ from app.service.checks.shodan import lookup_shodan_host
 from app.service.checks.webrisk import lookup_threat_uri
 
 
+def _geoip_client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
+    """An HTTP client that answers from ``handler``; unit tests never reach the network."""
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
 class TestGeoIPAdapter:
     def test_missing_dataset_never_fabricates_a_location(self) -> None:
+        """No dataset and no API fallback means "unlicensed", not a guessed location."""
         for address in ("193.134.1.1", "194.12.1.1", "8.8.8.8"):
-            res = lookup_geoip(address)
+            res = lookup_geoip(address, allow_fallback=False)
             assert res.status == "unlicensed"
             assert res.verdict == "unknown"
             assert res.iso_country_code is None
@@ -26,10 +34,59 @@ class TestGeoIPAdapter:
             assert len(findings) == 1
             assert findings[0].rule_id == "COLLECTION_INCOMPLETE"
 
-    def test_legacy_fallback_flag_cannot_emit_synthetic_evidence(self) -> None:
-        res = lookup_geoip("193.134.1.1", allow_fallback=True)
-        assert res.status == "unlicensed"
-        assert res.verdict == "unknown"
+    def test_api_fallback_maps_the_provider_response(self) -> None:
+        """The keyless API fallback (enabled by default) is mocked: no network in unit tests."""
+        seen: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(str(request.url))
+            return httpx.Response(
+                200,
+                json={
+                    "success": True,
+                    "country_code": "CH",
+                    "country": "Switzerland",
+                    "city": "Zurich",
+                    "is_eu": False,
+                    "connection": {"asn": 3303, "org": "Swisscom"},
+                },
+            )
+
+        res = lookup_geoip("193.134.1.1", http_client=_geoip_client(handler))
+        assert seen == ["https://ipwho.is/193.134.1.1"]
+        assert (res.status, res.verdict) == ("succeeded", "match")
+        assert (res.iso_country_code, res.city_name, res.asn, res.as_org) == (
+            "CH",
+            "Zurich",
+            3303,
+            "Swisscom",
+        )
+
+    def test_api_fallback_failures_are_typed_not_empty(self) -> None:
+        """Rate limits, provider failures and junk responses never look like "no location"."""
+        cases = {
+            "provider_rate_limited": httpx.Response(429),
+            "provider_http_503": httpx.Response(503),
+            "invalid_provider_response": httpx.Response(200, text="<html>not json</html>"),
+            "provider_lookup_failed": httpx.Response(200, json={"success": False}),
+        }
+        for reason, response in cases.items():
+            res = lookup_geoip("8.8.8.8", http_client=_geoip_client(lambda _, r=response: r))
+            assert (res.status, res.reason_code, res.verdict) == ("failed", reason, "unknown")
+
+    def test_api_fallback_network_errors_are_typed(self) -> None:
+        def timeout(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("slow", request=request)
+
+        def refused(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("refused", request=request)
+
+        assert lookup_geoip("8.8.8.8", http_client=_geoip_client(timeout)).reason_code == (
+            "provider_timeout"
+        )
+        assert lookup_geoip("8.8.8.8", http_client=_geoip_client(refused)).reason_code == (
+            "provider_unavailable"
+        )
 
     def test_private_ip_rejected(self) -> None:
         res = lookup_geoip("192.168.1.1")

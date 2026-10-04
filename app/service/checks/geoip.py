@@ -57,6 +57,7 @@ def lookup_geoip(
     ip_str: str,
     db_path: str | None = None,
     allow_fallback: bool = True,
+    http_client: httpx.Client | None = None,
 ) -> GeoIPResult:
     """Lookup geographical location and ASN for an IP address.
 
@@ -107,18 +108,15 @@ def lookup_geoip(
 
     url = f"https://ipwho.is/{clean_ip}"
 
+    client = http_client or httpx.Client(timeout=httpx.Timeout(5.0), follow_redirects=False)
     try:
-        with httpx.Client(
-            timeout=httpx.Timeout(5.0),
-            follow_redirects=False,
-        ) as client:
-            response = client.get(
-                url,
-                headers={
-                    "Accept": "application/json",
-                    "User-Agent": "geoip-lookup/1.0",
-                },
-            )
+        response = client.get(
+            url,
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "geoip-lookup/1.0",
+            },
+        )
 
     except httpx.TimeoutException:
         return GeoIPResult(
@@ -135,6 +133,9 @@ def lookup_geoip(
             reason_code="provider_unavailable",
             verdict="unknown",
         )
+    finally:
+        if http_client is None:
+            client.close()
 
     if response.status_code == 429:
         return GeoIPResult(

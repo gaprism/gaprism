@@ -1,60 +1,80 @@
-"""Pytest fixtures for the SaaS Due Diligence Platform."""
+"""Pytest fixtures: one PostgreSQL schema per test session, a rollback per test.
+
+The database role only needs to be allowed to create schemas in the test database (the
+database owner is); no CREATEDB or superuser rights are required. The harness creates a
+throwaway schema ``t_<random>``, runs the real migrations in it and drops it afterwards, so
+it never touches existing schemas. Tests that need the database are skipped when
+``TEST_DATABASE_URL`` is not set.
+"""
 
 import os
-import re
+import uuid
 from collections.abc import Generator
-from pathlib import Path
 from typing import Any, cast
 
 import pytest
 import sqlalchemy as sa
+from dotenv import dotenv_values
 from flask import Flask
 from flask.testing import FlaskClient, FlaskCliRunner
-from flask_migrate import downgrade, upgrade
+from flask_migrate import upgrade
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
-from app import create_app
-from app.config import TestingConfig
 from app.extensions import db
+from tests.helpers import MIGRATIONS_DIRECTORY, PROJECT_ROOT, make_app
 
-MIGRATIONS_DIRECTORY = Path(__file__).resolve().parents[1] / "migrations"
 
-
-class PostgresTestingConfig(TestingConfig):
-    """Testing configuration pointing to accessible PostgreSQL instance."""
-
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "TEST_DATABASE_URL",
-        "",
-    )
+def _test_database_url() -> str | None:
+    """Read TEST_DATABASE_URL from the environment, falling back to the git-ignored .env."""
+    url = os.environ.get("TEST_DATABASE_URL")
+    if url:
+        return url
+    return dotenv_values(PROJECT_ROOT / ".env").get("TEST_DATABASE_URL") or None
 
 
 @pytest.fixture(scope="session")
-def app() -> Generator[Flask, None, None]:
-    """Session-scoped Flask application instance configured for tests."""
-    test_url = PostgresTestingConfig.SQLALCHEMY_DATABASE_URI
-    if not test_url:
-        pytest.fail("Set TEST_DATABASE_URL to a newly created disposable test database.")
-    parsed = sa.engine.make_url(test_url)
-    if not re.fullmatch(r"due_diligence_test_[a-f0-9]{32}", parsed.database or ""):
-        pytest.fail("Test database name must be due_diligence_test_<32 random hex characters>.")
-    test_app = create_app(PostgresTestingConfig)
+def database_url() -> str:
+    """Connection URL of the test database; DB tests are skipped without one."""
+    url = _test_database_url()
+    if not url:
+        pytest.skip("TEST_DATABASE_URL is not set (see .env.example); database tests skipped")
+    name = sa.engine.make_url(url).database or ""
+    if "test" not in name:
+        pytest.fail("TEST_DATABASE_URL must point to a database whose name contains 'test'.")
+    return url
+
+
+@pytest.fixture(scope="session")
+def schema_name(database_url: str) -> Generator[str, None, None]:
+    """A throwaway schema that exists for the whole test session."""
+    name = f"t_{uuid.uuid4().hex[:12]}"
+    engine = sa.create_engine(database_url)
+    with engine.begin() as connection:
+        connection.execute(sa.text(f'CREATE SCHEMA "{name}"'))
+    try:
+        yield name
+    finally:
+        with engine.begin() as connection:
+            connection.execute(sa.text(f'DROP SCHEMA IF EXISTS "{name}" CASCADE'))
+        engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def app(database_url: str, schema_name: str) -> Generator[Flask, None, None]:
+    """Session-scoped application with the migrated schema."""
+    test_app = make_app(database_url, schema_name)
     with test_app.app_context():
-        if sa.inspect(db.engine).get_table_names():
-            pytest.fail("Refusing to run against a non-empty database.")
         upgrade(directory=str(MIGRATIONS_DIRECTORY))
         try:
             yield test_app
         finally:
             db.session.remove()
-            # The database name and initial emptiness were verified above. Use the
-            # migration downgrade path so teardown also exercises the real schema.
-            downgrade(directory=str(MIGRATIONS_DIRECTORY), revision="base")
+            db.engine.dispose()
 
 
 @pytest.fixture
 def client(app: Flask) -> FlaskClient:
-    """HTTP client fixture for API and route testing."""
+    """HTTP client fixture for route testing."""
     return app.test_client()
 
 
@@ -66,7 +86,7 @@ def cli_runner(app: Flask) -> FlaskCliRunner:
 
 @pytest.fixture
 def db_session(app: Flask) -> Generator[Session, None, None]:
-    """Transactional database session fixture providing rollback isolation per test."""
+    """Session whose changes, commits included, are rolled back after each test."""
     with app.app_context():
         connection = db.engine.connect()
         transaction = connection.begin()

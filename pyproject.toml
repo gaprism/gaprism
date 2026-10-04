@@ -43,14 +43,18 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Alembic scripts are generated and frozen; archived docs hold historical code.
+extend-exclude = ["migrations/versions", "docs"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "B", "UP", "RUF", "S"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-# Test code uses asserts and fixture secrets by design.
-"tests/**" = ["S101", "S105", "S106"]
+# Placeholder secrets for development and tests; validate_config() rejects them in production.
+"app/config.py" = ["S105"]
+# Tests use asserts, fixture secrets, "0.0.0.0" literals and subprocess probes by design.
+"tests/**" = ["S101", "S104", "S105", "S106", "S110", "S603"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app", "runner"]

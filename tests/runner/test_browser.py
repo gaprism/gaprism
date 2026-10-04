@@ -11,9 +11,9 @@ import pytest
 
 pytest.importorskip("playwright.sync_api", reason="needs the 'screenshots' extra (roadmap S4.6)")
 
-from playwright.sync_api import Route, sync_playwright  # noqa: E402
+from playwright.sync_api import Route, sync_playwright
 
-from runner.browser import _is_safe_host, capture_screenshot  # noqa: E402
+from runner.browser import _is_safe_host, capture_screenshot
 
 
 class EphemeralHTTPServer:
