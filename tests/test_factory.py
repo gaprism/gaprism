@@ -178,6 +178,21 @@ def test_the_discovery_budget_can_be_set_from_the_environment(
         create_app("development")
 
 
+@pytest.mark.parametrize("setting", ["WORKER_THREADS", "PER_TARGET_CONCURRENCY"])
+@pytest.mark.parametrize("bad", [0, -1, 65, True, "8"])
+def test_worker_limits_must_be_small_positive_integers(setting: str, bad: object) -> None:
+    config = type("BadWorker", (TestingConfig,), {setting: bad})
+    with pytest.raises(ConfigurationError, match=f"{setting} must be an integer from 1 to 64"):
+        validate_config(config)
+
+
+def test_worker_limits_can_be_set_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WORKER_THREADS", "3")
+    monkeypatch.setenv("PER_TARGET_CONCURRENCY", "2")
+    config = create_app("development").config
+    assert (config["WORKER_THREADS"], config["PER_TARGET_CONCURRENCY"]) == (3, 2)
+
+
 def test_ct_settings_are_validated() -> None:
     class UnknownSource(TestingConfig):
         CT_SOURCES: ClassVar[list[str]] = ["ctlogs", "nonsense"]

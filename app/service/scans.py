@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -301,6 +301,31 @@ def list_hosts(
 
 
 # --------------------------------------------------------------------------- completion
+
+
+def cancel_active_scan(session: Session, assessment_id: Any) -> bool:
+    """Cancel the queued or running scan of an assessment; the caller commits.
+
+    Queued checks are skipped (reason ``scan_cancelled``). Checks that already run finish and
+    keep their results, but no further host tasks are created. Returns whether a scan was
+    cancelled.
+    """
+    scan: Scan | None = session.scalar(
+        select(Scan)
+        .where(Scan.assessment_id == assessment_id, Scan.status.in_(ACTIVE_SCAN_STATUSES))
+        .with_for_update()
+    )
+    if scan is None:
+        return False
+    now = utc_now()
+    session.execute(
+        update(CheckResult)
+        .where(CheckResult.scan_id == scan.id, CheckResult.status == "queued")
+        .values(status="skipped", reason_code="scan_cancelled", collected_at=now)
+    )
+    scan.status = "cancelled"
+    scan.finished_at = now
+    return True
 
 
 def finalize_scan_if_done(session: Session, scan_id: Any) -> Scan | None:

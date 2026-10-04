@@ -119,6 +119,20 @@ def start_scan(assessment_id: uuid.UUID) -> Response:
     return redirect(url_for("assessments.detail", assessment_id=assessment.id))
 
 
+@assessments_bp.post("/<uuid:assessment_id>/scans/cancel")
+@login_required
+def cancel_scan(assessment_id: uuid.UUID) -> Response:
+    """Stop the running scan: queued checks are skipped, running ones finish."""
+    assessment = _get_accessible(assessment_id)
+    if scan_service.cancel_active_scan(db.session(), assessment.id):
+        db.session.commit()
+        flash(_("Scan cancelled. Checks that were already running will finish."), "info")
+    else:
+        db.session.rollback()
+        flash(_("There is no running scan to cancel."), "warning")
+    return redirect(url_for("assessments.detail", assessment_id=assessment.id))
+
+
 @assessments_bp.post("/<uuid:assessment_id>/hosts")
 @login_required
 def add_hosts(assessment_id: uuid.UUID) -> Response:

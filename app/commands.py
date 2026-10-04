@@ -41,12 +41,20 @@ def register_cli_commands(app: Flask) -> None:
         help="Seconds to wait when the queue is empty.",
     )
     @click.option("--worker-id", default=None, help="Name shown in task locks (default: host:pid).")
-    def worker(once: bool, poll_interval: float, worker_id: str | None) -> None:
+    @click.option(
+        "--threads",
+        default=None,
+        type=click.IntRange(1, 64),
+        help="Checks to run at the same time (default: WORKER_THREADS).",
+    )
+    def worker(
+        once: bool, poll_interval: float, worker_id: str | None, threads: int | None
+    ) -> None:
         """Run the scan worker: claim queued checks, run them, store the outcomes."""
         click.echo("Worker started." if not once else "Processing queued work.")
         try:
             processed = worker_service.run_worker(
-                app, worker_id=worker_id, once=once, poll_interval=poll_interval
+                app, worker_id=worker_id, once=once, poll_interval=poll_interval, threads=threads
             )
         except KeyboardInterrupt:
             click.echo("Worker stopped.")

@@ -97,6 +97,26 @@ def test_a_second_scan_is_refused_while_one_is_active(signed_in: Any, db_session
     assert len(db_session.scalars(select(Scan)).all()) == 1
 
 
+def test_a_running_scan_can_be_cancelled(signed_in: Any, db_session: Session) -> None:
+    client, assessment, _ = signed_in
+    fresh = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "Cancel scan" not in fresh  # nothing to cancel yet
+
+    client.post(f"/assessments/{assessment.id}/scans")
+    page = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "Cancel scan" in page
+
+    response = client.post(f"/assessments/{assessment.id}/scans/cancel", follow_redirects=True)
+    after = response.get_data(as_text=True)
+    assert "Scan cancelled. Checks that were already running will finish." in after
+    assert "Cancelled" in after and "Cancel scan" not in after
+    assert "hx-trigger" not in after  # polling stops: the scan is over
+    assert db_session.scalars(select(Scan)).one().status == "cancelled"
+
+    again = client.post(f"/assessments/{assessment.id}/scans/cancel", follow_redirects=True)
+    assert "There is no running scan to cancel." in again.get_data(as_text=True)
+
+
 def test_a_lost_race_to_start_a_scan_is_reported_not_crashed(db_session: Session) -> None:
     """Two simultaneous requests: the database index lets exactly one scan through."""
     user = create_user(db_session)
@@ -263,13 +283,14 @@ def test_nothing_of_a_private_assessment_leaks_to_other_users(
         (client.get, f"/assessments/{private.id}"),
         (client.get, f"/assessments/{private.id}/scan-panel"),
         (client.post, f"/assessments/{private.id}/scans"),
+        (client.post, f"/assessments/{private.id}/scans/cancel"),
         (client.post, f"/assessments/{private.id}/hosts"),
         (client.post, f"/assessments/{private.id}/hosts/remove"),
     ]:
         assert method(path).status_code == 404, path
 
 
-@pytest.mark.parametrize("suffix", ["scans", "hosts", "hosts/remove"])
+@pytest.mark.parametrize("suffix", ["scans", "scans/cancel", "hosts", "hosts/remove"])
 def test_state_changing_routes_need_a_csrf_token(
     database_url: str, schema_name: str, suffix: str
 ) -> None:

@@ -86,6 +86,10 @@ class BaseConfig:
     # Scanning limits
     MAX_HOSTS_PER_RUN: int = 200
     MAX_DISCOVERY_PAGES: int = 50
+    # `flask worker` runs this many checks at once; PER_TARGET_CONCURRENCY caps how many of them
+    # may belong to the same scan (= the same assessed domain) so no target is flooded.
+    WORKER_THREADS: int = 8
+    PER_TARGET_CONCURRENCY: int = 4
     # Domains (and everything below them) that may never be assessed, e.g. your own
     # infrastructure. Comma-separated in the environment.
     BLOCKED_DOMAINS: ClassVar[list[str]] = []
@@ -183,6 +187,11 @@ def validate_config(config_obj: Any) -> None:
     if not isinstance(max_pages, int) or max_pages <= 0:
         raise ConfigurationError("MAX_DISCOVERY_PAGES must be a positive integer.")
 
+    for name in ("WORKER_THREADS", "PER_TARGET_CONCURRENCY"):
+        value = getattr(config_obj, name, 0)
+        if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 64:
+            raise ConfigurationError(f"{name} must be an integer from 1 to 64.")
+
     ct_sources = list(getattr(config_obj, "CT_SOURCES", []))
     unknown_sources = sorted(set(ct_sources) - set(CT_SOURCE_KEYS))
     if not ct_sources or unknown_sources:
@@ -263,6 +272,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "REQUIRE_MFA": "REQUIRE_MFA",
             "MAX_HOSTS_PER_RUN": "MAX_HOSTS_PER_RUN",
             "MAX_DISCOVERY_PAGES": "MAX_DISCOVERY_PAGES",
+            "WORKER_THREADS": "WORKER_THREADS",
+            "PER_TARGET_CONCURRENCY": "PER_TARGET_CONCURRENCY",
             "BLOCKED_DOMAINS": "BLOCKED_DOMAINS",
             "CT_SOURCES": "CT_SOURCES",
             "CT_MODE": "CT_MODE",

@@ -93,10 +93,10 @@ Deferred (kept in the archive, not deleted): RLS and per-report grants (INV-01/0
 - Add one or many hostnames (in scope only) and remove them; tagged `manual`; same checks as discovered hosts. This is the escape hatch when CT is down.
 
 **S1.4 Execution engine** (L) — depends on S0.2
-- `flask worker` claims `queued` `check_result` rows with `FOR UPDATE SKIP LOCKED` and runs registered checks in a thread pool (default 8).
-- Limits: per-check timeout, per-target concurrency (4), one rate limiter per external provider, host cap, stale-lock requeue after 10 min, cancel stops queued work.
+- `flask worker` claims `queued` `check_result` rows with `FOR UPDATE SKIP LOCKED` and runs registered checks in a thread pool (`WORKER_THREADS`, default 8; `--threads` overrides). A check starts only when the checks it `needs` for the same host are finished, so a dependent is never skipped because of timing.
+- Limits: per-target concurrency (`PER_TARGET_CONCURRENCY`, default 4 tasks of one scan at once per worker process), host cap, stale-lock requeue after 10 min, cancel (queued checks are skipped, running ones finish and keep their results). Each check bounds its own network time through the runner's deadlines; a check that hangs anyway is recovered by the stale-lock requeue. One rate limiter per external provider ships with its first consumer (S2.2).
 - Idempotent: unique `(scan, host, check)` means a retry cannot create a duplicate.
-- Test: kill the worker mid-scan, restart → the scan completes without duplicates; a 100-host synthetic scan finishes.
+- Test: stale-lock requeue and fencing (a late result of the old worker is discarded); a 60-host scan with 8 threads finishes with every check run exactly once and never more than the per-target limit at the same time.
 
 **S1.5 Progress UI** (M)
 - The scan page polls via HTMX every 2 s while running: scan state, discovered/finished counts, per-host status chips. Polling stops at a terminal state.
