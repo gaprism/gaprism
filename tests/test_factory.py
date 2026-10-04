@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from typing import ClassVar
 
 import pytest
 
@@ -134,6 +135,48 @@ def test_validate_production_config_valid() -> None:
         SQLALCHEMY_DATABASE_URI = "postgresql+psycopg://user:pass@localhost:5432/prod_db"
 
     validate_config(ValidProd)
+
+
+def test_empty_environment_values_keep_the_profile_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A .env copied from .env.example has empty lines; they must not wipe the defaults."""
+    for name in ("SECRET_KEY", "REQUIRE_MFA", "MAX_HOSTS_PER_RUN", "CT_SOURCES", "DATABASE_URL"):
+        monkeypatch.setenv(name, "")
+    monkeypatch.setenv("DB_SCHEMA", "")
+    app = create_app("development")
+    assert app.config["SECRET_KEY"] and "dev" in app.config["SECRET_KEY"]
+    assert app.config["MAX_HOSTS_PER_RUN"] == 200
+    assert app.config["CT_SOURCES"] == ["ctlogs", "certspotter", "crtsh"]
+    assert app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgresql")
+    assert app.config["DB_SCHEMA"] == ""
+
+
+def test_production_still_fails_fast_when_a_secret_is_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SECRET_KEY", "")
+    with pytest.raises(ConfigurationError, match="SECRET_KEY must be set in production"):
+        create_app("production")
+
+
+def test_ct_settings_are_validated() -> None:
+    class UnknownSource(TestingConfig):
+        CT_SOURCES: ClassVar[list[str]] = ["ctlogs", "nonsense"]
+
+    class NoSources(TestingConfig):
+        CT_SOURCES: ClassVar[list[str]] = []
+
+    class BadMode(TestingConfig):
+        CT_MODE = "everything"
+
+    for config, message in (
+        (UnknownSource, "unknown: nonsense"),
+        (NoSources, "at least one"),
+        (BadMode, "CT_MODE must be"),
+    ):
+        with pytest.raises(ConfigurationError, match=message):
+            validate_config(config)
 
 
 def test_healthz_endpoint_and_security_headers() -> None:

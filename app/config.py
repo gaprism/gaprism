@@ -14,6 +14,9 @@ class ConfigurationError(Exception):
 # A plain identifier: it ends up in a libpq `options` string, so nothing else is allowed.
 _SCHEMA_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,62}")
 
+# Names accepted in CT_SOURCES (kept here so that config validation needs no imports).
+CT_SOURCE_KEYS = ("ctlogs", "certspotter", "crtsh")
+
 
 class BaseConfig:
     """Shared base configuration settings."""
@@ -85,6 +88,17 @@ class BaseConfig:
     # Domains (and everything below them) that may never be assessed, e.g. your own
     # infrastructure. Comma-separated in the environment.
     BLOCKED_DOMAINS: ClassVar[list[str]] = []
+
+    # Certificate Transparency discovery. CT_SOURCES lists the sources in order; CT_MODE `union`
+    # asks every source and merges, `first` stops at the first that answers.
+    CT_SOURCES: ClassVar[list[str]] = ["ctlogs", "certspotter", "crtsh"]
+    CT_MODE: str = "union"
+    CTLOGS_API_KEY: str = ""  # optional: lifts the keyless page and rate limits
+    CERTSPOTTER_TOKEN: str = ""  # optional: raises the unauthenticated rate limit
+
+    # Outgoing requests to public provider APIs
+    USER_AGENT: str = "WebDueDiligence/0.1 (+https://github.com/stalpers/web_due_diligence)"
+    PROVIDER_TIMEOUT_SECONDS: float = 20.0
 
     # Anti-SSRF & network settings
     EGRESS_DNS_RESOLVERS: ClassVar[list[str]] = ["1.1.1.1", "8.8.8.8"]
@@ -165,6 +179,19 @@ def validate_config(config_obj: Any) -> None:
     if not isinstance(max_pages, int) or max_pages <= 0:
         raise ConfigurationError("MAX_DISCOVERY_PAGES must be a positive integer.")
 
+    ct_sources = list(getattr(config_obj, "CT_SOURCES", []))
+    unknown_sources = sorted(set(ct_sources) - set(CT_SOURCE_KEYS))
+    if not ct_sources or unknown_sources:
+        raise ConfigurationError(
+            f"CT_SOURCES must list at least one of {', '.join(CT_SOURCE_KEYS)}"
+            + (f" (unknown: {', '.join(unknown_sources)})." if unknown_sources else ".")
+        )
+    if getattr(config_obj, "CT_MODE", "") not in ("union", "first"):
+        raise ConfigurationError("CT_MODE must be 'union' or 'first'.")
+    timeout = getattr(config_obj, "PROVIDER_TIMEOUT_SECONDS", 0)
+    if not isinstance(timeout, int | float) or isinstance(timeout, bool) or timeout <= 0:
+        raise ConfigurationError("PROVIDER_TIMEOUT_SECONDS must be a positive number.")
+
     if not isinstance(auth_rate_limit_failures, int) or auth_rate_limit_failures <= 0:
         raise ConfigurationError("AUTH_RATE_LIMIT_FAILURES must be a positive integer.")
     if not isinstance(auth_rate_limit_window, int) or auth_rate_limit_window <= 0:
@@ -227,11 +254,22 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "MAX_HOSTS_PER_RUN": "MAX_HOSTS_PER_RUN",
             "MAX_DISCOVERY_PAGES": "MAX_DISCOVERY_PAGES",
             "BLOCKED_DOMAINS": "BLOCKED_DOMAINS",
+            "CT_SOURCES": "CT_SOURCES",
+            "CT_MODE": "CT_MODE",
+            "CTLOGS_API_KEY": "CTLOGS_API_KEY",
+            "CERTSPOTTER_TOKEN": "CERTSPOTTER_TOKEN",
+            "USER_AGENT": "USER_AGENT",
+            "PROVIDER_TIMEOUT_SECONDS": "PROVIDER_TIMEOUT_SECONDS",
         }
         for key, env_key in environment_keys.items():
             if env_key not in os.environ:
                 continue
             raw = os.environ[env_key]
+            if raw == "" and values[key] != "":
+                # An empty line in .env (copied from .env.example) means "not set": keep the
+                # profile default. Settings whose default is empty stay empty, so production
+                # still fails fast on a missing secret.
+                continue
             if isinstance(values[key], bool):
                 if raw.lower() not in ("true", "false", "1", "0"):
                     raise ConfigurationError(f"{env_key} must be true or false.")
@@ -241,6 +279,11 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
                     values[key] = int(raw)
                 except ValueError as exc:
                     raise ConfigurationError(f"{env_key} must be an integer.") from exc
+            elif isinstance(values[key], float):
+                try:
+                    values[key] = float(raw)
+                except ValueError as exc:
+                    raise ConfigurationError(f"{env_key} must be a number.") from exc
             elif isinstance(values[key], list):
                 values[key] = [part.strip().lower() for part in raw.split(",") if part.strip()]
             else:

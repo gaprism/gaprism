@@ -1,25 +1,27 @@
 """Discovery service module."""
 
-from app.service.discovery.ct import (
-    CTDiscoveryAdapter,
-    CTDiscoveryError,
-    CTEntry,
-    CTPagedResult,
-)
 from app.service.discovery.scope import (
     DomainScope,
     ScopeValidationError,
     canonicalise_domain,
     is_in_scope,
 )
+from app.service.discovery.service import (
+    DiscoveredHost,
+    DiscoveryResult,
+    merge_outcomes,
+    normalise_name,
+    run_discovery,
+)
 
 __all__ = [
-    "CTDiscoveryAdapter",
-    "CTDiscoveryError",
-    "CTEntry",
-    "CTPagedResult",
+    "DiscoveredHost",
+    "DiscoveryResult",
     "DomainScope",
     "ScopeValidationError",
     "canonicalise_domain",
     "is_in_scope",
+    "merge_outcomes",
+    "normalise_name",
+    "run_discovery",
 ]
