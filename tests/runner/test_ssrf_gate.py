@@ -1,6 +1,9 @@
 """Adversarial and functional test suite for the Anti-SSRF egress gate (NET-01, NET-02)."""
 
 import ipaddress
+import ssl
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 import pytest
@@ -219,6 +222,67 @@ class TestEgressHTTPClient:
         assert response.url == "https://target.example.com/home"
         assert len(response.redirect_history) == 1
         assert response.redirect_history[0] == ("https://origin.example.com/", "93.184.216.34")
+
+    @staticmethod
+    def _client(handler: Callable[[httpx.Request], httpx.Response], **options: Any) -> Any:
+        return EgressHTTPClient(
+            resolver_fn=lambda host: ["93.184.216.34"],
+            custom_transport=httpx.MockTransport(handler),
+            **options,
+        )
+
+    def test_raw_headers_keep_every_header_line_with_lower_case_names(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                headers=[("Set-Cookie", "a=1; Secure"), ("Set-Cookie", "b=2"), ("Server", "x")],
+                text="ok",
+            )
+
+        response = self._client(handler).get("https://example.com/")
+        cookies = [value for name, value in response.raw_headers if name == "set-cookie"]
+        assert cookies == ["a=1; Secure", "b=2"]  # the merged dict could only hold one of them
+        assert ("server", "x") in response.raw_headers
+
+    def test_truncate_body_cuts_and_flags_instead_of_failing(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b"x" * 5000)
+
+        cut = self._client(handler, max_response_bytes=1000, truncate_body=True).get(
+            "https://example.com/"
+        )
+        assert cut.truncated is True and len(cut.content) == 1000 and cut.status_code == 200
+        small = self._client(handler, max_response_bytes=10_000, truncate_body=True).get(
+            "https://example.com/"
+        )
+        assert small.truncated is False and len(small.content) == 5000
+
+    def test_an_oversized_body_still_fails_by_default(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b"x" * 5000)
+
+        with pytest.raises(SSRFBlockedError, match="byte limit"):
+            self._client(handler, max_response_bytes=1000).get("https://example.com/")
+
+    def test_a_redirect_is_returned_as_is_when_it_is_not_followed(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(302, headers={"Location": "https://elsewhere.example.net/"})
+
+        response = self._client(handler).get("https://example.com/", follow_redirects=False)
+        assert response.status_code == 302 and response.redirect_history == []
+        assert response.headers["location"] == "https://elsewhere.example.net/"
+
+    def test_certificate_verification_cannot_be_turned_off(self) -> None:
+        with pytest.raises(ValueError, match="cannot be disabled"):
+            EgressHTTPClient(verify=False)
+        EgressHTTPClient(
+            verify=ssl.create_default_context()
+        )  # a trust store of our choosing is fine
+
+    def test_limits_are_validated(self) -> None:
+        with pytest.raises(ValueError, match="positive"):
+            EgressHTTPClient(connect_timeout=0)
+        EgressHTTPClient(connect_timeout=3.0, timeout=20.0)
 
     def test_reject_non_http_schemes(self) -> None:
         client = EgressHTTPClient()

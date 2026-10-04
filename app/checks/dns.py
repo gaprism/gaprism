@@ -147,6 +147,40 @@ def _build_resolver(config: Mapping[str, Any]) -> ResolverLike:
     return resolver
 
 
+class ResolverCache:
+    """One resolver per (servers, timeout) configuration, shared by all threads."""
+
+    def __init__(self, factory: Callable[[Mapping[str, Any]], ResolverLike]) -> None:
+        self._factory = factory
+        self._resolvers: dict[tuple[tuple[str, ...], float], ResolverLike] = {}
+        self._lock = threading.Lock()
+
+    def get(self, config: Mapping[str, Any]) -> ResolverLike:
+        servers = tuple(str(server) for server in config.get("EGRESS_DNS_RESOLVERS", []))
+        timeout = float(config.get("DNS_TIMEOUT_SECONDS", 5.0))
+        with self._lock:
+            if (servers, timeout) not in self._resolvers:
+                self._resolvers[(servers, timeout)] = self._factory(config)
+            return self._resolvers[(servers, timeout)]
+
+
+SHARED_RESOLVERS = ResolverCache(_build_resolver)
+
+
+def lookup_addresses(resolver: ResolverLike, name: str, lifetime: float) -> list[str]:
+    """Every A and AAAA address of ``name`` (not screened: the caller's gate does that).
+
+    Empty when the name has none or the lookups failed; callers treat that as "cannot connect".
+    """
+    found: list[str] = []
+    for rdtype in ("A", "AAAA"):
+        for record in _lookup(resolver, name, rdtype, lifetime).records:
+            ip = str(record["ip"])
+            if ip not in found:
+                found.append(ip)
+    return found
+
+
 class DnsCheck:
     """Resolve a host: address records, the CNAME chain, MX, NS, TXT and CAA."""
 
@@ -157,23 +191,13 @@ class DnsCheck:
     def __init__(
         self, resolver_factory: Callable[[Mapping[str, Any]], ResolverLike] | None = None
     ) -> None:
-        self._factory = resolver_factory or _build_resolver
-        self._resolvers: dict[tuple[tuple[str, ...], float], ResolverLike] = {}
-        self._lock = threading.Lock()
-
-    def _resolver(self, config: Mapping[str, Any]) -> ResolverLike:
-        servers = tuple(str(server) for server in config.get("EGRESS_DNS_RESOLVERS", []))
-        timeout = float(config.get("DNS_TIMEOUT_SECONDS", 5.0))
-        with self._lock:
-            if (servers, timeout) not in self._resolvers:
-                self._resolvers[(servers, timeout)] = self._factory(config)
-            return self._resolvers[(servers, timeout)]
+        self._resolvers = ResolverCache(resolver_factory or _build_resolver)
 
     def run(self, ctx: CheckContext) -> CheckOutcome:
         host = (ctx.hostname or "").lower().rstrip(".")
         if not host:
             return CheckOutcome("error", "no_hostname")
-        resolver = self._resolver(ctx.config)
+        resolver = self._resolvers.get(ctx.config)
         lifetime = float(ctx.config.get("DNS_TIMEOUT_SECONDS", 5.0))
         servers = [str(server) for server in ctx.config.get("EGRESS_DNS_RESOLVERS", [])]
         source = ("dns:" + (",".join(servers) if servers else "system"))[:64]

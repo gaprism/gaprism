@@ -7,10 +7,11 @@ from collections.abc import Mapping
 from app.checks.base import Check, CheckContext, CheckOutcome, CheckScope, CheckStatus
 from app.checks.discovery import DiscoveryCheck
 from app.checks.dns import DnsCheck
+from app.checks.http import HttpCheck
 from app.checks.tls import TlsCheck
 
 REGISTRY: dict[str, Check] = {
-    check.key: check for check in (DiscoveryCheck(), DnsCheck(), TlsCheck())
+    check.key: check for check in (DiscoveryCheck(), DnsCheck(), TlsCheck(), HttpCheck())
 }
 
 # Discovery is the engine's first stage: it creates the hosts the other checks run for.
