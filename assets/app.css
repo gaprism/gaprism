@@ -1,0 +1,76 @@
+@import "tailwindcss" source(none);
+@import "./tokens.css";
+@source "../app/templates";
+@source "../app/static/js/preview.js";
+
+@layer base {
+  body { @apply bg-canvas text-ink font-sans text-base antialiased; }
+  button, a, input, select, summary { touch-action: manipulation; }
+  button:not(:disabled), summary { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  h1 { @apply text-2xl leading-8 font-semibold tracking-tight; overflow-wrap: anywhere; }
+  h2 { @apply text-lg leading-6 font-semibold; overflow-wrap: anywhere; }
+  h3 { @apply text-base font-semibold; overflow-wrap: anywhere; }
+  input, select { @apply min-h-10 rounded-md border border-control bg-panel px-3 text-base; }
+  input { min-width: 0; }
+  input[type=checkbox] { @apply min-h-0 size-5 accent-action; }
+  dt { @apply text-sm text-muted; }
+  dd { @apply mt-1 text-sm; overflow-wrap: anywhere; }
+  code, bdi { overflow-wrap: anywhere; }
+  [hidden] { display: none !important; }
+}
+
+@layer components {
+  .btn { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm leading-5 font-semibold no-underline; transition: background-color 120ms; }
+  .btn-primary { @apply border-action bg-action text-white hover:bg-action-hover; }
+  .btn-secondary { @apply border-control bg-panel text-ink hover:bg-subtle; }
+  .btn-quiet { @apply border-transparent text-muted hover:bg-subtle; }
+  .btn-destructive { @apply border-danger bg-danger text-white; }
+  .btn:disabled { @apply border-line bg-subtle text-muted; cursor: not-allowed; }
+  .panel { @apply min-w-0 rounded-lg border border-line bg-panel; }
+  .grid > * { min-width: 0; }
+  .section-head { @apply flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3; }
+  .eyebrow { @apply text-xs font-semibold uppercase tracking-widest text-muted; }
+  .nav-link { @apply flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-subtle; }
+  .nav-link[aria-current=page] { @apply bg-selected text-selected-ink; }
+  .tab { @apply inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted; }
+  .tab[aria-current=page] { @apply border-action text-action; }
+  .badge { @apply inline-flex items-center gap-1.5 rounded-sm border border-current/20 px-2 py-0.5 text-xs leading-5 font-medium whitespace-nowrap; }
+  .notice { @apply flex gap-3 rounded-md border-l-4 border-control bg-subtle px-4 py-3 text-sm leading-5; }
+  .link { @apply text-action underline decoration-action/40 underline-offset-4 hover:decoration-action; }
+  .table-scroll { @apply overflow-x-auto; }
+  .data-table { @apply w-full border-collapse text-left text-sm leading-5; }
+  .data-table th { @apply border-b border-line bg-canvas px-3 py-2 text-xs font-semibold text-muted; }
+  .data-table td { @apply border-b border-line px-3 py-2 align-top; }
+  .data-table tbody tr:last-child td { border-bottom: 0; }
+  .data-table tbody tr:hover { @apply bg-canvas; }
+  .data-table caption { @apply px-4 py-3 text-left text-sm text-muted; }
+  .field { @apply flex flex-col gap-1.5; }
+  .field label { @apply text-sm font-medium; }
+  .field-help { @apply text-sm text-muted; }
+  .skip { @apply fixed left-4 top-2 z-50 -translate-y-20 bg-panel px-4 py-2 focus:translate-y-0; }
+  .page-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .host-grid { @apply min-w-0; }
+  .host-inspector { display: none; }
+  .htmx-indicator { display: none; }
+  .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }
+  dialog { @apply m-auto w-[calc(100%-2rem)] max-w-lg rounded-lg border border-line bg-panel p-6 text-ink shadow-xl; }
+  dialog::backdrop { background: rgb(15 23 42 / 45%); }
+  .spec-grid { @apply grid gap-4 md:grid-cols-2; }
+  .spec-block { @apply rounded-lg border border-line bg-panel p-4; }
+}
+
+@media (min-width: 1024px) {
+  .shell { display: grid; grid-template-columns: 208px minmax(0, 1fr); min-height: 100vh; }
+  .sidebar { position: sticky; top: 0; height: 100vh; }
+}
+@media (min-width: 1536px) {
+  .page-grid { grid-template-columns: minmax(0, 1fr) 368px; }
+  .host-inspector { display: block; }
+}
+@media (pointer: coarse) { .btn, .nav-link, .tab, input, select { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+@media (forced-colors: active) {
+  .badge, .btn, .panel, .notice { border: 1px solid CanvasText; }
+  [aria-current=page] { outline: 2px solid Highlight; }
+}

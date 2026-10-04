@@ -1,0 +1,44 @@
+/* Separate offline print composition. UI navigation is never part of report facts. */
+@font-face { font-family: "Evidence Sans"; src: url("../fonts/Inter-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Evidence Sans"; src: url("../fonts/Inter-SemiBold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+.report-body { font-family: "Evidence Sans", Arial, sans-serif; }
+.report-paper { max-width: 960px; margin: 24px auto; padding: 40px; background: white; border: 1px solid #e2e8f0; }
+.report-warning { border: 1px solid #64748b; padding: 8px 12px; font-size: 12px; font-weight: 600; }
+.report-heading { margin: 28px 0 24px; }
+.report-heading h1 { font-size: 30px; margin: 6px 0; }
+.report-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; border-block: 1px solid #e2e8f0; padding: 16px 0; }
+.report-paper section { margin-top: 28px; }
+.report-paper section h2 { margin-bottom: 12px; }
+.report-paper h3 { margin: 12px 0 4px; }
+.report-paper p { font-size: 14px; line-height: 1.6; margin-bottom: 8px; }
+.report-finding { border-left: 3px solid #64748b; padding-left: 12px; margin-bottom: 16px; }
+.report-paper .report-source, .report-footer { font-size: 12px; color: #475569; }
+.report-figure { max-width: 460px; margin-top: 16px; }
+.report-figure img { max-width: 100%; height: auto; border: 1px solid #64748b; }
+.report-figure figcaption { margin-top: 6px; font-size: 12px; }
+.report-footer { margin-top: 32px; border-top: 1px solid #64748b; padding-top: 12px; }
+.report-table { table-layout: fixed; }
+.report-table th:first-child { width: 45%; }
+.report-table td { overflow-wrap: anywhere; }
+@media (max-width: 640px) { .report-paper { padding: 16px; margin: 12px; } .report-meta { grid-template-columns: 1fr; } .report-table { min-width: 540px; } }
+@page { size: A4; margin: 18mm 16mm 20mm; @bottom-left { content: "DEMO-R01 · example.com"; font-family: "Evidence Sans", sans-serif; font-size: 9pt; } @bottom-right { content: counter(page) " / " counter(pages); font-size: 9pt; } }
+@media print {
+  .screen-only, .skip, .report-footer { display: none !important; }
+  html, body { background: white; color: black; }
+  .report-paper { max-width: none; border: 0; padding: 0; margin: 0; font-size: 11pt; }
+  .report-paper p { font-size: 11pt; line-height: 1.45; }
+  .report-paper h1 { font-size: 24pt; }
+  .report-paper h2 { font-size: 15pt; break-after: avoid; }
+  .report-paper h3 { font-size: 11pt; break-after: avoid; }
+  .report-meta { grid-template-columns: 1fr 1fr; }
+  .report-meta dd, .report-meta dt { font-size: 10pt; }
+  .report-source, .report-warning, .report-footer, .report-figure figcaption { font-size: 9pt !important; color: black !important; }
+  .report-finding, .report-figure, tr { break-inside: avoid; }
+  p { orphans: 3; widows: 3; }
+  .report-annex { break-before: page; }
+  .report-table { min-width: 0; font-size: 9pt; }
+  .report-table th, .report-table td { padding: 6pt; background: white; color: black; border-bottom: 1px solid #64748b; font-size: 9pt; }
+  .table-scroll { overflow: visible; }
+  thead { display: table-header-group; }
+  .report-figure { max-width: 115mm; }
+}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50 text-slate-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SaaS Technical Due Diligence{% endblock %}</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    {% block head %}{% endblock %}
+</head>
+<body class="min-h-full flex flex-col font-sans antialiased bg-slate-50 text-slate-900" hx-headers='{"X-CSRFToken": "{{ csrf_token() if csrf_token is defined else "" }}"}'>
+    <!-- Header Landmark -->
+    <header role="banner" class="border-b border-slate-200 bg-white sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
+            <div class="flex items-center space-x-3">
+                <a href="/" class="flex items-center space-x-2.5 text-slate-900 font-semibold text-base tracking-tight focus:outline-none focus:ring-2 focus:ring-teal-700 rounded p-1">
+                    <svg class="w-5 h-5 text-teal-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    <span>SaaS Due Diligence</span>
+                </a>
+                <span class="text-[11px] px-2 py-0.5 rounded bg-teal-50 text-teal-800 font-mono border border-teal-200 font-medium">IT Security</span>
+            </div>
+            <!-- Navigation Landmark -->
+            <nav role="navigation" aria-label="Main Navigation" class="flex items-center space-x-1 sm:space-x-3">
+                <a href="/" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-700" tabindex="0">Assessments</a>
+                {% if assessment is defined and assessment %}
+                <a href="{{ url_for('assessments.overview', id=assessment.id) }}" class="px-3 py-1.5 text-xs font-medium {% if request.endpoint == 'assessments.overview' %}text-teal-900 bg-teal-50 border border-teal-200 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-700" tabindex="0">Overview</a>
+                <a href="{{ url_for('assessments.host_inventory', id=assessment.id) }}" class="px-3 py-1.5 text-xs font-medium {% if request.endpoint == 'assessments.host_inventory' %}text-teal-900 bg-teal-50 border border-teal-200 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-700" tabindex="0">Host Inventory</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Landmark -->
+    <main role="main" id="main-content" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 focus:outline-none" tabindex="-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer Landmark -->
+    <footer role="contentinfo" class="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p>SaaS Technical Due Diligence Platform &bull; Unauthenticated External Verification &bull; Defensible Evidence</p>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

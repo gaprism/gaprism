@@ -1,0 +1,712 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: saas-due-diligence 0.1.0\n"
+"Language: de_CH\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "2 observations to review"
+msgstr "2 Beobachtungen zu prüfen"
+
+msgid "4 infrastructure providers"
+msgstr "4 Infrastrukturanbieter"
+
+msgid "4 observed countries"
+msgstr "4 beobachtete Länder"
+
+msgid "A public domain, without protocol or path."
+msgstr "Eine öffentliche Domain ohne Protokoll oder Pfad."
+
+msgid "A synthetic HTTP header discloses a server version. This observation does not prove an exploitable vulnerability."
+msgstr "Ein synthetischer HTTP-Header zeigt eine Serverversion. Diese Beobachtung belegt keine ausnutzbare Schwachstelle."
+
+msgid "A valid live certificate is required. No screenshot or HTTP assessment was attempted."
+msgstr "Ein gültiges Live-Zertifikat ist erforderlich. Es wurde kein Screenshot und keine HTTP-Prüfung versucht."
+
+msgid "Access"
+msgstr "Zugriff"
+
+msgid "Access denied"
+msgstr "Zugriff verweigert"
+
+msgid "Access expired"
+msgstr "Zugriff abgelaufen"
+
+msgid "Access expires"
+msgstr "Zugriff endet"
+
+msgid "Access to this assessment"
+msgstr "Zugriff auf diese Prüfung"
+
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "All coverage"
+msgstr "Alle Abdeckungen"
+
+msgid "All examples are invented. Provider rights and export eligibility must be checked before real evidence is included."
+msgstr "Alle Beispiele sind erfunden. Anbieterrechte und Exportberechtigung müssen vor der Aufnahme echter Evidenz geprüft werden."
+
+msgid "Apply filters"
+msgstr "Filter anwenden"
+
+msgid "Are the systems secure?"
+msgstr "Sind die Systeme sicher?"
+
+msgid "Assessment access"
+msgstr "Zugriff auf die Prüfung"
+
+msgid "Assessment sections"
+msgstr "Bereiche der Prüfung"
+
+msgid "Assessments"
+msgstr "Prüfungen"
+
+msgid "Attention required"
+msgstr "Handlungsbedarf"
+
+msgid "Attribution"
+msgstr "Zuordnung"
+
+msgid "Attribution and limits"
+msgstr "Zuordnung und Grenzen"
+
+msgid "Authentication code"
+msgstr "Authentifizierungscode"
+
+msgid "Authentication is not implemented in this design preview. Do not enter real credentials."
+msgstr "Die Anmeldung ist in dieser Designvorschau nicht implementiert. Keine echten Zugangsdaten eingeben."
+
+msgid "Back to hosts"
+msgstr "Zurück zu den Hosts"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
+msgid "Cancelled"
+msgstr "Abgebrochen"
+
+msgid "Capture timed out. No image is available; this is not a vulnerability verdict."
+msgstr "Zeitüberschreitung bei der Aufnahme. Kein Bild verfügbar; dies ist kein Schwachstellenurteil."
+
+msgid "CDN / edge"
+msgstr "CDN / Edge"
+
+msgid "Change your filters. An empty result is not a security verdict."
+msgstr "Filter anpassen. Ein leeres Ergebnis ist kein Sicherheitsurteil."
+
+msgid "Close demonstration"
+msgstr "Demonstration schliessen"
+
+msgid "Close inspector"
+msgstr "Inspektor schliessen"
+
+msgid "Collection coverage"
+msgstr "Prüfabdeckung"
+
+msgid "Collection is not connected. This form does not send or save data."
+msgstr "Die Erhebung ist nicht angebunden. Dieses Formular sendet oder speichert keine Daten."
+
+msgid "Collection scope"
+msgstr "Erhebungsumfang"
+
+msgid "Compact by layout, not by reducing readability. Each status dimension retains its own meaning."
+msgstr "Kompaktes Layout bei guter Lesbarkeit. Jede Statusdimension behält ihre eigene Bedeutung."
+
+msgid "Complete"
+msgstr "Vollständig"
+
+msgid "Component reference"
+msgstr "Komponentenreferenz"
+
+msgid "Confidence"
+msgstr "Vertrauensgrad"
+
+msgid "Confirm manual transfer"
+msgstr "Manuelle Übertragung bestätigen"
+
+msgid "Consequence dialog"
+msgstr "Bestätigungsdialog"
+
+msgid "Country"
+msgstr "Land"
+
+msgid "Coverage"
+msgstr "Abdeckung"
+
+msgid "Coverage limits"
+msgstr "Grenzen der Abdeckung"
+
+msgid "Create version"
+msgstr "Version erstellen"
+
+msgid "Critical"
+msgstr "Kritisch"
+
+msgid "CT discovery followed by live validation. Ports are passive Shodan observations."
+msgstr "CT-Ermittlung mit anschliessender Live-Validierung. Ports sind passive Shodan-Beobachtungen."
+
+msgid "CT discovery, public DNS and TLS, HTTPS metadata, screenshots, passive Shodan observations and reputation checks."
+msgstr "CT-Ermittlung, öffentliches DNS und TLS, HTTPS-Metadaten, Screenshots, passive Shodan-Beobachtungen und Reputationsprüfungen."
+
+msgid "Current assessment"
+msgstr "Aktuelle Prüfung"
+
+msgid "Deeper checks skipped"
+msgstr "Vertiefte Prüfungen übersprungen"
+
+msgid "Default retention is 12 calendar months and is configurable. TPRM retention is independent."
+msgstr "Die Standardaufbewahrung beträgt 12 Kalendermonate und ist konfigurierbar. Die TPRM-Aufbewahrung ist unabhängig."
+
+msgid "Design system"
+msgstr "Design-System"
+
+msgid "Disabled"
+msgstr "Deaktiviert"
+
+msgid "Discovered"
+msgstr "Entdeckt"
+
+msgid "DNS / IP signal"
+msgstr "DNS-/IP-Signal"
+
+msgid "Domain"
+msgstr "Domain"
+
+msgid "Downloading is not confirmation of TPRM transfer. The authoritative final copy belongs in the leading TPRM tool."
+msgstr "Herunterladen bestätigt keine TPRM-Übertragung. Die massgebliche finale Kopie gehört in das führende TPRM-Tool."
+
+msgid "Edge, hosting and status services"
+msgstr "Edge-, Hosting- und Statusdienste"
+
+msgid "Eligible"
+msgstr "Prüfbar"
+
+msgid "Email"
+msgstr "E-Mail"
+
+msgid "Empty results"
+msgstr "Leere Ergebnisse"
+
+msgid "Endpoint country"
+msgstr "Land des Endpunkts"
+
+msgid "Endpoint locations only. Storage and backups are not verified."
+msgstr "Nur Standorte der Endpunkte. Datenspeicherung und Backups sind nicht verifiziert."
+
+msgid "Enter only the domain, for example example.com."
+msgstr "Nur die Domain eingeben, zum Beispiel example.com."
+
+msgid "Enter the code as one value."
+msgstr "Den Code als zusammenhängenden Wert eingeben."
+
+msgid "Error"
+msgstr "Fehler"
+
+msgid "Evidence"
+msgstr "Evidenz"
+
+msgid "Evidence incomplete"
+msgstr "Evidenz unvollständig"
+
+msgid "Evidence limitations"
+msgstr "Evidenzgrenzen"
+
+msgid "Evidence report"
+msgstr "Evidenzbericht"
+
+msgid "Exact report version"
+msgstr "Bestimmte Berichtsversion"
+
+msgid "Example data only. No live collection, authentication or sharing."
+msgstr "Nur Beispieldaten. Keine Live-Erhebung, Anmeldung oder Freigabe."
+
+msgid "Execution"
+msgstr "Ausführung"
+
+msgid "Failed"
+msgstr "Fehlgeschlagen"
+
+msgid "Failure and loading states"
+msgstr "Fehler- und Ladezustände"
+
+msgid "Fields and validation"
+msgstr "Felder und Validierung"
+
+msgid "Find a host"
+msgstr "Host suchen"
+
+msgid "Four infrastructure providers were inferred from technical signals. Contractual processor relationships remain unverified."
+msgstr "Vier Infrastrukturanbieter wurden aus technischen Signalen abgeleitet. Vertragliche Auftragsbearbeitungsverhältnisse bleiben unverifiziert."
+
+msgid "Gaps"
+msgstr "Lücken"
+
+msgid "High"
+msgstr "Hoch"
+
+msgid "Host details"
+msgstr "Host-Details"
+
+msgid "Host inspector"
+msgstr "Host-Inspektor"
+
+msgid "Host inventory"
+msgstr "Host-Inventar"
+
+msgid "Host observations"
+msgstr "Host-Beobachtungen"
+
+msgid "Host results"
+msgstr "Host-Ergebnisse"
+
+msgid "Hosting"
+msgstr "Hosting"
+
+msgid "Hostname"
+msgstr "Hostname"
+
+msgid "Hostname attribution is unconfirmed."
+msgstr "Zuordnung zum Hostnamen ist unbestätigt."
+
+msgid "Hosts and endpoints"
+msgstr "Hosts und Endpunkte"
+
+msgid "hosts shown"
+msgstr "Hosts angezeigt"
+
+msgid "hosts with valid live TLS"
+msgstr "Hosts mit gültigem Live-TLS"
+
+msgid "Illustration only; not a captured target page."
+msgstr "Nur eine Illustration; keine Aufnahme einer Zielseite."
+
+msgid "In production this would remove the selected grant. Existing TPRM copies would remain. This preview changes nothing."
+msgstr "Im Produktivbetrieb würde die gewählte Freigabe entfernt. Bestehende TPRM-Kopien blieben erhalten. Diese Vorschau ändert nichts."
+
+msgid "Include subdomains"
+msgstr "Subdomains einschliessen"
+
+msgid "Informational"
+msgstr "Informativ"
+
+msgid "Infrastructure"
+msgstr "Infrastruktur"
+
+msgid "Inspect a host"
+msgstr "Host untersuchen"
+
+msgid "Inspect hosts"
+msgstr "Hosts untersuchen"
+
+msgid "Inspect supporting evidence"
+msgstr "Zugehörige Evidenz untersuchen"
+
+msgid "Interface language"
+msgstr "Sprache der Oberfläche"
+
+msgid "Invalid"
+msgstr "Ungültig"
+
+msgid "Invite a team member"
+msgstr "Teammitglied einladen"
+
+msgid "IP / provider"
+msgstr "IP / Anbieter"
+
+msgid "IP address"
+msgstr "IP-Adresse"
+
+msgid "IP observations can describe shared infrastructure. Endpoint location does not prove where customer data is stored."
+msgstr "IP-Beobachtungen können geteilte Infrastruktur beschreiben. Der Standort eines Endpunkts belegt nicht den Speicherort von Kundendaten."
+
+msgid "IT Security"
+msgstr "IT-Sicherheit"
+
+msgid "Last observed"
+msgstr "Zuletzt beobachtet"
+
+msgid "Limited"
+msgstr "Begrenzt"
+
+msgid "Loading"
+msgstr "Laden"
+
+msgid "Loading results…"
+msgstr "Ergebnisse werden geladen…"
+
+msgid "Local design preview"
+msgstr "Lokale Designvorschau"
+
+msgid "Low"
+msgstr "Niedrig"
+
+msgid "Main navigation"
+msgstr "Hauptnavigation"
+
+msgid "Medium"
+msgstr "Mittel"
+
+msgid "Method and evidence"
+msgstr "Methode und Evidenz"
+
+msgid "New assessment"
+msgstr "Neue Prüfung"
+
+msgid "Next step: review evidence and coverage before issuing a report."
+msgstr "Nächster Schritt: Evidenz und Abdeckung vor der Berichtsausgabe prüfen."
+
+msgid "No active port scanning, exploitation or authenticated browsing."
+msgstr "Keine aktiven Portscans, Ausnutzung oder authentifizierten Seitenaufrufe."
+
+msgid "No grants are created here. Production access must be checked on every request, including partials and downloads."
+msgstr "Hier werden keine Freigaben erstellt. Produktivzugriffe müssen bei jeder Anfrage einschliesslich Teilansichten und Downloads geprüft werden."
+
+msgid "No host data is shown. Request access from the assessment owner."
+msgstr "Es werden keine Host-Daten angezeigt. Zugriff bei der prüfungsverantwortlichen Person anfragen."
+
+msgid "No match"
+msgstr "Kein Treffer"
+
+msgid "No match does not mean clean. Shared-IP findings require hostname attribution."
+msgstr "Kein Treffer bedeutet nicht unbedenklich. Befunde zu geteilten IPs müssen dem Hostnamen zugeordnet werden."
+
+msgid "No matching hosts"
+msgstr "Keine passenden Hosts"
+
+msgid "Not checked"
+msgstr "Nicht geprüft"
+
+msgid "Not confirmed"
+msgstr "Nicht bestätigt"
+
+msgid "Observations and limitations"
+msgstr "Beobachtungen und Grenzen"
+
+msgid "Observed"
+msgstr "Beobachtet"
+
+msgid "Observed endpoint countries: CH, DE, NL and US. Actual storage, backups and residency remain unverified."
+msgstr "Beobachtete Endpunktländer: CH, DE, NL und US. Tatsächliche Speicherung, Backups und Datenresidenz bleiben unverifiziert."
+
+msgid "Observed providers"
+msgstr "Beobachtete Anbieter"
+
+msgid "One invalid certificate; one DNS failure. Deeper checks were skipped for those hosts."
+msgstr "Ein ungültiges Zertifikat; ein DNS-Fehler. Vertiefte Prüfungen wurden für diese Hosts übersprungen."
+
+msgid "Overview"
+msgstr "Übersicht"
+
+msgid "Owner access includes the case and evidence. Team membership alone grants no access."
+msgstr "Eigentümerzugriff umfasst die Prüfung und Evidenz. Die Teamzugehörigkeit allein gewährt keinen Zugriff."
+
+msgid "Page screenshot"
+msgstr "Seitenaufnahme"
+
+msgid "Partial"
+msgstr "Teilweise"
+
+msgid "Partial coverage"
+msgstr "Teilweise Abdeckung"
+
+msgid "Partial coverage. This is not a security certification."
+msgstr "Teilweise Abdeckung. Dies ist keine Sicherheitszertifizierung."
+
+msgid "Passive ports"
+msgstr "Passiv beobachtete Ports"
+
+msgid "Password"
+msgstr "Passwort"
+
+msgid "Password managers and paste are supported."
+msgstr "Passwortmanager und Einfügen werden unterstützt."
+
+msgid "Preview only"
+msgstr "Nur Vorschau"
+
+msgid "Preview recipient view"
+msgstr "Empfängeransicht öffnen"
+
+msgid "Previous results remain visible and may be stale. Retry the filter request."
+msgstr "Bisherige Ergebnisse bleiben sichtbar und können veraltet sein. Filteranfrage erneut versuchen."
+
+msgid "Primary"
+msgstr "Primär"
+
+msgid "Print / save PDF"
+msgstr "Drucken / PDF speichern"
+
+msgid "Print layout"
+msgstr "Drucklayout"
+
+msgid "Private"
+msgstr "Privat"
+
+msgid "Provider"
+msgstr "Anbieter"
+
+msgid "Provider response"
+msgstr "Anbieterantwort"
+
+msgid "Providers"
+msgstr "Anbieter"
+
+msgid "Public infrastructure"
+msgstr "Öffentliche Infrastruktur"
+
+msgid "Queued"
+msgstr "Eingereiht"
+
+msgid "Quiet"
+msgstr "Dezent"
+
+msgid "Quota exhausted; no verdict available."
+msgstr "Kontingent erschöpft; kein Prüfurteil verfügbar."
+
+msgid "Read in English"
+msgstr "Auf Englisch lesen"
+
+msgid "Read in German"
+msgstr "Auf Deutsch lesen"
+
+msgid "Read only"
+msgstr "Nur lesen"
+
+msgid "Refresh failed"
+msgstr "Aktualisierung fehlgeschlagen"
+
+msgid "Refresh failed. The last retrieved observations are shown below."
+msgstr "Aktualisierung fehlgeschlagen. Unten stehen die zuletzt abgerufenen Beobachtungen."
+
+msgid "Report language"
+msgstr "Berichtssprache"
+
+msgid "Report only"
+msgstr "Nur Bericht"
+
+msgid "Report versions"
+msgstr "Berichtsversionen"
+
+msgid "Report-only access covers DEMO-R01, not the source case or future versions."
+msgstr "Berichtszugriff umfasst DEMO-R01, nicht die zugrunde liegende Prüfung oder künftige Versionen."
+
+msgid "Reports"
+msgstr "Berichte"
+
+msgid "Reports describe observed facts and coverage limits. Downloading is not confirmation of TPRM transfer."
+msgstr "Berichte beschreiben beobachtete Fakten und Abdeckungsgrenzen. Herunterladen bestätigt keine TPRM-Übertragung."
+
+msgid "Reputation"
+msgstr "Reputation"
+
+msgid "Reputation provider unavailable"
+msgstr "Reputationsanbieter nicht verfügbar"
+
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+msgid "Results unavailable"
+msgstr "Ergebnisse nicht verfügbar"
+
+msgid "Retention and handoff"
+msgstr "Aufbewahrung und Übergabe"
+
+msgid "Retrieved"
+msgstr "Abgerufen"
+
+msgid "Review findings"
+msgstr "Befunde prüfen"
+
+msgid "Review the technical collection scope before starting."
+msgstr "Technischen Erhebungsumfang vor dem Start prüfen."
+
+msgid "Revoke access?"
+msgstr "Zugriff entziehen?"
+
+msgid "Running"
+msgstr "Läuft"
+
+msgid "Secondary"
+msgstr "Sekundär"
+
+msgid "Security"
+msgstr "Sicherheit"
+
+msgid "Select a hostname to review its sources, attribution and collection gaps."
+msgstr "Einen Hostnamen auswählen, um Quellen, Zuordnung und Prüflücken zu untersuchen."
+
+msgid "Server version disclosed"
+msgstr "Serverversion offengelegt"
+
+msgid "Service"
+msgstr "Dienst"
+
+msgid "Severity"
+msgstr "Schweregrad"
+
+msgid "Shared"
+msgstr "Freigegeben"
+
+msgid "Shared IP"
+msgstr "Geteilte IP"
+
+msgid "Shared-IP vulnerability candidate"
+msgstr "Mögliche Schwachstelle auf geteilter IP"
+
+msgid "Sharing"
+msgstr "Freigaben"
+
+msgid "Sharing preview"
+msgstr "Freigabevorschau"
+
+msgid "Shodan reports a service candidate on a shared address. No exploitation or hostname confirmation was performed."
+msgstr "Shodan meldet einen möglichen betroffenen Dienst auf einer geteilten Adresse. Es erfolgte weder eine Ausnutzung noch eine Bestätigung des Hostnamens."
+
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgid "Sign-in components"
+msgstr "Anmeldekomponenten"
+
+msgid "Skip to content"
+msgstr "Zum Inhalt"
+
+msgid "Sort hosts"
+msgstr "Hosts sortieren"
+
+msgid "Source"
+msgstr "Quelle"
+
+msgid "Source text is escaped and preserved, never executed."
+msgstr "Quelltext wird maskiert und erhalten, niemals ausgeführt."
+
+msgid "Stale"
+msgstr "Veraltet"
+
+msgid "Stale results"
+msgstr "Veraltete Ergebnisse"
+
+msgid "Start assessment"
+msgstr "Prüfung starten"
+
+msgid "Status service"
+msgstr "Statusdienst"
+
+msgid "Synthetic evidence"
+msgstr "Synthetische Evidenz"
+
+msgid "Synthetic fixture"
+msgstr "Synthetische Beispieldaten"
+
+msgid "Synthetic issued-version layout"
+msgstr "Synthetisches Layout einer ausgegebenen Version"
+
+msgid "Synthetic preview"
+msgstr "Synthetische Vorschau"
+
+msgid "Synthetic preview — this is not an issued report."
+msgstr "Synthetische Vorschau — kein ausgegebener Bericht."
+
+msgid "Synthetic screenshot: Example Service sign-in page"
+msgstr "Synthetischer Screenshot: Anmeldeseite von Example Service"
+
+msgid "Team workspace"
+msgstr "Team-Arbeitsbereich"
+
+msgid "Technical evidence report"
+msgstr "Technischer Evidenzbericht"
+
+msgid "Technical outcomes"
+msgstr "Technische Ergebnisse"
+
+msgid "Technical provider signals do not establish contractual processors."
+msgstr "Technische Anbietersignale belegen keine vertraglichen Auftragsbearbeiter."
+
+msgid "Technical signals"
+msgstr "Technische Signale"
+
+msgid "Technical summary"
+msgstr "Technische Zusammenfassung"
+
+msgid "Technical verification"
+msgstr "Technische Verifikation"
+
+msgid "The authoritative final copy belongs in the leading TPRM tool."
+msgstr "Die massgebliche finale Kopie gehört in das führende TPRM-Tool."
+
+msgid "The request failed. No successful check is implied. Retry when available."
+msgstr "Die Anfrage ist fehlgeschlagen. Dies bedeutet keine erfolgreiche Prüfung. Später erneut versuchen."
+
+msgid "The retention or sharing deadline has passed. Results are unavailable."
+msgstr "Die Aufbewahrungs- oder Freigabefrist ist abgelaufen. Ergebnisse sind nicht verfügbar."
+
+msgid "The screenshot timed out and the reputation quota was exhausted. Both results remain unknown."
+msgstr "Beim Screenshot trat eine Zeitüberschreitung auf und das Reputationskontingent war erschöpft. Beide Ergebnisse bleiben unbekannt."
+
+msgid "TLS"
+msgstr "TLS"
+
+msgid "Navigation"
+msgstr "Navigation"
+
+msgid "HTTP server"
+msgstr "HTTP-Server"
+
+msgid "HTTP status"
+msgstr "HTTP-Status"
+
+msgid "Sharing is not connected. No invitations are sent and no access is changed."
+msgstr "Freigaben sind nicht angebunden. Es werden keine Einladungen versendet und keine Zugriffe geändert."
+
+msgid "TPRM handoff"
+msgstr "TPRM-Übergabe"
+
+msgid "Two observations require review. Coverage is partial; no overall security assurance can be inferred."
+msgstr "Zwei Beobachtungen erfordern eine Prüfung. Die Abdeckung ist teilweise; eine allgemeine Sicherheitszusage lässt sich nicht ableiten."
+
+msgid "Unattributed"
+msgstr "Nicht zugeordnet"
+
+msgid "Unavailable screenshot"
+msgstr "Screenshot nicht verfügbar"
+
+msgid "Unknown"
+msgstr "Unbekannt"
+
+msgid "Updating…"
+msgstr "Wird aktualisiert…"
+
+msgid "Use one primary action per task. Destructive actions explain consequences first."
+msgstr "Eine primäre Aktion pro Aufgabe verwenden. Bei destruktiven Aktionen zuerst die Folgen erklären."
+
+msgid "Use your team account."
+msgstr "Das Team-Konto verwenden."
+
+msgid "Valid"
+msgstr "Gültig"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "View report"
+msgstr "Bericht ansehen"
+
+msgid "Waiting"
+msgstr "Wartet"
+
+msgid "Where is data stored?"
+msgstr "Wo werden Daten gespeichert?"
+
+msgid "Who processes the data?"
+msgstr "Wer verarbeitet die Daten?"
+
+msgid "Workspace"
+msgstr "Arbeitsbereich"
+
+msgid "Your assessments"
+msgstr "Ihre Prüfungen"
+
+

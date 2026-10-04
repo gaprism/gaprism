@@ -1,0 +1,29 @@
+@theme {
+  --color-canvas: #F8FAFC;
+  --color-panel: #FFFFFF;
+  --color-subtle: #F1F5F9;
+  --color-ink: #0F172A;
+  --color-muted: #475569;
+  --color-line: #E2E8F0;
+  --color-control: #64748B;
+  --color-action: #0F766E;
+  --color-action-hover: #115E59;
+  --color-focus: #1D4ED8;
+  --color-selected: #EFF6FF;
+  --color-selected-ink: #1E40AF;
+  --color-danger: #B91C1C;
+  --color-success: #166534;
+  --color-critical: #991B1B;
+  --color-critical-bg: #FEF2F2;
+  --color-high: #9A3412;
+  --color-high-bg: #FFF7ED;
+  --color-medium: #854D0E;
+  --color-medium-bg: #FEFCE8;
+  --color-low: #1E40AF;
+  --color-low-bg: #EFF6FF;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}

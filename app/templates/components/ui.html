@@ -1,0 +1,38 @@
+{% macro icon(name) -%}
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" class="shrink-0">
+{% if name == 'grid' %}<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+{% elif name == 'hosts' %}<rect x="3" y="3" width="18" height="6" rx="2"/><rect x="3" y="15" width="18" height="6" rx="2"/><path d="M7 6h.01M7 18h.01M12 9v6"/>
+{% elif name == 'file' %}<path d="M14 2H5v20h14V7zM14 2v6h5M8 12h8M8 16h8"/>
+{% elif name == 'shield' %}<path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6zM12 7v6M12 17h.01"/>
+{% elif name == 'arrow' %}<path d="M4 12h16m-6-6 6 6-6 6"/>
+{% elif name == 'globe' %}<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>
+{% elif name == 'check' %}<path d="m5 12 4 4L19 6"/>
+{% else %}<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>{% endif %}
+</svg>
+{%- endmacro %}
+
+{% macro action(label, href=none, variant='secondary', disabled=false, type='button') -%}
+{% set variants = {'primary':'btn-primary','secondary':'btn-secondary','quiet':'btn-quiet','destructive':'btn-destructive'} %}
+{% if href and not disabled %}<a class="btn {{ variants.get(variant, 'btn-secondary') }}" href="{{ href }}">{{ label }}</a>
+{% else %}<button class="btn {{ variants.get(variant, 'btn-secondary') }}" type="{{ type if type in ['button','submit','reset'] else 'button' }}" {% if disabled %}disabled{% endif %}>{{ label }}</button>{% endif %}
+{%- endmacro %}
+
+{% macro badge(value, dimension='execution') -%}
+{% set risks = {'critical':'bg-critical-bg text-critical','high':'bg-high-bg text-high','medium':'bg-medium-bg text-medium','low':'bg-low-bg text-low','info':'bg-subtle text-muted'} %}
+{% set outcomes = {'invalid':'bg-critical-bg text-critical','valid':'bg-selected text-selected-ink','no_match':'bg-subtle text-muted','unknown':'bg-medium-bg text-medium','not_checked':'bg-subtle text-muted'} %}
+{% set executions = {'running':'bg-selected text-selected-ink','failed':'bg-critical-bg text-critical','partial':'bg-medium-bg text-medium','waiting':'bg-medium-bg text-medium'} %}
+{% set style = risks.get(value,'bg-subtle text-muted') if dimension == 'severity' else outcomes.get(value,'bg-subtle text-muted') if dimension == 'technical' else executions.get(value,'bg-subtle text-muted') if dimension == 'execution' else 'bg-subtle text-muted' %}
+<span class="badge {{ style }}" data-dimension="{{ dimension }}" data-status="{{ value }}">{% if dimension == 'severity' and value in ['critical','high','medium'] %}<span aria-hidden="true">!</span>{% endif %}{{ _(status_labels.get(value, 'Unknown')) }}</span>
+{%- endmacro %}
+
+{% macro notice(title, body, danger=false) -%}
+<div class="notice {% if danger %}border-danger bg-critical-bg{% endif %}">{{ icon('info') }}<div><p class="font-semibold">{{ title }}</p><p class="mt-1 text-muted">{{ body }}</p></div></div>
+{%- endmacro %}
+
+{% macro field(id, label, help='', value='', error='', type='text', autocomplete='off', disabled=false) -%}
+<div class="field"><label for="{{ id }}">{{ label }}</label><input id="{{ id }}" name="{{ id }}" type="{{ type }}" value="{{ value }}" autocomplete="{{ autocomplete }}" {% if disabled %}disabled{% endif %} {% if error %}aria-invalid="true"{% endif %} aria-describedby="{{ id }}-help{% if error %} {{ id }}-error{% endif %}"><p class="field-help" id="{{ id }}-help">{{ help }}</p>{% if error %}<p id="{{ id }}-error" class="text-sm text-danger">{{ error }}</p>{% endif %}</div>
+{%- endmacro %}
+
+{% macro empty(title, detail) -%}
+<div class="p-8 text-center"><h2>{{ title }}</h2><p class="mx-auto mt-2 max-w-xl text-sm text-muted">{{ detail }}</p></div>
+{%- endmacro %}

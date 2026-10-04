@@ -1,0 +1,19 @@
+{% from 'components/ui.html' import badge, notice, empty with context %}
+<section id="host-results" class="panel" aria-label="{{ _('Host results') }}">
+{% if state in ['error','denied','expired','loading'] %}
+  {% if state == 'loading' %}<div class="p-4" role="status">{{ _('Loading results…') }}</div>
+  {% elif state == 'denied' %}{{ empty(_('Access denied'), _('No host data is shown. Request access from the assessment owner.')) }}
+  {% elif state == 'expired' %}{{ empty(_('Access expired'), _('The retention or sharing deadline has passed. Results are unavailable.')) }}
+  {% else %}{{ empty(_('Results unavailable'), _('The request failed. No successful check is implied. Retry when available.')) }}{% endif %}
+{% else %}
+  {% if state == 'stale' %}<div class="p-3">{{ notice(_('Stale results'), _('Refresh failed. The last retrieved observations are shown below.')) }}</div>{% endif %}
+  <div class="section-head"><h2 class="text-base">{{ _('Host inventory') }}</h2><span role="status" class="text-sm text-muted">{{ hosts|length }} {{ _('hosts shown') }}</span></div>
+  {% if hosts %}<div class="table-scroll" role="region" aria-label="{{ _('Host inventory') }}" tabindex="0"><table class="data-table min-w-[850px]">
+  <thead><tr><th scope="col" aria-sort="{{ 'descending' if sort == 'hostname_desc' else 'ascending' }}">{{ _('Hostname') }}</th><th scope="col">{{ _('IP / provider') }}</th><th scope="col">{{ _('Country') }}</th><th scope="col">TLS</th><th scope="col">{{ _('Reputation') }}</th><th scope="col">{{ _('Severity') }}</th><th scope="col">{{ _('Coverage') }}</th></tr></thead>
+  <tbody>{% for host in hosts %}<tr>
+    <td class="max-w-64"><a class="link font-mono" href="{{ url_for('preview.host_detail',locale=g.locale,slug=host.slug) }}" data-host-link hx-get="{{ url_for('preview.host_detail',locale=g.locale,slug=host.slug) }}" hx-target="#host-inspector" hx-sync="#host-inspector:replace"><bdi>{{ host.hostname }}</bdi></a><p class="mt-1 text-xs text-muted">{{ host.observed }}</p></td>
+    <td><bdi class="font-mono">{{ host.ip }}</bdi><p class="mt-1 text-xs text-muted">{{ host.provider }}</p></td><td>{{ host.country }}</td><td>{{ badge(host.tls,'technical') }}</td><td>{{ badge(host.reputation,'technical') }}</td><td>{{ badge(host.severity,'severity') }}</td><td>{{ badge(host.coverage) }}</td>
+  </tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ empty(_('No matching hosts'), _('Change your filters. An empty result is not a security verdict.')) }}{% endif %}
+{% endif %}
+</section>

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% from 'components/ui.html' import icon, action, badge, notice, field, empty with context %}
+{% block content %}
+{% if view in ['cases','components','new','access'] %}
+  {% include 'assessments/' ~ view ~ '.html' %}
+{% else %}
+<div class="mb-5 flex flex-wrap items-start justify-between gap-4">
+  <div><a class="link text-sm" href="{{ page_url('cases') }}">{{ _('Assessments') }}</a><div class="mt-2 flex flex-wrap items-center gap-3"><h1>example.com</h1>{{ badge('private','access') }}</div><p class="mt-1 text-sm text-muted">DEMO-A01 · {{ _('Public infrastructure') }} · {{ _('Observed') }} <time datetime="2026-10-01T09:20:00Z">01 Oct 2026, 09:20 UTC</time></p></div>
+  <div class="flex flex-wrap gap-2">{{ action(_('View report'), page_url('reports')) }}{{ action(_('Review findings'), page_url('security'), 'primary') }}</div>
+</div>
+<nav class="mb-5 flex overflow-x-auto border-b border-line" aria-label="{{ _('Assessment sections') }}">
+{% for item,label in [('overview','Overview'),('infrastructure','Infrastructure'),('providers','Providers'),('security','Security'),('evidence','Evidence'),('reports','Reports'),('sharing','Sharing')] %}<a href="{{ page_url(item) }}" class="tab" {% if view == item %}aria-current="page"{% endif %}>{{ _(label) }}</a>{% endfor %}
+</nav>
+{% if view == 'overview' %}
+<div class="mb-5 grid gap-3 lg:grid-cols-3">
+  <a class="panel block p-4 hover:border-control" href="{{ page_url('infrastructure') }}"><p class="eyebrow">01 / {{ _('Where is data stored?') }}</p><h2 class="mt-3">{{ _('4 observed countries') }}</h2><p class="mt-1 text-sm font-medium">CH · DE · NL · US</p><p class="mt-3 text-sm text-muted">{{ _('Endpoint locations only. Storage and backups are not verified.') }}</p></a>
+  <a class="panel block p-4 hover:border-control" href="{{ page_url('providers') }}"><p class="eyebrow">02 / {{ _('Who processes the data?') }}</p><h2 class="mt-3">{{ _('4 infrastructure providers') }}</h2><p class="mt-1 text-sm font-medium">{{ _('Edge, hosting and status services') }}</p><p class="mt-3 text-sm text-muted">{{ _('Technical provider signals do not establish contractual processors.') }}</p></a>
+  <a class="panel block p-4 hover:border-control" href="{{ page_url('security') }}"><p class="eyebrow">03 / {{ _('Are the systems secure?') }}</p><h2 class="mt-3">{{ _('2 observations to review') }}</h2><div class="mt-1 flex gap-2">{{ badge('high','severity') }}{{ badge('medium','severity') }}</div><p class="mt-3 text-sm text-muted">{{ _('Partial coverage. This is not a security certification.') }}</p></a>
+</div>
+<div class="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+  <section class="panel"><div class="section-head"><h2>{{ _('Collection coverage') }}</h2>{{ badge('partial') }}</div><div class="p-4"><div class="mb-4 flex items-end gap-2"><span class="text-2xl font-semibold tabular-nums">4 / 6</span><span class="text-sm text-muted">{{ _('hosts with valid live TLS') }}</span></div><div class="grid grid-cols-3 gap-2 text-sm"><div class="rounded-md bg-subtle p-3"><p class="text-lg font-semibold">6</p>{{ _('Discovered') }}</div><div class="rounded-md bg-selected p-3"><p class="text-lg font-semibold">4</p>{{ _('Eligible') }}</div><div class="rounded-md bg-medium-bg p-3"><p class="text-lg font-semibold">2</p>{{ _('Gaps') }}</div></div><p class="my-4 text-sm text-muted">{{ _('One invalid certificate; one DNS failure. Deeper checks were skipped for those hosts.') }}</p>{{ action(_('Inspect hosts'), page_url('infrastructure')) }}</div></section>
+  <section class="panel"><div class="section-head"><h2>{{ _('Attention required') }}</h2>{{ icon('shield') }}</div><div class="space-y-4 p-4"><div><a class="link text-sm font-semibold" href="{{ page_url('security') }}">{{ _('Shared-IP vulnerability candidate') }}</a><p class="mt-1 text-sm text-muted">api.example.com · {{ _('Hostname attribution is unconfirmed.') }}</p></div><div><a class="link text-sm font-semibold" href="{{ page_url('evidence') }}">{{ _('Reputation provider unavailable') }}</a><p class="mt-1 text-sm text-muted">files.example.com · {{ _('Quota exhausted; no verdict available.') }}</p></div><div class="border-t border-line pt-3 text-sm text-muted">{{ _('Next step: review evidence and coverage before issuing a report.') }}</div></div></section>
+</div>
+{% elif view == 'infrastructure' %}
+<div class="mb-4 flex flex-wrap items-start justify-between gap-3"><div><h2>{{ _('Hosts and endpoints') }}</h2><p class="mt-1 text-sm text-muted">{{ _('CT discovery followed by live validation. Ports are passive Shodan observations.') }}</p></div>{{ badge('partial') }}</div>
+<form action="{{ page_url('infrastructure') }}" method="get" class="panel mb-4 flex flex-wrap items-end gap-3 p-3" hx-get="{{ page_url('infrastructure') }}" hx-target="#host-results" hx-swap="outerHTML" hx-sync="this:replace" hx-push-url="true" hx-indicator="#filter-pending">
+  <div class="field min-w-0 flex-1"><label for="q">{{ _('Find a host') }}</label><input type="search" id="q" name="q" value="{{ q }}" maxlength="253" placeholder="api.example.com"></div>
+  <div class="field"><label for="coverage">{{ _('Coverage') }}</label><select name="coverage" id="coverage">{% for value,label in [('','All coverage'),('complete','Complete'),('partial','Partial'),('failed','Failed')] %}<option value="{{ value }}" {% if coverage == value %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="sort">{{ _('Sort hosts') }}</label><select name="sort" id="sort"><option value="hostname" {% if sort == 'hostname' %}selected{% endif %}>A → Z</option><option value="hostname_desc" {% if sort == 'hostname_desc' %}selected{% endif %}>Z → A</option></select></div>
+  {{ action(_('Apply filters'), variant='primary', type='submit') }}{{ action(_('Reset'), page_url('infrastructure'), 'quiet') }}<span id="filter-pending" role="status" class="htmx-indicator text-sm text-muted">{{ _('Updating…') }}</span>
+</form>
+<div id="refresh-error" hidden role="alert" class="mb-4">{{ notice(_('Refresh failed'), _('Previous results remain visible and may be stale. Retry the filter request.'), true) }}</div>
+<div class="page-grid"><div class="host-grid">{% include 'assessments/host_results.html' %}</div><aside id="host-inspector" class="host-inspector panel self-start p-4" aria-label="{{ _('Host inspector') }}"><h2>{{ _('Inspect a host') }}</h2><p class="mt-2 text-sm text-muted">{{ _('Select a hostname to review its sources, attribution and collection gaps.') }}</p></aside></div>
+{% elif view == 'providers' %}
+<section class="panel"><div class="section-head"><h2>{{ _('Observed providers') }}</h2><span class="text-sm text-muted">{{ _('Technical signals') }}</span></div><div class="table-scroll" tabindex="0" role="region" aria-label="{{ _('Observed providers') }}"><table class="data-table"><caption>{{ _('Technical provider signals do not establish contractual processors.') }}</caption><thead><tr>{% for label in ['Provider','Service','Country','Evidence'] %}<th scope="col">{{ _(label) }}</th>{% endfor %}</tr></thead><tbody>{% for provider,service,country in [('Example Edge','CDN / edge','CH'),('Example Cloud','Hosting','DE'),('Example Hosting','Hosting','NL'),('Example Status','Status service','US')] %}<tr><th scope="row">{{ provider }}</th><td>{{ _(service) }}</td><td>{{ country }}</td><td><a class="link" href="{{ page_url('evidence') }}">{{ _('DNS / IP signal') }}</a></td></tr>{% endfor %}</tbody></table></div></section>
+{% elif view == 'security' %}
+<div class="mb-4">{{ notice(_('Coverage limits'), _('No match does not mean clean. Shared-IP findings require hostname attribution.')) }}</div>
+<div class="space-y-3">{% for level,title,host,attribution,detail in [('high','Shared-IP vulnerability candidate','api.example.com','shared_ip','Shodan reports a service candidate on a shared address. No exploitation or hostname confirmation was performed.'),('medium','Server version disclosed','files.example.com','hostname','A synthetic HTTP header discloses a server version. This observation does not prove an exploitable vulnerability.')] %}<article class="panel p-4"><div class="flex flex-wrap items-center gap-2">{{ badge(level,'severity') }}{{ badge(attribution,'attribution') }}<span class="text-xs text-muted">{{ _('Confidence') }}: {{ _('Limited') }}</span></div><h2 class="mt-3">{{ _(title) }}</h2><p class="mt-1 font-mono text-sm">{{ host }}</p><p class="my-3 max-w-3xl text-sm text-muted">{{ _(detail) }}</p><a class="link text-sm" href="{{ page_url('evidence') }}">{{ _('Inspect supporting evidence') }}</a></article>{% endfor %}</div>
+{% elif view == 'evidence' %}
+{% include 'assessments/evidence.html' %}
+{% elif view == 'reports' %}
+{% include 'reports/versions.html' %}
+{% elif view == 'sharing' %}
+{% include 'sharing/panel.html' %}
+{% endif %}
+{% endif %}
+{% endblock %}
