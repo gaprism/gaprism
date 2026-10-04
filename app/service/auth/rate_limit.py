@@ -5,12 +5,14 @@ from __future__ import annotations
 import hashlib
 import hmac
 import ipaddress
+import math
 from datetime import UTC, datetime, timedelta
 
 from flask import Flask, Response, current_app, g, has_request_context, request, session
 from flask_security import logout_user, user_failed_authn
-from sqlalchemy import or_, select, text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
+from werkzeug.exceptions import TooManyRequests
 
 from app.extensions import db
 from app.models.auth import User
@@ -63,23 +65,29 @@ class AuthRateLimiter:
             values.append(("principal", clean_principal))
         return [(kind, self._digest(kind, value)) for kind, value in values]
 
-    def is_blocked(self, remote_ip: str | None, principal: str | None) -> bool:
+    def blocked_for(self, remote_ip: str | None, principal: str | None) -> timedelta | None:
+        """How much longer sign-in stays blocked for this address and account, or ``None``.
+
+        Either bucket can block (an address with too many failures blocks every account behind
+        it), so the block lasts until the later of the two ends.
+        """
         now = _utc_now()
         cutoff = now - self.window
         keys = [key for _, key in self._keys(remote_ip, principal)]
-        if not keys:
-            return False
-        stmt = select(AuthRateLimitBucket.bucket_key).where(
-            AuthRateLimitBucket.bucket_key.in_(keys),
-            or_(
-                AuthRateLimitBucket.blocked_until > now,
-                (
-                    (AuthRateLimitBucket.window_started_at > cutoff)
-                    & (AuthRateLimitBucket.failures >= self.limit)
-                ),
-            ),
-        )
-        return self.session.scalar(stmt.limit(1)) is not None
+        rows = self.session.execute(
+            select(
+                AuthRateLimitBucket.blocked_until,
+                AuthRateLimitBucket.window_started_at,
+                AuthRateLimitBucket.failures,
+            ).where(AuthRateLimitBucket.bucket_key.in_(keys))
+        ).all()
+        ends: list[datetime] = []
+        for blocked_until, window_started_at, failures in rows:
+            if blocked_until is not None and blocked_until > now:
+                ends.append(blocked_until)
+            elif window_started_at > cutoff and failures >= self.limit:
+                ends.append(window_started_at + self.window)
+        return max(ends) - now if ends else None
 
     def record_failure(self, remote_ip: str | None, principal: str | None) -> None:
         now = _utc_now()
@@ -153,18 +161,15 @@ def register_auth_rate_limit(app: Flask) -> None:
             session.clear()
 
     @app.before_request
-    def reject_blocked_authentication() -> Response | None:
+    def reject_blocked_authentication() -> None:
         if request.method != "POST" or request.endpoint not in _RATE_LIMITED_ENDPOINTS:
-            return None
+            return
         g.auth_failure_recorded = False
         limiter = AuthRateLimiter(db.session())
-        if limiter.is_blocked(request.remote_addr, _request_principal()):
-            return Response(
-                "Authentication temporarily unavailable. Try again later.",
-                status=429,
-                mimetype="text/plain",
-            )
-        return None
+        remaining = limiter.blocked_for(request.remote_addr, _request_principal())
+        if remaining is not None:
+            # The generic error page says how long to wait; it reveals nothing about the account.
+            raise TooManyRequests(retry_after=max(1, math.ceil(remaining.total_seconds())))
 
     def record_failed_authentication(
         sender: Flask,

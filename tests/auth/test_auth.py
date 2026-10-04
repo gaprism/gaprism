@@ -1,12 +1,18 @@
 """Authentication: admin bootstrap, MFA enrolment, generic failures and throttling."""
 
+from datetime import timedelta
+
+import pytest
 from flask import Flask
 from flask.testing import FlaskClient, FlaskCliRunner
 from flask_security.utils import hash_password, verify_password
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.models.auth import User
 from app.models.auth_rate_limit import AuthRateLimitBucket
+from app.models.base import utc_now
+from app.service.auth import AuthRateLimiter
 
 
 def test_cli_create_admin_success(
@@ -156,6 +162,76 @@ def test_login_failures_are_generic_and_rate_limited(
     )
     assert blocked.status_code == 429
     assert b"rate-limited@example.org" not in blocked.data
+    assert blocked.mimetype == "text/html"  # the app's error page, not a bare text answer
+    assert 0 < int(blocked.headers["Retry-After"]) <= 15 * 60
+
+
+def block_sign_in(session: Session, email: str = "someone@example.org") -> AuthRateLimiter:
+    """Fail often enough from the test client's address that the limiter blocks it."""
+    limiter = AuthRateLimiter(session)
+    for _ in range(limiter.limit):
+        limiter.record_failure("127.0.0.1", email)
+    return limiter
+
+
+@pytest.mark.parametrize(
+    ("seconds", "expected"),
+    [(20, "about 1 minute."), (61, "about 2 minutes."), (15 * 60, "about 15 minutes.")],
+)
+def test_a_blocked_sign_in_says_how_long_to_wait(
+    client: FlaskClient, db_session: Session, seconds: int, expected: str
+) -> None:
+    block_sign_in(db_session)
+    db_session.execute(
+        update(AuthRateLimitBucket).values(blocked_until=utc_now() + timedelta(seconds=seconds))
+    )
+    db_session.commit()
+
+    response = client.post("/auth/login", data={"email": "someone@example.org", "password": "x"})
+    page = response.get_data(as_text=True)
+    assert response.status_code == 429
+    assert "Too many attempts" in page and expected in page
+    assert seconds - 2 <= int(response.headers["Retry-After"]) <= seconds
+    assert "someone@example.org" not in page
+
+
+def test_a_block_covers_the_address_and_the_account_until_the_later_end(
+    db_session: Session,
+) -> None:
+    limiter = block_sign_in(db_session)
+    window = limiter.window
+
+    remaining = limiter.blocked_for("127.0.0.1", "someone@example.org")
+    assert remaining is not None and window - timedelta(seconds=5) < remaining <= window
+    # The address blocks every account behind it, the account blocks every address.
+    assert limiter.blocked_for("127.0.0.1", "other@example.org") is not None
+    assert limiter.blocked_for("203.0.113.9", "someone@example.org") is not None
+    assert limiter.blocked_for("203.0.113.9", "other@example.org") is None
+
+    now = utc_now()
+    for kind, seconds in (("ip", 30), ("principal", 300)):
+        db_session.execute(
+            update(AuthRateLimitBucket)
+            .where(AuthRateLimitBucket.bucket_kind == kind)
+            .values(blocked_until=now + timedelta(seconds=seconds))
+        )
+    later = limiter.blocked_for("127.0.0.1", "someone@example.org")
+    assert later is not None and timedelta(seconds=290) < later <= timedelta(seconds=300)
+
+
+def test_a_full_window_blocks_even_without_a_block_timestamp_and_expiry_unblocks(
+    db_session: Session,
+) -> None:
+    limiter = block_sign_in(db_session)
+    db_session.execute(update(AuthRateLimitBucket).values(blocked_until=None))
+    still = limiter.blocked_for("127.0.0.1", "someone@example.org")
+    assert still is not None and still > limiter.window - timedelta(seconds=5)
+
+    expired = utc_now() - limiter.window - timedelta(seconds=1)
+    db_session.execute(
+        update(AuthRateLimitBucket).values(window_started_at=expired, blocked_until=expired)
+    )
+    assert limiter.blocked_for("127.0.0.1", "someone@example.org") is None
 
 
 def test_login_invalid_credentials(client: FlaskClient, db_session: Session) -> None:

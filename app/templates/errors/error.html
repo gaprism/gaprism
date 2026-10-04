@@ -7,6 +7,9 @@
   <p class="eyebrow">{{ code }}</p>
   <h1 class="mt-2">{{ title }}</h1>
   <p class="mt-3 text-sm text-muted">{{ message }}</p>
+  {% if wait_seconds %}
+  <p class="mt-2 text-sm font-semibold">{{ ngettext('Please try again in about %(num)d minute.', 'Please try again in about %(num)d minutes.', (wait_seconds + 59) // 60) }}</p>
+  {% endif %}
   <div class="mt-6">{{ action(_('Back to start'), url_for('core.index')) }}</div>
 </div>
 {% endblock %}

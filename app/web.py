@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from flask import Flask, render_template, request
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, TooManyRequests
 from werkzeug.wrappers import Response
 
 from app.i18n import gettext as _
@@ -29,7 +29,7 @@ _ERROR_TEXTS: dict[int, tuple[str, str]] = {
     403: ("Access denied", "You do not have access to this page."),
     404: ("Not found", "This page does not exist, or you do not have access to it."),
     405: ("Method not allowed", "This action is not available here."),
-    429: ("Too many requests", "Please wait a moment and try again."),
+    429: ("Too many attempts", "Sign-in is paused after repeated failed attempts."),
 }
 _FALLBACK_ERROR = ("Something went wrong", "The request could not be completed.")
 
@@ -58,11 +58,15 @@ def register_error_pages(app: Flask) -> None:
     """Render generic error pages; details go to the log, never to the browser."""
 
     @app.errorhandler(HTTPException)
-    def handle_http_error(error: HTTPException) -> Response | tuple[str, int]:
+    def handle_http_error(error: HTTPException) -> Response | tuple[str, int, dict[str, str]]:
         code = error.code or 500
         if code < 400:  # routing redirects (e.g. missing trailing slash) are valid responses
             return error.get_response()
         title, message = _ERROR_TEXTS.get(code, _FALLBACK_ERROR)
-        return render_template(
-            "errors/error.html", code=code, title=_(title), message=_(message)
-        ), code
+        # Only a number of seconds is shown and sent (the limiter raises it that way).
+        retry_after = error.retry_after if isinstance(error, TooManyRequests) else None
+        wait = retry_after if isinstance(retry_after, int) and retry_after > 0 else None
+        page = render_template(
+            "errors/error.html", code=code, title=_(title), message=_(message), wait_seconds=wait
+        )
+        return page, code, ({"Retry-After": str(wait)} if wait else {})
