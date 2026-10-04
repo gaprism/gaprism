@@ -24,6 +24,9 @@
 | C13 | Reputation / blocklists | S | resolver-based block detection; optional keyed providers | hostname → resolver/provider | M | R4 | threats, block-lists |
 | C14 | CVE enrichment: CISA KEV, EPSS, NVD | S | KEV JSON, FIRST EPSS, NVD | CVE IDs | S | R4 | – |
 
+**Shipped:**
+- **C01 DNS** (S1.6, 2026-10-04): A, AAAA, the explicit CNAME chain (with a `dangling_cname` flag when the last target does not exist), MX, NS, TXT and CAA, each with its TTL, asked of `EGRESS_DNS_RESOLVERS` (default 1.1.1.1 and 8.8.8.8; `system` uses the operating system's resolver). Every address is screened with the egress gate's rules: non-public answers are listed under `blocked` with a reason (private, loopback, link-local, …) and never reach a check that connects; `addresses` holds the usable public ones. NXDOMAIN is `no_data`; a name that exists but has no records is `no_data` (`no_records`); a failing record type is listed under `errors` (timeout, servfail, …), and an unreachable resolver ends the check after two questions. Bounds: 50 records per type, 2000 characters per TXT value.
+
 **Domain level** (run once per scan)
 
 | ID | Check | Answers | Source | Leaves our network? | Size | Rel. | web-check |

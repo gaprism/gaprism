@@ -1,6 +1,7 @@
 """Centralized, validated environment configuration profiles."""
 
 import datetime
+import ipaddress
 import math
 import os
 import re
@@ -108,8 +109,11 @@ class BaseConfig:
     USER_AGENT: str = "WebDueDiligence/0.1 (+https://github.com/stalpers/web_due_diligence)"
     PROVIDER_TIMEOUT_SECONDS: float = 20.0
 
-    # Anti-SSRF & network settings
+    # Anti-SSRF & network settings. The DNS check asks EGRESS_DNS_RESOLVERS (empty list = the
+    # system resolver) and waits at most DNS_TIMEOUT_SECONDS per attempt; the TLS and HTTP
+    # checks use the two EGRESS_* timeouts.
     EGRESS_DNS_RESOLVERS: ClassVar[list[str]] = ["1.1.1.1", "8.8.8.8"]
+    DNS_TIMEOUT_SECONDS: float = 5.0
     EGRESS_CONNECT_TIMEOUT_SEC: float = 10.0
     EGRESS_READ_TIMEOUT_SEC: float = 20.0
 
@@ -201,7 +205,13 @@ def validate_config(config_obj: Any) -> None:
         )
     if getattr(config_obj, "CT_MODE", "") not in ("union", "first"):
         raise ConfigurationError("CT_MODE must be 'union' or 'first'.")
-    for name in ("PROVIDER_TIMEOUT_SECONDS", "DISCOVERY_BUDGET_SECONDS"):
+    for name in (
+        "PROVIDER_TIMEOUT_SECONDS",
+        "DISCOVERY_BUDGET_SECONDS",
+        "DNS_TIMEOUT_SECONDS",
+        "EGRESS_CONNECT_TIMEOUT_SEC",
+        "EGRESS_READ_TIMEOUT_SEC",
+    ):
         number = getattr(config_obj, name, 0)
         if (
             not isinstance(number, int | float)
@@ -210,6 +220,13 @@ def validate_config(config_obj: Any) -> None:
             or number <= 0
         ):
             raise ConfigurationError(f"{name} must be a positive number.")
+    for resolver in getattr(config_obj, "EGRESS_DNS_RESOLVERS", []):
+        try:
+            ipaddress.ip_address(str(resolver))
+        except ValueError as exc:
+            raise ConfigurationError(
+                "EGRESS_DNS_RESOLVERS must list IP addresses (or 'system' for the system resolver)."
+            ) from exc
 
     if not isinstance(auth_rate_limit_failures, int) or auth_rate_limit_failures <= 0:
         raise ConfigurationError("AUTH_RATE_LIMIT_FAILURES must be a positive integer.")
@@ -282,6 +299,10 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "USER_AGENT": "USER_AGENT",
             "PROVIDER_TIMEOUT_SECONDS": "PROVIDER_TIMEOUT_SECONDS",
             "DISCOVERY_BUDGET_SECONDS": "DISCOVERY_BUDGET_SECONDS",
+            "EGRESS_DNS_RESOLVERS": "EGRESS_DNS_RESOLVERS",
+            "DNS_TIMEOUT_SECONDS": "DNS_TIMEOUT_SECONDS",
+            "EGRESS_CONNECT_TIMEOUT_SEC": "EGRESS_CONNECT_TIMEOUT_SEC",
+            "EGRESS_READ_TIMEOUT_SEC": "EGRESS_READ_TIMEOUT_SEC",
         }
         for key, env_key in environment_keys.items():
             if env_key not in os.environ:
@@ -310,6 +331,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
                 values[key] = [part.strip().lower() for part in raw.split(",") if part.strip()]
             else:
                 values[key] = raw
+        if values["EGRESS_DNS_RESOLVERS"] == ["system"]:
+            values["EGRESS_DNS_RESOLVERS"] = []  # an empty line cannot say "no resolver list"
     values["SECURITY_TOTP_SECRETS"] = {"1": values["MFA_ENCRYPTION_KEY"]}
     values["SECURITY_TWO_FACTOR_REQUIRED"] = bool(values["REQUIRE_MFA"])
 

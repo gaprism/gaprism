@@ -8,6 +8,7 @@ import pytest
 from runner.dns import (
     DNSResolutionError,
     SSRFBlockedError,
+    ip_block_reason,
     is_ip_public,
     resolve_and_screen,
 )
@@ -59,6 +60,54 @@ class TestIPPublicScreening:
         assert is_ip_public("::ffff:192.168.1.1") is False
         # IPv4-mapped public IP
         assert is_ip_public("::ffff:93.184.216.34") is True
+
+
+class TestBlockReason:
+    """``ip_block_reason`` labels what ``is_ip_public`` refuses; it never disagrees with it."""
+
+    @pytest.mark.parametrize(
+        ("ip", "reason"),
+        [
+            ("10.1.2.3", "private"),
+            ("192.168.0.9", "private"),
+            ("127.0.0.1", "loopback"),
+            ("::1", "loopback"),
+            ("169.254.169.254", "link_local"),
+            ("fe80::1", "link_local"),
+            ("224.0.0.1", "multicast"),
+            ("0.0.0.0", "unspecified"),
+            ("fd12:3456:789a:1::1", "private"),
+            ("::ffff:10.0.0.1", "private"),  # IPv4-mapped: judged by the address inside
+            ("::ffff:127.0.0.1", "loopback"),
+            ("240.0.0.1", "reserved"),
+            ("100.64.0.1", "special_use"),  # carrier-grade NAT
+            ("not-an-ip", "invalid"),
+        ],
+    )
+    def test_names_the_category(self, ip: str, reason: str) -> None:
+        assert ip_block_reason(ip) == reason
+
+    @pytest.mark.parametrize(
+        "ip", ["93.184.216.34", "1.1.1.1", "2606:2800:220:1:248:1893:25c8:1946"]
+    )
+    def test_public_addresses_have_no_reason(self, ip: str) -> None:
+        assert ip_block_reason(ip) is None
+
+    @pytest.mark.parametrize(
+        "ip",
+        [
+            "10.0.0.1",
+            "127.0.0.1",
+            "169.254.1.1",
+            "100.64.1.1",
+            "198.51.100.7",
+            "::1",
+            "fc00::1",
+            "bad",
+        ],
+    )
+    def test_agrees_with_the_gate(self, ip: str) -> None:
+        assert (ip_block_reason(ip) is None) == is_ip_public(ip)
 
 
 class TestDNSResolverAndAntiSSRF:

@@ -160,12 +160,49 @@ def test_production_still_fails_fast_when_a_secret_is_empty(
         create_app("production")
 
 
-@pytest.mark.parametrize("setting", ["PROVIDER_TIMEOUT_SECONDS", "DISCOVERY_BUDGET_SECONDS"])
+@pytest.mark.parametrize(
+    "setting",
+    [
+        "PROVIDER_TIMEOUT_SECONDS",
+        "DISCOVERY_BUDGET_SECONDS",
+        "DNS_TIMEOUT_SECONDS",
+        "EGRESS_CONNECT_TIMEOUT_SEC",
+        "EGRESS_READ_TIMEOUT_SEC",
+    ],
+)
 @pytest.mark.parametrize("bad", [0, -1, True, float("nan"), float("inf"), "30"])
 def test_time_limits_must_be_positive_finite_numbers(setting: str, bad: object) -> None:
     config = type("BadLimit", (TestingConfig,), {setting: bad})
     with pytest.raises(ConfigurationError, match=f"{setting} must be a positive number"):
         validate_config(config)
+
+
+def test_dns_resolvers_must_be_ip_addresses() -> None:
+    class Hostnames(TestingConfig):
+        EGRESS_DNS_RESOLVERS: ClassVar[list[str]] = ["dns.google"]
+
+    with pytest.raises(ConfigurationError, match="EGRESS_DNS_RESOLVERS must list IP addresses"):
+        validate_config(Hostnames)
+
+    class Mixed(TestingConfig):
+        EGRESS_DNS_RESOLVERS: ClassVar[list[str]] = ["1.1.1.1", "2606:4700:4700::1111"]
+
+    validate_config(Mixed)
+
+
+def test_dns_resolvers_come_from_the_environment_and_system_means_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EGRESS_DNS_RESOLVERS", "9.9.9.9, 149.112.112.112")
+    assert create_app("development").config["EGRESS_DNS_RESOLVERS"] == [
+        "9.9.9.9",
+        "149.112.112.112",
+    ]
+    monkeypatch.setenv("EGRESS_DNS_RESOLVERS", "system")
+    assert create_app("development").config["EGRESS_DNS_RESOLVERS"] == []  # the OS decides
+    monkeypatch.setenv("EGRESS_DNS_RESOLVERS", "not-an-ip")
+    with pytest.raises(ConfigurationError, match="EGRESS_DNS_RESOLVERS"):
+        create_app("development")
 
 
 def test_the_discovery_budget_can_be_set_from_the_environment(

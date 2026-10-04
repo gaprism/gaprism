@@ -109,6 +109,35 @@ def is_ip_public(ip: IPAddressType | str) -> bool:
     return False
 
 
+def ip_block_reason(ip: IPAddressType | str) -> str | None:
+    """Name the category of an address that must not be connected to; ``None`` if it is public.
+
+    Informational only (it labels what ``is_ip_public`` already refuses, e.g. for a DNS record
+    set that points at a private address); the gate itself stays ``is_ip_public``.
+    """
+    if is_ip_public(ip):
+        return None
+    try:
+        parsed: IPAddressType = ipaddress.ip_address(ip.strip("[]") if isinstance(ip, str) else ip)
+    except ValueError:
+        return "invalid"
+    if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped is not None:
+        parsed = parsed.ipv4_mapped
+    if parsed.is_loopback:
+        return "loopback"
+    if parsed.is_link_local:
+        return "link_local"
+    if parsed.is_multicast:
+        return "multicast"
+    if parsed.is_unspecified:
+        return "unspecified"
+    if parsed.is_reserved:  # before "private": Python counts 240.0.0.0/4 as both
+        return "reserved"
+    if parsed.is_private:
+        return "private"
+    return "special_use"
+
+
 def resolve_and_screen(
     hostname: str,
     resolver_fn: Callable[[str], list[str]] | None = None,
