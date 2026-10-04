@@ -11,10 +11,32 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from runner.dns import SSRFBlockedError, is_ip_public, resolve_and_screen
+
+# Names for the signature algorithm OIDs that matter for a due-diligence reader (weak ones
+# included); anything else is reported by its dotted OID.
+_SIGNATURE_NAMES = {
+    "1.2.840.113549.1.1.4": "md5WithRSAEncryption",
+    "1.2.840.113549.1.1.5": "sha1WithRSAEncryption",
+    "1.2.840.113549.1.1.10": "rsassa-pss",
+    "1.2.840.113549.1.1.11": "sha256WithRSAEncryption",
+    "1.2.840.113549.1.1.12": "sha384WithRSAEncryption",
+    "1.2.840.113549.1.1.13": "sha512WithRSAEncryption",
+    "1.2.840.10045.4.1": "ecdsa-with-SHA1",
+    "1.2.840.10045.4.3.2": "ecdsa-with-SHA256",
+    "1.2.840.10045.4.3.3": "ecdsa-with-SHA384",
+    "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
+    "1.2.840.10040.4.3": "dsa-with-sha1",
+    "1.3.101.112": "Ed25519",
+    "1.3.101.113": "Ed448",
+}
+MAX_CHAIN_CERTIFICATES = 10
+MAX_NAME_LENGTH = 200
 
 
 @dataclass(frozen=True)
@@ -41,6 +63,17 @@ class TLSProbeResult:
     cipher_suite: str | None = None
     protocol_version: str | None = None
     alpn_negotiated: str | None = None
+    key_type: str | None = None  # RSA, EC, Ed25519, Ed448, DSA
+    key_bits: int | None = None
+    key_curve: str | None = None  # EC only, e.g. secp256r1
+    signature_algorithm: str | None = None  # e.g. sha256WithRSAEncryption
+    signature_hash: str | None = None  # e.g. sha256 (None for Ed25519/Ed448)
+    wildcard: bool = False  # a SAN or the CN is a "*." pattern
+    chain_length: int | None = None  # None when this Python cannot expose the chain
+    chain_subjects: list[str] = field(default_factory=list)
+    # True when the certificate facts were read after verification had failed, through a
+    # separate connection whose certificate is NOT trusted. ``is_valid`` is False then.
+    forensic: bool = False
     collected_at: datetime.datetime = field(
         default_factory=lambda: datetime.datetime.now(datetime.UTC)
     )
@@ -68,6 +101,15 @@ class TLSProbeResult:
             "cipher_suite": self.cipher_suite,
             "protocol_version": self.protocol_version,
             "alpn_negotiated": self.alpn_negotiated,
+            "key_type": self.key_type,
+            "key_bits": self.key_bits,
+            "key_curve": self.key_curve,
+            "signature_algorithm": self.signature_algorithm,
+            "signature_hash": self.signature_hash,
+            "wildcard": self.wildcard,
+            "chain_length": self.chain_length,
+            "chain_subjects": self.chain_subjects,
+            "forensic": self.forensic,
             "collected_at": self.collected_at.isoformat(),
         }
 
@@ -91,6 +133,59 @@ def _match_hostname_pattern(hostname: str, pattern: str) -> bool:
             return bool(prefix and "." not in prefix)
 
     return False
+
+
+def _key_details(cert: x509.Certificate) -> tuple[str | None, int | None, str | None]:
+    """Key family, size in bits and (for EC) the curve name of the certificate's public key."""
+    try:
+        key = cert.public_key()
+    except (UnsupportedAlgorithm, ValueError):
+        return None, None, None
+    if isinstance(key, rsa.RSAPublicKey):
+        return "RSA", key.key_size, None
+    if isinstance(key, ec.EllipticCurvePublicKey):
+        return "EC", key.curve.key_size, key.curve.name
+    if isinstance(key, ed25519.Ed25519PublicKey):
+        return "Ed25519", 256, None
+    if isinstance(key, ed448.Ed448PublicKey):
+        return "Ed448", 456, None
+    if isinstance(key, dsa.DSAPublicKey):
+        return "DSA", key.key_size, None
+    return type(key).__name__, None, None
+
+
+def _signature_details(cert: x509.Certificate) -> tuple[str, str | None]:
+    """The signature algorithm (named when it is a common one) and its hash, if it has one."""
+    oid = cert.signature_algorithm_oid.dotted_string
+    try:
+        digest = cert.signature_hash_algorithm
+    except UnsupportedAlgorithm:
+        digest = None
+    return _SIGNATURE_NAMES.get(oid, oid), digest.name if digest is not None else None
+
+
+def _chain_facts(ssock: ssl.SSLSocket, verified: bool) -> tuple[int | None, list[str]]:
+    """How many certificates the peer's chain has and who they belong to.
+
+    ``SSLSocket.get_verified_chain`` / ``get_unverified_chain`` exist from Python 3.13; on older
+    versions the chain is simply not reported (``None``), never guessed.
+    """
+    getter = getattr(ssock, "get_verified_chain" if verified else "get_unverified_chain", None)
+    if getter is None:
+        return None, []
+    try:
+        chain = list(getter())
+    except (ValueError, OSError, ssl.SSLError):
+        return None, []
+    subjects: list[str] = []
+    for der in chain[:MAX_CHAIN_CERTIFICATES]:  # DER bytes, one per certificate
+        try:
+            cert = x509.load_der_x509_certificate(bytes(der), default_backend())
+        except ValueError:
+            subjects.append("(unreadable)")
+            continue
+        subjects.append(cert.subject.rfc4514_string()[:MAX_NAME_LENGTH])
+    return len(chain), subjects
 
 
 def _parse_cert_metadata(der_bytes: bytes) -> dict[str, Any]:
@@ -136,6 +231,10 @@ def _parse_cert_metadata(der_bytes: bytes) -> dict[str, Any]:
 
     fingerprint = cert.fingerprint(hashes.SHA256()).hex()
     serial = hex(cert.serial_number)[2:].upper()
+    key_type, key_bits, key_curve = _key_details(cert)
+    signature_algorithm, signature_hash = _signature_details(cert)
+    # Browsers ignore the CN when SANs exist, so it only counts when there are none.
+    wildcard = any(name.startswith("*.") for name in (sans or [subject_cn or ""]))
 
     return {
         "subject_cn": subject_cn,
@@ -147,6 +246,12 @@ def _parse_cert_metadata(der_bytes: bytes) -> dict[str, Any]:
         "days_until_expiration": days_left,
         "fingerprint_sha256": fingerprint,
         "serial_number": serial,
+        "key_type": key_type,
+        "key_bits": key_bits,
+        "key_curve": key_curve,
+        "signature_algorithm": signature_algorithm,
+        "signature_hash": signature_hash,
+        "wildcard": wildcard,
     }
 
 
@@ -200,6 +305,9 @@ def probe_tls_endpoint(
     cipher_suite: str | None = None
     protocol_version: str | None = None
     alpn_negotiated: str | None = None
+    chain_length: int | None = None
+    chain_subjects: list[str] = []
+    forensic = False
 
     try:
         with socket.create_connection((connect_host, port), timeout=timeout) as sock:
@@ -216,6 +324,7 @@ def probe_tls_endpoint(
                     cipher_suite = cipher_info[0]
                 protocol_version = ssock.version()
                 alpn_negotiated = ssock.selected_alpn_protocol()
+                chain_length, chain_subjects = _chain_facts(ssock, verified=True)
                 chain_trust = True
                 hostname_match = True
                 time_valid = True
@@ -286,6 +395,8 @@ def probe_tls_endpoint(
                         cipher_suite = cipher_info[0]
                     protocol_version = ssock.version()
                     alpn_negotiated = ssock.selected_alpn_protocol()
+                    chain_length, chain_subjects = _chain_facts(ssock, verified=False)
+                    forensic = der_cert is not None
 
     # 3. Parse certificate metadata if available
     cert_meta: dict[str, Any] = {}
@@ -343,4 +454,13 @@ def probe_tls_endpoint(
         cipher_suite=cipher_suite,
         protocol_version=protocol_version,
         alpn_negotiated=alpn_negotiated,
+        key_type=cert_meta.get("key_type"),
+        key_bits=cert_meta.get("key_bits"),
+        key_curve=cert_meta.get("key_curve"),
+        signature_algorithm=cert_meta.get("signature_algorithm"),
+        signature_hash=cert_meta.get("signature_hash"),
+        wildcard=bool(cert_meta.get("wildcard", False)),
+        chain_length=chain_length,
+        chain_subjects=chain_subjects,
+        forensic=forensic,
     )

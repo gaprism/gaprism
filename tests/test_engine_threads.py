@@ -291,7 +291,7 @@ def test_two_scans_each_get_their_own_limit(database_url: str) -> None:
     try:
         start_scan_for(app, "one.example.org")
         start_scan_for(app, "two.example.org")
-        probe = Probe(hold=0.05)
+        probe = Probe(hold=0.05, rendezvous=8)  # four of each scan must really run together
         names_one = [f"h{n}.one.example.org" for n in range(20)]
         names_two = [f"h{n}.two.example.org" for n in range(20)]
 
@@ -306,7 +306,7 @@ def test_two_scans_each_get_their_own_limit(database_url: str) -> None:
         }
         worker.run_worker(app, once=True, threads=8, registry=registry)
 
-        assert 4 < probe.max_active <= 8  # more than one scan's limit, never more than the threads
+        assert probe.max_active == 8  # the barrier needed 8 at once: 4 per scan, not 4 in total
         with app.app_context():
             states = db.session.scalars(select(Scan.status)).all()
             assert states == ["completed", "completed"]
