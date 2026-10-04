@@ -8,6 +8,8 @@ import pytest
 
 from app import create_app
 from app.config import (
+    MAX_PORTS_CACHE_HOURS,
+    PORTS_PROVIDERS,
     ConfigurationError,
     ProductionConfig,
     TestingConfig,
@@ -141,13 +143,22 @@ def test_empty_environment_values_keep_the_profile_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A .env copied from .env.example has empty lines; they must not wipe the defaults."""
-    for name in ("SECRET_KEY", "REQUIRE_MFA", "MAX_HOSTS_PER_RUN", "CT_SOURCES", "DATABASE_URL"):
+    for name in (
+        "SECRET_KEY",
+        "REQUIRE_MFA",
+        "MAX_HOSTS_PER_RUN",
+        "CT_SOURCES",
+        "DATABASE_URL",
+        "PORTS_PROVIDER",
+        "PORTS_CACHE_HOURS",
+    ):
         monkeypatch.setenv(name, "")
     monkeypatch.setenv("DB_SCHEMA", "")
     app = create_app("development")
     assert app.config["SECRET_KEY"] and "dev" in app.config["SECRET_KEY"]
     assert app.config["MAX_HOSTS_PER_RUN"] == 200
     assert app.config["CT_SOURCES"] == ["ctlogs", "certspotter", "crtsh"]
+    assert (app.config["PORTS_PROVIDER"], app.config["PORTS_CACHE_HOURS"]) == ("auto", 24.0)
     assert app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgresql")
     assert app.config["DB_SCHEMA"] == ""
 
@@ -168,6 +179,9 @@ def test_production_still_fails_fast_when_a_secret_is_empty(
         "DNS_TIMEOUT_SECONDS",
         "EGRESS_CONNECT_TIMEOUT_SEC",
         "EGRESS_READ_TIMEOUT_SEC",
+        "SHODAN_RATE_PER_SECOND",
+        "INTERNETDB_RATE_PER_SECOND",
+        "PORTS_CACHE_HOURS",
     ],
 )
 @pytest.mark.parametrize("bad", [0, -1, True, float("nan"), float("inf"), "30"])
@@ -213,6 +227,53 @@ def test_the_discovery_budget_can_be_set_from_the_environment(
     monkeypatch.setenv("DISCOVERY_BUDGET_SECONDS", "soon")
     with pytest.raises(ConfigurationError, match="DISCOVERY_BUDGET_SECONDS must be a number"):
         create_app("development")
+
+
+def test_the_ports_provider_must_be_a_known_choice() -> None:
+    unknown = type("Unknown", (TestingConfig,), {"PORTS_PROVIDER": "bing"})
+    with pytest.raises(
+        ConfigurationError, match="PORTS_PROVIDER must be one of auto, shodan, internetdb, off"
+    ):
+        validate_config(unknown)
+    for choice in PORTS_PROVIDERS:
+        validate_config(type("Choice", (TestingConfig,), {"PORTS_PROVIDER": choice}))
+
+
+def test_the_ports_cache_lifetime_has_an_upper_bound() -> None:
+    """The worker deletes cache entries after 30 days, so a longer lifetime would be a lie."""
+    too_long = type("Forever", (TestingConfig,), {"PORTS_CACHE_HOURS": MAX_PORTS_CACHE_HOURS + 1})
+    with pytest.raises(ConfigurationError, match="PORTS_CACHE_HOURS must not exceed"):
+        validate_config(too_long)
+    longest = type("Longest", (TestingConfig,), {"PORTS_CACHE_HOURS": MAX_PORTS_CACHE_HOURS})
+    validate_config(longest)
+
+
+def test_ports_settings_come_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PORTS_PROVIDER", " InternetDB ")
+    monkeypatch.setenv("SHODAN_API_KEY", "  abc123  ")
+    monkeypatch.setenv("SHODAN_RATE_PER_SECOND", "0.5")
+    monkeypatch.setenv("INTERNETDB_RATE_PER_SECOND", "4")
+    monkeypatch.setenv("PORTS_CACHE_HOURS", "6")
+    config = create_app("development").config
+
+    assert (config["PORTS_PROVIDER"], config["SHODAN_API_KEY"]) == ("internetdb", "abc123")
+    assert config["SHODAN_RATE_PER_SECOND"] == 0.5
+    assert config["INTERNETDB_RATE_PER_SECOND"] == 4.0
+    assert config["PORTS_CACHE_HOURS"] == 6.0
+
+    monkeypatch.setenv("PORTS_PROVIDER", "bogus")
+    with pytest.raises(ConfigurationError, match="PORTS_PROVIDER"):
+        create_app("development")
+
+
+def test_the_shodan_key_never_appears_in_a_configuration_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SHODAN_API_KEY", "SECRET-KEY-0123456789")
+    monkeypatch.setenv("PORTS_PROVIDER", "bogus")
+    with pytest.raises(ConfigurationError) as raised:
+        create_app("development")
+    assert "SECRET-KEY-0123456789" not in str(raised.value)
 
 
 @pytest.mark.parametrize("setting", ["WORKER_THREADS", "PER_TARGET_CONCURRENCY"])

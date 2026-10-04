@@ -30,13 +30,22 @@ import httpx
 from flask import Flask
 from sqlalchemy import func, select, update
 from sqlalchemy.engine import CursorResult, Result
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.checks import DISCOVERY_KEY, REGISTRY, Check, CheckContext, CheckOutcome
+from app.checks import (
+    DISCOVERY_KEY,
+    REGISTRY,
+    CacheStore,
+    Check,
+    CheckContext,
+    CheckOutcome,
+    waits_for,
+)
 from app.extensions import db
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
 from app.service import scans as scan_service
+from app.service.provider_cache import DbCacheStore
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +55,8 @@ CLAIM_BATCH = (
     100  # candidates looked at per claim; tasks waiting for a prerequisite are passed over
 )
 HOUSEKEEPING_INTERVAL = 30.0  # seconds between one worker's sweeps for stale locks
+CACHE_PURGE_INTERVAL = 3600.0  # seconds between sweeps of old provider-cache entries
+CACHE_RETENTION = timedelta(days=30)  # PORTS_CACHE_HOURS may not exceed this (see config)
 OPEN_STATUSES = ("queued", "running")
 
 
@@ -141,12 +152,10 @@ def claim_next(
         lost_a_race = False
         for row_id, scan_id, host_id, check_key in candidates:
             check = registry.get(check_key)
-            if (
-                check is not None
-                and check.needs
-                and _prerequisites_pending(session, scan_id, host_id, check.needs)
-            ):
-                continue
+            if check is not None:
+                waits = waits_for(check)
+                if waits and _prerequisites_pending(session, scan_id, host_id, waits):
+                    continue
             task = session.scalars(
                 select(CheckResult)
                 .where(CheckResult.id == row_id, CheckResult.status == "queued")
@@ -170,8 +179,9 @@ def claim_next(
 def _previous_outcomes(
     session: Session, task: CheckResult, check: Check
 ) -> dict[str, CheckOutcome]:
-    """Outcomes of the checks this one needs, for the same host (or the domain)."""
-    if not check.needs:
+    """Outcomes of the checks this one needs or follows, for the same host (or the domain)."""
+    waits = waits_for(check)
+    if not waits:
         return {}
     rows = session.scalars(
         select(CheckResult).where(
@@ -179,7 +189,7 @@ def _previous_outcomes(
             CheckResult.host_id == task.host_id
             if task.host_id is not None
             else CheckResult.host_id.is_(None),
-            CheckResult.check_key.in_(check.needs),
+            CheckResult.check_key.in_(list(waits)),
         )
     )
     return {
@@ -205,6 +215,7 @@ def execute_task(
     config: Mapping[str, Any],
     http: httpx.Client,
     registry: Mapping[str, Check] | None = None,
+    cache: CacheStore | None = None,
 ) -> bool:
     """Run a claimed task and store its outcome. Returns False if the result was discarded."""
     registry = REGISTRY if registry is None else registry
@@ -233,6 +244,7 @@ def execute_task(
                 config=config,
                 http=http,
                 previous=previous,
+                cache=cache,
             )
             session.commit()  # release the connection while the check talks to the network
             started = time.monotonic()
@@ -287,6 +299,7 @@ def process_one(
     config: Mapping[str, Any],
     http: httpx.Client,
     registry: Mapping[str, Check] | None = None,
+    cache: CacheStore | None = None,
 ) -> bool:
     """Claim and run one task. Returns whether there was any work."""
     now = utc_now()
@@ -294,7 +307,7 @@ def process_one(
     task = claim_next(session, worker_id, now, registry=registry)
     if task is None:
         return False
-    execute_task(session, task, worker_id, config=config, http=http, registry=registry)
+    execute_task(session, task, worker_id, config=config, http=http, registry=registry, cache=cache)
     return True
 
 
@@ -382,6 +395,7 @@ class _Shared:
     limiter: TargetLimiter
     claim_lock: threading.Lock  # makes "which scans are full? -> claim -> count it" one step
     sweep: _Interval
+    purge: _Interval  # old provider-cache entries
     wakeup: _Wakeup
     stop: threading.Event
 
@@ -418,9 +432,12 @@ def _work(
     failures = 0
     with app.app_context():
         session = db.session()
+        cache = DbCacheStore(sessionmaker(bind=db.engine, expire_on_commit=False))
         while not shared.stop.is_set():
             seen = shared.wakeup.mark()
             try:
+                if shared.purge.due():
+                    cache.purge(CACHE_RETENTION)
                 task = _claim(session, name, shared, registry)
                 if task is None and once and shared.limiter.active == 0:
                     # Nothing runs anywhere in this process; a task that just finished may have
@@ -433,7 +450,13 @@ def _work(
                     continue
                 try:
                     execute_task(
-                        session, task, name, config=app.config, http=http, registry=registry
+                        session,
+                        task,
+                        name,
+                        config=app.config,
+                        http=http,
+                        registry=registry,
+                        cache=cache,
                     )
                 finally:
                     shared.limiter.leave(task.scan_id)
@@ -472,6 +495,7 @@ def run_worker(
         limiter=TargetLimiter(int(app.config["PER_TARGET_CONCURRENCY"])),
         claim_lock=threading.Lock(),
         sweep=_Interval(HOUSEKEEPING_INTERVAL),
+        purge=_Interval(CACHE_PURGE_INTERVAL),
         wakeup=_Wakeup(),
         stop=stop or threading.Event(),
     )

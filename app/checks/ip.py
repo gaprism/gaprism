@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from app.checks.base import CheckContext, CheckOutcome, CheckScope
-from app.checks.dns import SHARED_RESOLVERS, reverse_names
+from app.checks.dns import SHARED_RESOLVERS, alias_names, reverse_names
 from app.service.geo import (
     SHARED_PROVIDERS,
     DatabaseInfo,
@@ -50,13 +50,6 @@ def _default_reverse(config: Mapping[str, Any], ip: str) -> tuple[list[str], str
     return reverse_names(SHARED_RESOLVERS.get(config), ip, lifetime)
 
 
-def _alias_names(dns_data: Mapping[str, Any]) -> list[str]:
-    """The names a host is an alias for (its CNAME targets), as CDN hints."""
-    targets = [str(step.get("target", "")) for step in dns_data.get("cname", [])]
-    canonical = str(dns_data.get("canonical_name", ""))
-    return [name for name in (*targets, canonical) if name]
-
-
 class IpCheck:
     """Locate the public addresses of a host."""
 
@@ -78,7 +71,7 @@ class IpCheck:
         if dns is None or not addresses:
             return CheckOutcome("skipped", "no_public_address", {})
         addresses = addresses[:MAX_ADDRESSES]
-        aliases = _alias_names(dns.data)
+        aliases = alias_names(dns.data)
         provider = self._provider(ctx.config)
 
         entries: list[dict[str, Any]] = []

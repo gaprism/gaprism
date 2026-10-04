@@ -22,7 +22,7 @@ from app.i18n import gettext as _
 from app.i18n import ngettext
 from app.models import Assessment, CheckResult, Host, Scan
 
-CHECK_ORDER = ("dns", "ip", "tls", "http")
+CHECK_ORDER = ("dns", "ip", "ports", "tls", "http")
 MAX_RAW_JSON_CHARS = 100_000
 
 
@@ -33,6 +33,7 @@ def N_(message: str) -> str:  # noqa: N802 - the gettext marker: translated when
 CHECK_TITLES = {
     "dns": N_("DNS"),
     "ip": N_("IP addresses and location"),
+    "ports": N_("Open ports and CVEs"),
     "tls": N_("TLS certificate"),
     "http": N_("HTTP"),
 }
@@ -68,6 +69,14 @@ REASONS = {
     "datasets_missing": N_("Location data not installed"),
     "datasets_unreadable": N_("Location data unreadable"),
     "not_in_database": N_("Not in the location database"),
+    "no_information": N_("The provider knows nothing about this address"),
+    "rate_limited": N_("Rate limited"),
+    "invalid_key": N_("API key rejected"),
+    "membership_required": N_("Needs a paid Shodan plan"),
+    "missing_api_key": N_("No API key configured"),
+    "disabled": N_("Switched off"),
+    "not_asked": N_("Not asked after an earlier failure"),
+    "invalid_response": N_("Unexpected response"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.
@@ -79,6 +88,20 @@ HELP = {
     "datasets_unreadable": N_(
         "The IP location databases could not be read. Run `flask datasets update --force` "
         "to download them again."
+    ),
+    "missing_api_key": N_(
+        "PORTS_PROVIDER is set to shodan but SHODAN_API_KEY is empty. Add the key to `.env`, "
+        "or set PORTS_PROVIDER=auto to use the keyless InternetDB, and scan again."
+    ),
+    "invalid_key": N_("Shodan rejected the API key. Check SHODAN_API_KEY in `.env`."),
+    "membership_required": N_(
+        "Shodan says this lookup needs a paid membership. Check the plan of your key, or set "
+        "PORTS_PROVIDER=internetdb."
+    ),
+    "disabled": N_("Ports and CVE lookups are switched off (PORTS_PROVIDER=off)."),
+    "rate_limited": N_(
+        "The provider's rate limit was reached. Lower SHODAN_RATE_PER_SECOND or "
+        "INTERNETDB_RATE_PER_SECOND, or scan again later."
     ),
 }
 
@@ -100,6 +123,8 @@ def reason_label(code: str | None) -> str | None:
         return _("Skipped: %(checks)s did not succeed", checks=code[len("needs:") :])
     if code in REASONS:
         return _(REASONS[code])
+    if code.startswith("http_") and code[5:].isdigit():
+        return _("HTTP error %(code)s", code=code[5:])
     # A TLS check that read no certificate reports why verification failed as its reason.
     return _(TLS_FAILURES[code]) if code in TLS_FAILURES else code
 
@@ -161,6 +186,26 @@ def _ip_cell(data: Mapping[str, Any]) -> CheckCell:
     return CheckCell("ok", "ok", text)
 
 
+def _ports_cell(data: Mapping[str, Any]) -> CheckCell:
+    """Ports and CVE counts of the addresses that speak for the host (not a CDN's shared edge)."""
+    entries = [entry for entry in data.get("addresses", []) if entry.get("facts")]
+    own = [entry for entry in entries if entry.get("attribution") != "shared_infrastructure"]
+    if not own:
+        text, tone = (_("Shared infrastructure"), "muted") if entries else (_("No data"), "muted")
+    else:
+        ports = {port for entry in own for port in entry["facts"].get("ports", [])}
+        cves = {vuln["id"] for entry in own for vuln in entry["facts"].get("vulnerabilities", [])}
+        parts = [ngettext("%(num)s port", "%(num)s ports", len(ports))] if ports else []
+        if cves:
+            parts.append(ngettext("%(num)s CVE", "%(num)s CVEs", len(cves)))
+        text, tone = " · ".join(parts) or _("No open ports seen"), "info"
+        if len(own) < len(entries):
+            text += " · " + _("plus shared")
+    if data.get("complete") is False:
+        text, tone = text + " · " + _("incomplete"), "medium"
+    return CheckCell("ok", tone, text)
+
+
 def _tls_cell(data: Mapping[str, Any]) -> CheckCell:
     if not data.get("verified"):
         failures = list(data.get("failures", []))
@@ -194,6 +239,7 @@ def _http_cell(data: Mapping[str, Any]) -> CheckCell:
 _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "dns": _dns_cell,
     "ip": _ip_cell,
+    "ports": _ports_cell,
     "tls": _tls_cell,
     "http": _http_cell,
 }

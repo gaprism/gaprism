@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from datetime import timedelta
 from typing import Any
 
 import httpx
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.checks.base import CheckContext, CheckOutcome
 from app.extensions import db
-from app.models import CheckResult, Scan
+from app.models import CheckResult, ProviderCache, Scan
 from app.models.base import utc_now
 from app.service import scans as scan_service
 from app.service import worker
@@ -83,6 +84,80 @@ def test_a_failed_prerequisite_unblocks_its_dependent_as_skipped(db_session: Ses
     drain(db_session, registry)
     row = db_session.scalars(select(CheckResult).where(CheckResult.check_key == "second")).one()
     assert (row.status, row.reason_code) == ("skipped", "needs:first")
+
+
+class Following(FakeCheck):
+    """A check that uses the outcome of ``first`` when there is one, whatever it was."""
+
+    after = ("first",)
+
+    def __init__(self) -> None:
+        super().__init__("second", "host")
+        self.previous: list[dict[str, CheckOutcome]] = []
+
+    def run(self, ctx: CheckContext) -> CheckOutcome:
+        self.previous.append(dict(ctx.previous))
+        return CheckOutcome("ok")
+
+
+def test_a_task_waits_for_the_checks_it_follows_but_runs_even_if_they_failed(
+    db_session: Session,
+) -> None:
+    new_scan(db_session)
+    second = Following()
+    registry: dict[str, Any] = {
+        "discovery": discovery(),
+        "first": FakeCheck("first", "host", CheckOutcome("error", "boom")),
+        "second": second,
+    }
+    run_next(db_session, registry)  # discovery: the apex host with both checks
+
+    first = worker.claim_next(db_session, "w1", utc_now(), registry=registry)
+    assert first is not None and first.check_key == "first"
+    # "second" is queued but has to wait for "first", although it does not need it to be ok.
+    assert worker.claim_next(db_session, "w2", utc_now(), registry=registry) is None
+
+    worker.execute_task(
+        db_session, first, "w1", config=CONFIG, http=offline_client(), registry=registry
+    )
+    assert run_next(db_session, registry) is not None
+
+    row = db_session.scalars(select(CheckResult).where(CheckResult.check_key == "second")).one()
+    assert (row.status, row.reason_code) == ("ok", None)  # not skipped
+    (seen,) = second.previous
+    assert (seen["first"].status, seen["first"].reason_code) == ("error", "boom")  # and it saw it
+
+
+def test_a_check_without_its_followed_check_still_runs(db_session: Session) -> None:
+    new_scan(db_session)
+    second = Following()
+    registry: dict[str, Any] = {"discovery": discovery(), "second": second}  # no "first" at all
+    drain(db_session, registry)
+    assert second.previous == [{}]
+
+
+class CacheSpy(FakeCheck):
+    def __init__(self) -> None:
+        super().__init__("spy", "host")
+        self.seen: list[object] = []
+
+    def run(self, ctx: CheckContext) -> CheckOutcome:
+        self.seen.append(ctx.cache)
+        return CheckOutcome("ok")
+
+
+def test_the_engine_hands_its_cache_to_the_checks(db_session: Session) -> None:
+    new_scan(db_session)
+    spy = CacheSpy()
+    registry: dict[str, Any] = {"discovery": discovery(), "spy": spy}
+    marker: Any = object()
+
+    while worker.process_one(
+        db_session, "w", config=CONFIG, http=offline_client(), registry=registry, cache=marker
+    ):
+        pass
+
+    assert spy.seen == [marker]
 
 
 # ------------------------------------------------------------------------------ limits
@@ -310,6 +385,39 @@ def test_two_scans_each_get_their_own_limit(database_url: str) -> None:
         with app.app_context():
             states = db.session.scalars(select(Scan.status)).all()
             assert states == ["completed", "completed"]
+            db.session.remove()
+    finally:
+        _drop(database_url, schema, app)
+
+
+def test_worker_threads_give_checks_a_working_database_cache(database_url: str) -> None:
+    app, schema = _concurrent_app(database_url)
+
+    class Remember(FakeCheck):
+        def run(self, ctx: CheckContext) -> CheckOutcome:
+            assert ctx.cache is not None
+            before = ctx.cache.get("test", "key", timedelta(hours=1))
+            ctx.cache.put("test", "key", "ok", {"n": 1})
+            after = ctx.cache.get("test", "key", timedelta(hours=1))
+            return CheckOutcome(
+                "ok", data={"was_empty": before is None, "now": after.payload if after else None}
+            )
+
+    try:
+        start_scan_for(app)
+        registry: dict[str, Any] = {
+            "discovery": discovery(),
+            "remember": Remember("remember", "host"),
+        }
+        worker.run_worker(app, once=True, threads=2, registry=registry)
+
+        with app.app_context():
+            row = db.session.scalars(
+                select(CheckResult).where(CheckResult.check_key == "remember")
+            ).one()
+            assert (row.status, row.data) == ("ok", {"was_empty": True, "now": {"n": 1}})
+            stored = db.session.get(ProviderCache, ("test", "key"))
+            assert stored is not None and (stored.status, stored.payload) == ("ok", {"n": 1})
             db.session.remove()
     finally:
         _drop(database_url, schema, app)

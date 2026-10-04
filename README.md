@@ -20,7 +20,7 @@ uv run flask --app app run                 # the web app
 
 ## Data sources and attribution
 
-IP geolocation: [DB-IP.com](https://db-ip.com) Lite databases (CC BY 4.0), installed offline by `flask datasets update`. Certificate Transparency names come from ctlogs.dev, CertSpotter and crt.sh. More sources and their terms: [docs/checks-catalog.md](docs/checks-catalog.md).
+IP geolocation: [DB-IP.com](https://db-ip.com) Lite databases (CC BY 4.0), installed offline by `flask datasets update`. Certificate Transparency names come from ctlogs.dev, CertSpotter and crt.sh. Open ports and CVEs come from the Shodan host API when `SHODAN_API_KEY` is set and from the keyless [Shodan InternetDB](https://internetdb.shodan.io) otherwise (**free for non-commercial use only**); `PORTS_PROVIDER=off` disables them. More sources and their terms: [docs/checks-catalog.md](docs/checks-catalog.md).
 
 ## Development
 

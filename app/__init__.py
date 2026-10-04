@@ -19,6 +19,7 @@ from app.config import (
 )
 from app.extensions import csrf, db, migrate, security
 from app.i18n import init_i18n
+from app.logging_redaction import install_log_redaction
 from app.models.auth import Role, User
 from app.service.auth.rate_limit import register_auth_rate_limit
 from app.web import register_error_pages, register_security_headers
@@ -57,6 +58,8 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
         config_class, config_object is None or isinstance(config_object, str)
     )
     validate_config(config_class)
+
+    install_log_redaction()  # provider keys travel in URLs: keep them out of every log line
 
     app = Flask(
         __name__,

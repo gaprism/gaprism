@@ -4,15 +4,26 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from app.checks.base import Check, CheckContext, CheckOutcome, CheckScope, CheckStatus
+from app.checks.base import (
+    CachedAnswer,
+    CacheStore,
+    Check,
+    CheckContext,
+    CheckOutcome,
+    CheckScope,
+    CheckStatus,
+    waits_for,
+)
 from app.checks.discovery import DiscoveryCheck
 from app.checks.dns import DnsCheck
 from app.checks.http import HttpCheck
 from app.checks.ip import IpCheck
+from app.checks.ports import PortsCheck
 from app.checks.tls import TlsCheck
 
 REGISTRY: dict[str, Check] = {
-    check.key: check for check in (DiscoveryCheck(), DnsCheck(), IpCheck(), TlsCheck(), HttpCheck())
+    check.key: check
+    for check in (DiscoveryCheck(), DnsCheck(), IpCheck(), PortsCheck(), TlsCheck(), HttpCheck())
 }
 
 # Discovery is the engine's first stage: it creates the hosts the other checks run for.
@@ -30,10 +41,13 @@ def checks_with_scope(
 __all__ = [
     "DISCOVERY_KEY",
     "REGISTRY",
+    "CacheStore",
+    "CachedAnswer",
     "Check",
     "CheckContext",
     "CheckOutcome",
     "CheckScope",
     "CheckStatus",
     "checks_with_scope",
+    "waits_for",
 ]

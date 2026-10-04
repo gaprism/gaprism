@@ -20,6 +20,10 @@ _SCHEMA_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,62}")
 # Names accepted in CT_SOURCES (kept here so that config validation needs no imports).
 CT_SOURCE_KEYS = ("ctlogs", "certspotter", "crtsh")
 
+# Values of PORTS_PROVIDER: `auto` is the Shodan host API when a key is set, else InternetDB.
+PORTS_PROVIDERS = ("auto", "shodan", "internetdb", "off")
+MAX_PORTS_CACHE_HOURS = 30 * 24  # the worker deletes cache entries after 30 days
+
 
 class BaseConfig:
     """Shared base configuration settings."""
@@ -108,6 +112,16 @@ class BaseConfig:
 
     # Offline IP location data (DB-IP Lite, installed by `flask datasets update`)
     DATASETS_DIR: str = str(Path(__file__).resolve().parents[1] / "var" / "datasets")
+
+    # Ports and CVEs that Shodan has observed on a host's addresses. `auto` uses the Shodan host
+    # API when SHODAN_API_KEY is set and the keyless InternetDB (free for non-commercial use only)
+    # otherwise. The rates are requests per second towards each provider (shared by all worker
+    # threads); answers are reused for PORTS_CACHE_HOURS per address.
+    PORTS_PROVIDER: str = "auto"
+    SHODAN_API_KEY: str = ""
+    SHODAN_RATE_PER_SECOND: float = 1.0
+    INTERNETDB_RATE_PER_SECOND: float = 2.0
+    PORTS_CACHE_HOURS: float = 24.0
 
     # Outgoing requests to public provider APIs
     USER_AGENT: str = "WebDueDiligence/0.1 (+https://github.com/stalpers/web_due_diligence)"
@@ -209,12 +223,17 @@ def validate_config(config_obj: Any) -> None:
         )
     if getattr(config_obj, "CT_MODE", "") not in ("union", "first"):
         raise ConfigurationError("CT_MODE must be 'union' or 'first'.")
+    if getattr(config_obj, "PORTS_PROVIDER", "") not in PORTS_PROVIDERS:
+        raise ConfigurationError(f"PORTS_PROVIDER must be one of {', '.join(PORTS_PROVIDERS)}.")
     for name in (
         "PROVIDER_TIMEOUT_SECONDS",
         "DISCOVERY_BUDGET_SECONDS",
         "DNS_TIMEOUT_SECONDS",
         "EGRESS_CONNECT_TIMEOUT_SEC",
         "EGRESS_READ_TIMEOUT_SEC",
+        "SHODAN_RATE_PER_SECOND",
+        "INTERNETDB_RATE_PER_SECOND",
+        "PORTS_CACHE_HOURS",
     ):
         number = getattr(config_obj, name, 0)
         if (
@@ -224,6 +243,8 @@ def validate_config(config_obj: Any) -> None:
             or number <= 0
         ):
             raise ConfigurationError(f"{name} must be a positive number.")
+    if getattr(config_obj, "PORTS_CACHE_HOURS", 0) > MAX_PORTS_CACHE_HOURS:
+        raise ConfigurationError(f"PORTS_CACHE_HOURS must not exceed {MAX_PORTS_CACHE_HOURS}.")
     for resolver in getattr(config_obj, "EGRESS_DNS_RESOLVERS", []):
         try:
             ipaddress.ip_address(str(resolver))
@@ -304,6 +325,11 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "PROVIDER_TIMEOUT_SECONDS": "PROVIDER_TIMEOUT_SECONDS",
             "DISCOVERY_BUDGET_SECONDS": "DISCOVERY_BUDGET_SECONDS",
             "DATASETS_DIR": "DATASETS_DIR",
+            "PORTS_PROVIDER": "PORTS_PROVIDER",
+            "SHODAN_API_KEY": "SHODAN_API_KEY",
+            "SHODAN_RATE_PER_SECOND": "SHODAN_RATE_PER_SECOND",
+            "INTERNETDB_RATE_PER_SECOND": "INTERNETDB_RATE_PER_SECOND",
+            "PORTS_CACHE_HOURS": "PORTS_CACHE_HOURS",
             "EGRESS_DNS_RESOLVERS": "EGRESS_DNS_RESOLVERS",
             "DNS_TIMEOUT_SECONDS": "DNS_TIMEOUT_SECONDS",
             "EGRESS_CONNECT_TIMEOUT_SEC": "EGRESS_CONNECT_TIMEOUT_SEC",
@@ -338,6 +364,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
                 values[key] = raw
         if values["EGRESS_DNS_RESOLVERS"] == ["system"]:
             values["EGRESS_DNS_RESOLVERS"] = []  # an empty line cannot say "no resolver list"
+        values["PORTS_PROVIDER"] = str(values["PORTS_PROVIDER"]).strip().lower()
+        values["SHODAN_API_KEY"] = str(values["SHODAN_API_KEY"]).strip()
     values["SECURITY_TOTP_SECRETS"] = {"1": values["MFA_ENCRYPTION_KEY"]}
     values["SECURITY_TWO_FACTOR_REQUIRED"] = bool(values["REQUIRE_MFA"])
 

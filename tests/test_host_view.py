@@ -17,6 +17,7 @@ from app.models.base import utc_now
 from app.service import host_view
 from app.service import scans as scan_service
 from app.service.geo import IpLocation
+from app.service.ports import PortFacts, PortService, PortsLookup, Vulnerability
 from tests.checks.test_dns_check import answer, rr
 from tests.checks.test_dns_check import run as run_dns
 from tests.checks.test_http_check import HOST as WEB_HOST
@@ -26,6 +27,10 @@ from tests.checks.test_ip_check import FakeProvider as FakeLocations
 from tests.checks.test_ip_check import Reverse, cloudflare, german, swiss
 from tests.checks.test_ip_check import dns_outcome as dns_addresses
 from tests.checks.test_ip_check import run as run_ip
+from tests.checks.test_ports_check import CLOUDFLARE, IP1, IP2, FakeProvider, facts, found, located
+from tests.checks.test_ports_check import dns as ports_dns
+from tests.checks.test_ports_check import ip_outcome as ports_ip_outcome
+from tests.checks.test_ports_check import run as run_ports
 from tests.checks.test_tls_check import probe_result
 from tests.helpers import create_assessment, create_user, login_as
 from tests.test_engine import CONFIG
@@ -86,6 +91,26 @@ def http_outcome(
         }
     )
     return run_http(site)
+
+
+def ports_outcome(
+    provider: FakeProvider | None = None, previous: dict[str, CheckOutcome] | None = None
+) -> CheckOutcome:
+    """The real ports check over a fake provider (the host name is listed for the address)."""
+    provider = provider or FakeProvider(
+        {IP1: found(ports=(80, 443), cves=("CVE-2021-23017",), hostnames=(WEB_HOST,))}
+    )
+    return run_ports(provider, previous or {"dns": ports_dns(IP1)}, hostname=WEB_HOST)
+
+
+def entry(
+    ports: list[int], cves: list[str] | None = None, attribution: str = "ip_only"
+) -> dict[str, Any]:
+    """One address of a stored ports result, as far as the summary reads it."""
+    return {
+        "attribution": attribution,
+        "facts": {"ports": ports, "vulnerabilities": [{"id": cve} for cve in cves or []]},
+    }
 
 
 # ------------------------------------------------------------------------------ summaries
@@ -178,6 +203,65 @@ def http_outcome(
         ("ip", "unavailable", "datasets_missing", {}, "medium", "Location data not installed"),
         ("ip", "unavailable", "datasets_unreadable", {}, "medium", "Location data unreadable"),
         (
+            "ports",
+            "ok",
+            None,
+            {"addresses": [entry([22, 443], ["CVE-2021-23017", "CVE-2019-9511"])]},
+            "info",
+            "2 ports · 2 CVEs",
+        ),
+        ("ports", "ok", None, {"addresses": [entry([443])]}, "info", "1 port"),
+        ("ports", "ok", None, {"addresses": [entry([])]}, "info", "No open ports seen"),
+        (
+            "ports",
+            "ok",
+            None,
+            {"addresses": [entry([80, 443], ["CVE-2020-0001"]), entry([80], ["CVE-2020-0001"])]},
+            "info",
+            "2 ports · 1 CVE",  # the same port and CVE on two addresses count once
+        ),
+        (
+            "ports",
+            "ok",
+            None,
+            {"addresses": [entry([80, 443], ["CVE-2020-0001"], "shared_infrastructure")]},
+            "muted",
+            "Shared infrastructure",  # a CDN's ports and CVEs are not the host's
+        ),
+        (
+            "ports",
+            "ok",
+            None,
+            {"addresses": [entry([443]), entry([80], ["CVE-1"], "shared_infrastructure")]},
+            "info",
+            "1 port · plus shared",
+        ),
+        (
+            "ports",
+            "ok",
+            None,
+            {"addresses": [entry([443])], "complete": False},
+            "medium",
+            "1 port · incomplete",
+        ),
+        ("ports", "ok", None, {"addresses": [{"facts": None}]}, "muted", "No data"),
+        (
+            "ports",
+            "no_data",
+            "no_information",
+            {},
+            "muted",
+            "The provider knows nothing about this address",
+        ),
+        ("ports", "unavailable", "disabled", {}, "medium", "Switched off"),
+        ("ports", "unavailable", "missing_api_key", {}, "medium", "No API key configured"),
+        ("ports", "unavailable", "invalid_key", {}, "medium", "API key rejected"),
+        ("ports", "unavailable", "membership_required", {}, "medium", "Needs a paid Shodan plan"),
+        ("ports", "unavailable", "rate_limited", {}, "medium", "Rate limited"),
+        ("ports", "error", "http_503", {}, "high", "HTTP error 503"),
+        ("ports", "error", "timeout", {}, "high", "Timed out"),
+        ("ports", "skipped", "needs:dns", {}, "muted", "Skipped: dns did not succeed"),
+        (
             "tls",
             "ok",
             None,
@@ -255,6 +339,28 @@ def test_the_summaries_understand_what_the_real_checks_produce() -> None:
     assert host_view.summarize("http", *_parts(http_outcome())).text == "200"
 
 
+def test_the_ports_summary_understands_what_the_real_check_produces() -> None:
+    own = run_ports(
+        FakeProvider({IP1: found(ports=(22, 443), cves=("CVE-2021-23017",))}),
+        {"dns": ports_dns(IP1)},
+    )
+    assert host_view.summarize("ports", *_parts(own)).text == "2 ports · 1 CVE"
+
+    behind_cdn = {"dns": ports_dns(IP1), "ip": ports_ip_outcome(located(IP1, CLOUDFLARE, 13335))}
+    shared = ports_outcome(FakeProvider({IP1: found(cves=("CVE-2020-0001",))}), behind_cdn)
+    assert host_view.summarize("ports", *_parts(shared)).text == "Shared infrastructure"
+
+    unknown = run_ports(FakeProvider(), {"dns": ports_dns(IP1)})
+    text = host_view.summarize("ports", *_parts(unknown)).text
+    assert text == "The provider knows nothing about this address"
+
+    partial = run_ports(
+        FakeProvider({IP1: found(ports=(443,)), IP2: PortsLookup("error", "http_500")}),
+        {"dns": ports_dns(IP1, IP2)},
+    )
+    assert host_view.summarize("ports", *_parts(partial)).text == "1 port · incomplete"
+
+
 def _parts(outcome: CheckOutcome) -> tuple[str, str | None, dict[str, Any]]:
     return outcome.status, outcome.reason_code, outcome.data
 
@@ -313,6 +419,7 @@ def healthy() -> dict[str, CheckOutcome]:
     return {
         "dns": dns_outcome(),
         "ip": ip_outcome(swiss()),
+        "ports": ports_outcome(),
         "tls": tls_outcome(),
         "http": http_outcome(),
     }
@@ -327,6 +434,7 @@ def test_the_hosts_table_has_one_cell_per_check_and_links_to_the_host(
     body = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
     assert "2 addresses" in body and "Valid · 60 days left" in body
     assert "Location" in body and "CH · Bern" in body
+    assert "Ports" in body and "2 ports · 1 CVE" in body
     assert re.search(r">\s*200\s*</span>", body)
     assert f"/assessments/{assessment.id}/hosts/{host.id}" in body
 
@@ -338,10 +446,10 @@ def test_a_host_still_being_checked_shows_queued_cells(signed_in: Any, db_sessio
         db_session,
         scan,
         "new.example.com",
-        {key: (queued, "queued") for key in ("dns", "ip", "tls", "http")},
+        {key: (queued, "queued") for key in ("dns", "ip", "ports", "tls", "http")},
     )
     body = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
-    assert body.count("Queued") >= 4
+    assert body.count("Queued") >= 5
 
 
 def test_the_host_page_shows_the_facts_of_every_check(signed_in: Any, db_session: Session) -> None:
@@ -352,13 +460,25 @@ def test_the_host_page_shows_the_facts_of_every_check(signed_in: Any, db_session
     body = response.get_data(as_text=True)
     assert response.status_code == 200
     # order and headings
-    sections = ("DNS", "IP addresses and location", "TLS certificate", "HTTP")
-    positions = [body.index(f'id="check-{key}"') for key in ("dns", "ip", "tls", "http")]
+    sections = (
+        "DNS",
+        "IP addresses and location",
+        "Open ports and CVEs",
+        "TLS certificate",
+        "HTTP",
+    )
+    keys = ("dns", "ip", "ports", "tls", "http")
+    positions = [body.index(f'id="check-{key}"') for key in keys]
     assert positions == sorted(positions) and all(title in body for title in sections)
     # IP location
     for fact in ("85.1.1.1", "Switzerland", "Bern", "AS3303", "Swisscom", "46.85, 7.68"):
         assert fact in body
     assert "IP geolocation by DB-IP.com" in body
+    # ports and CVEs
+    assert "A snapshot, not a port scan" in body and "Data by Shodan." in body
+    assert "Host name listed" in body and "1 CVE reported" in body
+    assert 'href="https://nvd.nist.gov/vuln/detail/CVE-2021-23017"' in body
+    assert 'rel="noopener noreferrer"' in body
     # DNS
     for fact in ("93.184.216.34", "2606:2800:220:1::1", "edge.cdn.example.net", "letsencrypt.org"):
         assert fact in body
@@ -386,7 +506,7 @@ def test_the_host_page_shows_the_facts_of_every_check(signed_in: Any, db_session
     assert "Not present" in body  # the absent security headers are explicit
     assert "SECRET" not in body  # a cookie value never reaches the page
     # raw JSON for each check, collapsed
-    assert body.count("Raw data (JSON)") == 4 and "<details" in body
+    assert body.count("Raw data (JSON)") == 5 and "<details" in body
 
 
 def test_a_bad_certificate_is_labelled_and_its_forensic_origin_explained(
@@ -477,6 +597,97 @@ def test_the_host_page_is_as_private_as_its_assessment(
     login_as(client, owner)
     assert client.get(f"/assessments/{mine.id}/hosts/{host.id}").status_code == 200
     assert client.get(f"/assessments/{mine.id}/hosts/{uuid.uuid4()}").status_code == 404
+
+
+def test_a_cdn_address_is_not_presented_as_the_hosts_own_servers(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    behind_cdn = {"dns": ports_dns(IP1), "ip": ports_ip_outcome(located(IP1, CLOUDFLARE, 13335))}
+    outcome = ports_outcome(
+        FakeProvider({IP1: found(ports=(80, 443, 8080), cves=("CVE-2020-0001",))}), behind_cdn
+    )
+    host = add_host(db_session, scan, WEB_HOST, {"ports": outcome})
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "Shared infrastructure" in body
+    assert "belongs to a CDN or other shared network" in body and "network: Cloudflare" in body
+    table = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "Shared infrastructure" in table and "1 CVE" not in table
+
+
+def test_the_keyless_provider_is_labelled_with_its_licence_note(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    provider = FakeProvider({IP1: PortsLookup("ok", facts=facts(provider="internetdb"))})
+    provider.name = "internetdb"
+    host = add_host(db_session, scan, WEB_HOST, {"ports": ports_outcome(provider)})
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "Shodan InternetDB" in body and "free for non-commercial use only" in body
+
+
+def test_an_address_the_provider_does_not_know_says_so_instead_of_looking_clean(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(db_session, scan, WEB_HOST, {"ports": ports_outcome(FakeProvider())})
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "The provider knows nothing about this address" in body
+    assert "No open ports were seen" not in body  # unknown is not the same as none
+    assert "Raw data (JSON)" in body
+
+
+def test_an_unconfigured_ports_check_explains_how_to_fix_it(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    unconfigured = CheckOutcome("unavailable", "missing_api_key", {"addresses_total": 1})
+    host = add_host(db_session, scan, WEB_HOST, {"ports": unconfigured})
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "No API key configured" in body and "SHODAN_API_KEY" in body
+    table = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "No API key configured" in table
+
+
+def test_a_partly_failed_ports_check_shows_which_address_failed(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    provider = FakeProvider({IP1: found(), IP2: PortsLookup("error", "http_503")})
+    outcome = ports_outcome(provider, {"dns": ports_dns(IP1, IP2)})
+    host = add_host(db_session, scan, WEB_HOST, {"ports": outcome})
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "Some addresses could not be checked" in body
+    assert IP2 in body and "HTTP error 503" in body
+
+
+def test_hostile_text_from_the_ports_provider_is_escaped(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    hostile = PortFacts(
+        ip=IP1,
+        provider="shodan",
+        services=(PortService(443, "tcp", SCRIPT, SCRIPT, (SCRIPT,)),),
+        vulnerabilities=(Vulnerability(f'CVE-2021-1"{SCRIPT}', 9.8, SCRIPT, True),),
+        hostnames=(SCRIPT,),
+        tags=(SCRIPT,),
+        cpes=(SCRIPT,),
+        org=SCRIPT,
+        asn=SCRIPT,
+    )
+    outcome = ports_outcome(FakeProvider({IP1: PortsLookup("ok", facts=hostile)}))
+    host = add_host(db_session, scan, WEB_HOST, {"ports": outcome})
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert SCRIPT not in body and body.count(ESCAPED) >= 6
+    table = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert SCRIPT not in table
 
 
 # ------------------------------------------------------------------------------ the filter

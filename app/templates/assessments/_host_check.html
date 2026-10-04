@@ -13,7 +13,7 @@
     <p class="text-sm text-muted">{{ section.reason }}</p>
     {% endif %}
     {% if section.help %}<p class="mt-1 text-sm">{{ section.help }}</p>{% endif %}
-    {% if section.cell.status == 'ok' and section.key in ['dns', 'ip', 'tls', 'http'] %}
+    {% if section.cell.status == 'ok' and section.key in ['dns', 'ip', 'ports', 'tls', 'http'] %}
     {% include 'assessments/checks/' ~ section.key ~ '.html' %}
     {% elif section.cell.status in ['queued', 'running'] %}
     <p class="text-sm text-muted">{{ _('This check has not finished yet. Reload the page in a moment.') }}</p>

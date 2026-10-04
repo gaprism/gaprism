@@ -156,6 +156,13 @@ def reverse_names(resolver: ResolverLike, ip: str, lifetime: float) -> tuple[lis
     return [str(record["host"]) for record in result.records], result.error
 
 
+def alias_names(dns_data: Mapping[str, Any]) -> list[str]:
+    """The names a host is an alias for (its CNAME targets), e.g. as CDN hints."""
+    targets = [str(step.get("target", "")) for step in dns_data.get("cname", [])]
+    canonical = str(dns_data.get("canonical_name", ""))
+    return [name for name in (*targets, canonical) if name]
+
+
 class ResolverCache:
     """One resolver per (servers, timeout) configuration, shared by all threads."""
 
