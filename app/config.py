@@ -6,6 +6,7 @@ import math
 import os
 import re
 from copy import deepcopy
+from pathlib import Path
 from typing import Any, ClassVar
 
 
@@ -104,6 +105,9 @@ class BaseConfig:
     # Total time discovery waits for its sources (they run in parallel); a slower source is
     # reported as "budget_exceeded" instead of holding the scan up.
     DISCOVERY_BUDGET_SECONDS: float = 45.0
+
+    # Offline IP location data (DB-IP Lite, installed by `flask datasets update`)
+    DATASETS_DIR: str = str(Path(__file__).resolve().parents[1] / "var" / "datasets")
 
     # Outgoing requests to public provider APIs
     USER_AGENT: str = "WebDueDiligence/0.1 (+https://github.com/stalpers/web_due_diligence)"
@@ -299,6 +303,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "USER_AGENT": "USER_AGENT",
             "PROVIDER_TIMEOUT_SECONDS": "PROVIDER_TIMEOUT_SECONDS",
             "DISCOVERY_BUDGET_SECONDS": "DISCOVERY_BUDGET_SECONDS",
+            "DATASETS_DIR": "DATASETS_DIR",
             "EGRESS_DNS_RESOLVERS": "EGRESS_DNS_RESOLVERS",
             "DNS_TIMEOUT_SECONDS": "DNS_TIMEOUT_SECONDS",
             "EGRESS_CONNECT_TIMEOUT_SEC": "EGRESS_CONNECT_TIMEOUT_SEC",

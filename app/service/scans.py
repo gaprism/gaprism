@@ -412,6 +412,7 @@ class ScanOverview:
     waiting_for_worker: bool
     hosts: HostPage
     host_cells: dict[Any, dict[str, CheckCell]]
+    ip_data_missing: bool  # the location databases are not installed (or unreadable)
 
     @property
     def is_active(self) -> bool:
@@ -475,4 +476,14 @@ def scan_overview(
         and utc_now() - scan.created_at > WAITING_FOR_WORKER_AFTER,
         hosts=hosts,
         host_cells=host_cells(session, [host.id for host in hosts.rows]),
+        ip_data_missing=session.scalar(
+            select(CheckResult.id)
+            .where(
+                CheckResult.scan_id == scan.id,
+                CheckResult.check_key == "ip",
+                CheckResult.reason_code.in_(("datasets_missing", "datasets_unreadable")),
+            )
+            .limit(1)
+        )
+        is not None,
     )

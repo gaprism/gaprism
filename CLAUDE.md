@@ -6,6 +6,7 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 - Install: `uv sync` · assets: `npm ci` then `npm run build`
 - Tests: `uv run pytest` (unit + DB; `-m live` = real network, off by default) · lint: `uv run ruff check .` · types: `uv run mypy`
 - DB: `uv run flask --app app db upgrade` · worker: `uv run flask --app app worker` · web: `uv run flask --app app run --debug`
+- IP location data (offline, DB-IP Lite): `uv run flask --app app datasets update` (status: `datasets status`); stored in `var/datasets/`
 - Config comes from `.env` (git-ignored; template `.env.example`): `DATABASE_URL`, `TEST_DATABASE_URL`, `DB_SCHEMA`, secrets, provider keys. Never print or commit keys.
 - The dev database is shared and its role is restricted (no CREATEDB, `public` not writable): use `DB_SCHEMA`; tests create their own schema.
 

@@ -16,10 +16,12 @@ from typing import Any, Protocol
 
 import dns.exception
 import dns.resolver
+import dns.reversename
 from dns.rdtypes.ANY.CAA import CAA
 from dns.rdtypes.ANY.CNAME import CNAME
 from dns.rdtypes.ANY.MX import MX
 from dns.rdtypes.ANY.NS import NS
+from dns.rdtypes.ANY.PTR import PTR
 from dns.rdtypes.ANY.TXT import TXT
 from dns.rdtypes.IN.A import A
 from dns.rdtypes.IN.AAAA import AAAA
@@ -71,7 +73,7 @@ def _describe(rdata: Any) -> dict[str, Any] | None:
         return {"target": _name(rdata.target)}
     if isinstance(rdata, MX):
         return {"preference": int(rdata.preference), "host": _name(rdata.exchange)}
-    if isinstance(rdata, NS):
+    if isinstance(rdata, NS | PTR):
         return {"host": _name(rdata.target)}
     if isinstance(rdata, TXT):
         return {"value": b"".join(rdata.strings).decode("utf-8", "replace")[:MAX_TEXT]}
@@ -145,6 +147,13 @@ def _build_resolver(config: Mapping[str, Any]) -> ResolverLike:
     resolver.timeout = timeout / 2  # one attempt; the lifetime bounds all attempts of a query
     resolver.lifetime = timeout
     return resolver
+
+
+def reverse_names(resolver: ResolverLike, ip: str, lifetime: float) -> tuple[list[str], str | None]:
+    """The PTR names of ``ip`` and, if the lookup failed, a code saying why (never a guess)."""
+    name = dns.reversename.from_address(ip).to_text()
+    result = _lookup(resolver, name, "PTR", lifetime)
+    return [str(record["host"]) for record in result.records], result.error
 
 
 class ResolverCache:

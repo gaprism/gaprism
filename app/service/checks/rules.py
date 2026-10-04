@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from app.service.checks.geoip import GeoIPResult
 from app.service.checks.shodan import ShodanHostResult
 from app.service.checks.tls import CheckFinding
 from app.service.checks.webrisk import WebRiskResult
@@ -153,51 +152,5 @@ def evaluate_shodan_findings(
                 },
             )
         )
-
-    return findings
-
-
-def evaluate_geoip_findings(
-    result: GeoIPResult,
-    rule_version: str = RULES_ENGINE_VERSION,
-) -> list[CheckFinding]:
-    """Generate findings from GeoIP and ASN lookup."""
-    findings: list[CheckFinding] = []
-    subject_key = f"ip:{result.ip}"
-
-    if result.status != "succeeded":
-        return [
-            CheckFinding(
-                rule_id="COLLECTION_INCOMPLETE",
-                rule_version=rule_version,
-                subject_key=subject_key,
-                severity="informational",
-                confidence="unknown",
-                attribution="ip_only",
-                message_key="rules.collection_incomplete",
-                message_parameters={"check": "geoip", "reason_code": result.reason_code},
-            )
-        ]
-
-    if result.status == "succeeded" and result.verdict == "match":
-        if result.as_org:
-            findings.append(
-                CheckFinding(
-                    rule_id="PROVIDER_DEPENDENCY_OBSERVED",
-                    rule_version=rule_version,
-                    subject_key=subject_key,
-                    severity="informational",
-                    confidence="high",
-                    attribution="ip_only",
-                    message_key="rules.provider_dependency_observed",
-                    message_parameters={
-                        "ip": result.ip,
-                        "asn": result.asn,
-                        "as_org": result.as_org,
-                        "country": result.iso_country_code,
-                        "is_eu": result.is_eu,
-                    },
-                )
-            )
 
     return findings

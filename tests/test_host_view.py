@@ -16,11 +16,16 @@ from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
 from app.service import host_view
 from app.service import scans as scan_service
+from app.service.geo import IpLocation
 from tests.checks.test_dns_check import answer, rr
 from tests.checks.test_dns_check import run as run_dns
 from tests.checks.test_http_check import HOST as WEB_HOST
 from tests.checks.test_http_check import Site, page, redirect
 from tests.checks.test_http_check import run as run_http
+from tests.checks.test_ip_check import FakeProvider as FakeLocations
+from tests.checks.test_ip_check import Reverse, cloudflare, german, swiss
+from tests.checks.test_ip_check import dns_outcome as dns_addresses
+from tests.checks.test_ip_check import run as run_ip
 from tests.checks.test_tls_check import probe_result
 from tests.helpers import create_assessment, create_user, login_as
 from tests.test_engine import CONFIG
@@ -52,6 +57,14 @@ def dns_outcome(host: str = WEB_HOST, txt: str = "v=spf1 -all") -> CheckOutcome:
 
 def tls_outcome(**fields: Any) -> CheckOutcome:
     return outcome_from_probe(probe_result(**fields))
+
+
+def ip_outcome(
+    *locations: IpLocation, ptr: dict[str, list[str]] | None = None, aliases: tuple[str, ...] = ()
+) -> CheckOutcome:
+    """The real IP check run over fake databases."""
+    table = {location.ip: location for location in locations}
+    return run_ip(FakeLocations(table), dns_addresses(*table, aliases=aliases), Reverse(ptr))
 
 
 def http_outcome(
@@ -112,6 +125,58 @@ def http_outcome(
         ("dns", "ok", None, {"addresses": [], "blocked": []}, "muted", "No address records"),
         ("dns", "no_data", "nxdomain", {}, "muted", "Name does not exist"),
         ("dns", "error", "timeout", {}, "high", "Timed out"),
+        (
+            "ip",
+            "ok",
+            None,
+            {"addresses": [{"country": "CH", "city": "Bern"}], "countries": ["CH"]},
+            "ok",
+            "CH · Bern",
+        ),
+        (
+            "ip",
+            "ok",
+            None,
+            {
+                "addresses": [{"country": "CH", "city": "Bern"}, {"country": "CH", "city": "Zug"}],
+                "countries": ["CH"],
+            },
+            "ok",
+            "CH",
+        ),
+        (
+            "ip",
+            "ok",
+            None,
+            {"addresses": [{"country": "CH"}, {"country": "DE"}], "countries": ["CH", "DE"]},
+            "ok",
+            "CH, DE",
+        ),
+        (
+            "ip",
+            "ok",
+            None,
+            {"addresses": [{"country": "CH"}], "countries": ["CH"], "edge": True},
+            "ok",
+            "CH · incl. CDN edge",
+        ),
+        (
+            "ip",
+            "ok",
+            None,
+            {
+                "addresses": [{"country": "CA", "network": {"name": "Cloudflare", "edge": True}}],
+                "countries": ["CA"],
+                "edge": True,
+                "all_edge": True,
+            },
+            "muted",
+            "Cloudflare edge",
+        ),
+        ("ip", "ok", None, {"addresses": [{"asn": 24940}]}, "muted", "Network known, location not"),
+        ("ip", "no_data", "not_in_database", {}, "muted", "Not in the location database"),
+        ("ip", "unavailable", "datasets_missing", {}, "medium", "Location data not installed"),
+        ("ip", "unavailable", "datasets_unreadable", {}, "medium", "Location data unreadable"),
         (
             "tls",
             "ok",
@@ -178,6 +243,10 @@ def test_summaries_say_what_was_collected(
 def test_the_summaries_understand_what_the_real_checks_produce() -> None:
     """The contract between the checks' data and the display: real outputs, not hand-made ones."""
     assert host_view.summarize("dns", *_parts(dns_outcome())).text == "2 addresses"
+    assert host_view.summarize("ip", *_parts(ip_outcome(swiss()))).text == "CH · Bern"
+    both = ip_outcome(swiss(), german())
+    assert host_view.summarize("ip", *_parts(both)).text == "CH, DE"
+    assert host_view.summarize("ip", *_parts(ip_outcome(cloudflare()))).text == "Cloudflare edge"
     assert host_view.summarize("tls", *_parts(tls_outcome())).text == "Valid · 60 days left"
     bad = tls_outcome(
         is_valid=False, chain_trust=False, failure_reasons=["CERTIFICATE_EXPIRED"], forensic=True
@@ -241,7 +310,12 @@ def add_host(
 
 
 def healthy() -> dict[str, CheckOutcome]:
-    return {"dns": dns_outcome(), "tls": tls_outcome(), "http": http_outcome()}
+    return {
+        "dns": dns_outcome(),
+        "ip": ip_outcome(swiss()),
+        "tls": tls_outcome(),
+        "http": http_outcome(),
+    }
 
 
 def test_the_hosts_table_has_one_cell_per_check_and_links_to_the_host(
@@ -252,6 +326,7 @@ def test_the_hosts_table_has_one_cell_per_check_and_links_to_the_host(
 
     body = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
     assert "2 addresses" in body and "Valid · 60 days left" in body
+    assert "Location" in body and "CH · Bern" in body
     assert re.search(r">\s*200\s*</span>", body)
     assert f"/assessments/{assessment.id}/hosts/{host.id}" in body
 
@@ -263,10 +338,10 @@ def test_a_host_still_being_checked_shows_queued_cells(signed_in: Any, db_sessio
         db_session,
         scan,
         "new.example.com",
-        {key: (queued, "queued") for key in ("dns", "tls", "http")},
+        {key: (queued, "queued") for key in ("dns", "ip", "tls", "http")},
     )
     body = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
-    assert body.count("Queued") >= 3
+    assert body.count("Queued") >= 4
 
 
 def test_the_host_page_shows_the_facts_of_every_check(signed_in: Any, db_session: Session) -> None:
@@ -277,7 +352,13 @@ def test_the_host_page_shows_the_facts_of_every_check(signed_in: Any, db_session
     body = response.get_data(as_text=True)
     assert response.status_code == 200
     # order and headings
-    assert body.index("DNS") < body.index("TLS certificate") < body.index("HTTP")
+    sections = ("DNS", "IP addresses and location", "TLS certificate", "HTTP")
+    positions = [body.index(f'id="check-{key}"') for key in ("dns", "ip", "tls", "http")]
+    assert positions == sorted(positions) and all(title in body for title in sections)
+    # IP location
+    for fact in ("85.1.1.1", "Switzerland", "Bern", "AS3303", "Swisscom", "46.85, 7.68"):
+        assert fact in body
+    assert "IP geolocation by DB-IP.com" in body
     # DNS
     for fact in ("93.184.216.34", "2606:2800:220:1::1", "edge.cdn.example.net", "letsencrypt.org"):
         assert fact in body
@@ -305,7 +386,7 @@ def test_the_host_page_shows_the_facts_of_every_check(signed_in: Any, db_session
     assert "Not present" in body  # the absent security headers are explicit
     assert "SECRET" not in body  # a cookie value never reaches the page
     # raw JSON for each check, collapsed
-    assert body.count("Raw data (JSON)") == 3 and "<details" in body
+    assert body.count("Raw data (JSON)") == 4 and "<details" in body
 
 
 def test_a_bad_certificate_is_labelled_and_its_forensic_origin_explained(
@@ -477,3 +558,62 @@ def test_sections_come_in_a_fixed_order_with_unknown_checks_last(
 
 def test_an_unknown_host_has_no_detail(db_session: Session) -> None:
     assert host_view.get_host_detail(db_session, uuid.uuid4()) is None
+
+
+# ------------------------------------------------------------------------------ IP location
+
+
+def test_a_cdn_address_is_explained_not_presented_as_a_data_centre(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(db_session, scan, WEB_HOST, {"ip": ip_outcome(cloudflare())})
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "CDN or anycast network" in body and "not where data is processed or stored" in body
+    assert "Cloudflare · edge" in body and "AS13335" in body
+    table = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "Cloudflare edge" in table  # the table shows the network, not "Toronto"
+    assert "Toronto" not in table
+
+
+def test_missing_location_data_is_explained_on_the_host_page_and_the_scan_panel(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    unavailable = CheckOutcome("unavailable", "datasets_missing", {"addresses": ["85.1.1.1"]})
+    host = add_host(db_session, scan, WEB_HOST, {"ip": unavailable})
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "Location data not installed" in body and "flask datasets update" in body
+    panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "IP location data is not installed" in panel
+
+
+def test_the_scan_panel_is_quiet_when_the_location_data_is_there(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    add_host(db_session, scan, WEB_HOST, healthy())
+    panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "IP location data is not installed" not in panel
+
+
+def test_hostile_text_in_reverse_dns_and_the_databases_is_escaped(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    hostile = IpLocation("85.1.1.1", "CH", SCRIPT, "EU", SCRIPT, SCRIPT, None, None, 3303, SCRIPT)
+    host = add_host(
+        db_session, scan, WEB_HOST, {"ip": ip_outcome(hostile, ptr={"85.1.1.1": [SCRIPT]})}
+    )
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert SCRIPT not in body and body.count(ESCAPED) >= 4
+
+
+def test_the_db_ip_attribution_is_on_every_page_of_the_app(signed_in: Any) -> None:
+    client, assessment, _ = signed_in
+    for path in ("/assessments/", f"/assessments/{assessment.id}"):
+        body = client.get(path).get_data(as_text=True)
+        assert 'href="https://db-ip.com"' in body and "IP geolocation by DB-IP.com" in body
+        assert "CC BY 4.0" in body

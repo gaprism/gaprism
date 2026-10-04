@@ -9,10 +9,11 @@ import dns.name
 import dns.rdataclass
 import dns.rdatatype
 import dns.resolver
+import dns.reversename
 import httpx
 
 from app.checks.base import CheckContext, CheckOutcome
-from app.checks.dns import MAX_RECORDS, MAX_TEXT, DnsCheck, _build_resolver
+from app.checks.dns import MAX_RECORDS, MAX_TEXT, DnsCheck, _build_resolver, reverse_names
 
 CONFIG: dict[str, Any] = {
     "EGRESS_DNS_RESOLVERS": ["1.1.1.1", "8.8.8.8"],
@@ -263,6 +264,23 @@ def test_records_and_text_are_bounded() -> None:
     chunks = " ".join(f'"{"y" * 250}"' for _ in range(10))  # 2500 characters in one record
     long, _ = run({(host, "TXT"): answer(host, "TXT", rr(host, 60, "TXT", chunks))})
     assert len(long.data["txt"][0]["value"]) == MAX_TEXT
+
+
+def test_reverse_names_come_from_the_ptr_record_of_the_reversed_address() -> None:
+    ptr = dns.reversename.from_address("93.184.216.34").to_text()  # ends in a dot
+    ptr6 = dns.reversename.from_address("2606:2800:220:1::1").to_text()
+    assert ptr.startswith("34.216.184.93.in-addr.arpa") and ptr6.endswith("ip6.arpa.")
+    resolver = ScriptedResolver(
+        {
+            (ptr, "PTR"): answer(
+                ptr.rstrip("."), "PTR", rr(ptr.rstrip("."), 300, "PTR", "Host.Example.com.")
+            ),
+            (ptr6, "PTR"): TIMEOUT,
+        }
+    )
+    assert reverse_names(resolver, "93.184.216.34", 5.0) == (["host.example.com"], None)
+    assert reverse_names(resolver, "2606:2800:220:1::1", 5.0) == ([], "timeout")
+    assert reverse_names(resolver, "9.9.9.9", 5.0) == ([], None)  # no PTR record: nothing to say
 
 
 def test_a_missing_hostname_is_an_error() -> None:

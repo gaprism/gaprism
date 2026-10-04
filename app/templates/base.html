@@ -26,6 +26,9 @@
       {% include 'components/flashes.html' %}
       {% block content %}{% endblock %}
     </main>
+    <footer class="border-t border-line px-4 py-3 text-xs text-muted lg:px-6">
+      <a class="link" href="https://db-ip.com" rel="noopener noreferrer">{{ _('IP geolocation by DB-IP.com') }}</a> (CC BY 4.0)
+    </footer>
   </div>
 </div>
 {% endblock %}

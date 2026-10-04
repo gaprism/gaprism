@@ -6,6 +6,22 @@ Technical due diligence from a single pane of glass. Enter a vendor's domain; th
 
 **Responsible use.** Only assess domains you are allowed to assess. The tool sends standard, low-impact requests (DNS, one TLS handshake, one HTTP GET) and queries public data sources; it never logs in, scans ports or exploits anything.
 
+## Quick start
+
+```bash
+uv sync && npm ci && npm run build        # dependencies and styles
+cp .env.example .env                       # then fill in DATABASE_URL (PostgreSQL)
+uv run flask --app app db upgrade          # create the schema
+uv run flask --app app users create-admin  # first account
+uv run flask --app app datasets update     # IP location data, about 65 MB (once, then monthly)
+uv run flask --app app worker              # runs the checks (keep it running)
+uv run flask --app app run                 # the web app
+```
+
+## Data sources and attribution
+
+IP geolocation: [DB-IP.com](https://db-ip.com) Lite databases (CC BY 4.0), installed offline by `flask datasets update`. Certificate Transparency names come from ctlogs.dev, CertSpotter and crt.sh. More sources and their terms: [docs/checks-catalog.md](docs/checks-catalog.md).
+
 ## Development
 
 Commands and conventions: [CLAUDE.md](CLAUDE.md). Documentation index: [docs/README.md](docs/README.md).

@@ -22,7 +22,7 @@ from app.i18n import gettext as _
 from app.i18n import ngettext
 from app.models import Assessment, CheckResult, Host, Scan
 
-CHECK_ORDER = ("dns", "tls", "http")
+CHECK_ORDER = ("dns", "ip", "tls", "http")
 MAX_RAW_JSON_CHARS = 100_000
 
 
@@ -32,6 +32,7 @@ def N_(message: str) -> str:  # noqa: N802 - the gettext marker: translated when
 
 CHECK_TITLES = {
     "dns": N_("DNS"),
+    "ip": N_("IP addresses and location"),
     "tls": N_("TLS certificate"),
     "http": N_("HTTP"),
 }
@@ -64,6 +65,21 @@ REASONS = {
     "too_many_redirects": N_("Too many redirects"),
     "cname_loop": N_("CNAME loop"),
     "cname_chain_too_long": N_("CNAME chain too long"),
+    "datasets_missing": N_("Location data not installed"),
+    "datasets_unreadable": N_("Location data unreadable"),
+    "not_in_database": N_("Not in the location database"),
+}
+
+# Longer advice for the reasons a person can act on; shown on the host page.
+HELP = {
+    "datasets_missing": N_(
+        "The IP location databases are not installed. Run `flask datasets update` once "
+        "(about 65 MB from DB-IP.com) and scan again."
+    ),
+    "datasets_unreadable": N_(
+        "The IP location databases could not be read. Run `flask datasets update --force` "
+        "to download them again."
+    ),
 }
 
 TLS_FAILURES = {
@@ -90,6 +106,11 @@ def reason_label(code: str | None) -> str | None:
 
 def tls_failure_label(code: str) -> str:
     return _(TLS_FAILURES[code]) if code in TLS_FAILURES else code
+
+
+def reason_help(code: str | None) -> str | None:
+    """Advice for a reason code, if there is any."""
+    return _(HELP[code]) if code in HELP else None
 
 
 @dataclass(frozen=True)
@@ -119,6 +140,25 @@ def _dns_cell(data: Mapping[str, Any]) -> CheckCell:
     if not addresses:
         return CheckCell("ok", "muted", _("No address records"))
     return CheckCell("ok", "ok", ngettext("%(num)s address", "%(num)s addresses", len(addresses)))
+
+
+def _ip_cell(data: Mapping[str, Any]) -> CheckCell:
+    entries = list(data.get("addresses", []))
+    located = [entry for entry in entries if entry.get("country")]
+    if not located:
+        return CheckCell("ok", "muted", _("Network known, location not"))
+    if data.get("all_edge"):
+        network = next((e["network"]["name"] for e in entries if e.get("network")), "CDN")
+        return CheckCell("ok", "muted", _("%(network)s edge", network=network))
+    countries = list(data.get("countries", []))
+    if len(countries) == 1:
+        cities = {entry["city"] for entry in located if entry.get("city")}
+        text = f"{countries[0]} · {next(iter(cities))}" if len(cities) == 1 else countries[0]
+    else:
+        text = ", ".join(countries[:4]) + ("…" if len(countries) > 4 else "")
+    if data.get("edge"):
+        text += " · " + _("incl. CDN edge")
+    return CheckCell("ok", "ok", text)
 
 
 def _tls_cell(data: Mapping[str, Any]) -> CheckCell:
@@ -153,6 +193,7 @@ def _http_cell(data: Mapping[str, Any]) -> CheckCell:
 
 _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "dns": _dns_cell,
+    "ip": _ip_cell,
     "tls": _tls_cell,
     "http": _http_cell,
 }
@@ -217,6 +258,7 @@ class CheckSection:
     title: str
     cell: CheckCell
     reason: str | None
+    help: str | None
     data: dict[str, Any]
     collected_at: datetime | None
     duration_ms: int | None
@@ -255,6 +297,7 @@ def get_host_detail(session: Session, host_id: uuid.UUID) -> HostDetail | None:
                 title=check_title(result.check_key),
                 cell=summarize(result.check_key, result.status, result.reason_code, result.data),
                 reason=reason_label(result.reason_code),
+                help=reason_help(result.reason_code),
                 data=dict(result.data),
                 collected_at=result.collected_at,
                 duration_ms=result.duration_ms,

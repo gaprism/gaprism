@@ -42,6 +42,9 @@
   {% if overview.waiting_for_worker %}
   <div class="mt-4">{{ notice(_('Waiting for a worker'), _('No worker has picked this scan up yet. Start one with: flask worker'), 'warning') }}</div>
   {% endif %}
+  {% if overview.ip_data_missing %}
+  <div class="mt-4">{{ notice(_('IP location data is not installed'), _('Run `flask datasets update` once (about 65 MB from DB-IP.com), then scan again to see where the hosts are.'), 'warning') }}</div>
+  {% endif %}
   {% if overview.discovery_failed %}
   <div class="mt-4">{{ notice(_('No certificate source answered'), _('Only the domain itself and www were reviewed. Add hosts by hand below, or run the scan again later.'), 'warning') }}</div>
   {% endif %}
@@ -102,19 +105,19 @@
     <div class="table-scroll">
       <table class="data-table">
         <caption class="sr-only">{{ _('Hosts of the latest scan') }}</caption>
-        <thead><tr><th scope="col">{{ _('Hostname') }}</th><th scope="col">{{ _('Found by') }}</th><th scope="col">{{ _('DNS') }}</th><th scope="col">{{ _('TLS') }}</th><th scope="col">{{ _('HTTP') }}</th></tr></thead>
+        <thead><tr><th scope="col">{{ _('Hostname') }}</th><th scope="col">{{ _('DNS') }}</th><th scope="col">{{ _('Location') }}</th><th scope="col">{{ _('TLS') }}</th><th scope="col">{{ _('HTTP') }}</th></tr></thead>
         <tbody>
           {% for host in hosts.rows %}
           {% set cells = overview.host_cells.get(host.id, {}) %}
           <tr>
-            <td><a class="link" href="{{ url_for('assessments.host_detail', assessment_id=assessment.id, host_id=host.id) }}"><bdi class="font-mono">{{ host.hostname }}</bdi></a></td>
             <td>
-              {% if host.source == 'ct' %}{{ _('Certificate Transparency') }}{% if host.ct_sources %} <span class="text-muted">({{ host.ct_sources|map('replace', 'ctlogs', 'ctlogs.dev')|join(', ') }})</span>{% endif %}
-              {% elif host.source == 'apex' %}{{ _('The domain itself') }}
-              {% elif host.source == 'manual' %}{{ _('Added by hand') }}
-              {% else %}{{ _('Fallback (no source answered)') }}{% endif %}
+              <a class="link" href="{{ url_for('assessments.host_detail', assessment_id=assessment.id, host_id=host.id) }}"><bdi class="font-mono">{{ host.hostname }}</bdi></a>
+              {# Where it came from matters when it is not the usual way (Certificate Transparency). #}
+              {% if host.source == 'apex' %}<div class="text-xs text-muted">{{ _('The domain itself') }}</div>
+              {% elif host.source == 'manual' %}<div class="text-xs text-muted">{{ _('Added by hand') }}</div>
+              {% elif host.source == 'fallback' %}<div class="text-xs text-muted">{{ _('Fallback (no source answered)') }}</div>{% endif %}
             </td>
-            {% for key in ['dns', 'tls', 'http'] %}
+            {% for key in ['dns', 'ip', 'tls', 'http'] %}
             <td>{% if cells.get(key) %}{{ badge(cells[key].text, cells[key].tone) }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             {% endfor %}
           </tr>
