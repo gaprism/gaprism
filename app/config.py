@@ -2,12 +2,17 @@
 
 import datetime
 import os
+import re
 from copy import deepcopy
 from typing import Any, ClassVar
 
 
 class ConfigurationError(Exception):
     """Raised when application configuration fails validation."""
+
+
+# A plain identifier: it ends up in a libpq `options` string, so nothing else is allowed.
+_SCHEMA_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,62}")
 
 
 class BaseConfig:
@@ -36,7 +41,7 @@ class BaseConfig:
     SECURITY_TWO_FACTOR: bool = True
     SECURITY_TWO_FACTOR_REQUIRED: bool = True
     SECURITY_TWO_FACTOR_ENABLED_METHODS: ClassVar[list[str]] = ["authenticator"]
-    SECURITY_TOTP_ISSUER: str = "SaaS Technical Due Diligence"
+    SECURITY_TOTP_ISSUER: str = "Web Due Diligence"
     SECURITY_PASSWORD_HASH: str = "argon2"
     SECURITY_TRACKABLE: bool = True
     SECURITY_CHANGEABLE: bool = True
@@ -62,16 +67,16 @@ class BaseConfig:
     # Database
     SQLALCHEMY_DATABASE_URI: str = ""
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, Any]] = {"pool_pre_ping": True}
+    # Empty = the server's default schema. Set it when the role cannot write to `public`
+    # (shared servers): `flask db upgrade` creates the schema and the app uses it.
+    DB_SCHEMA: str = ""
 
-    # Governance & Scanning limits
-    FOUR_EYES_ENABLED: bool = False
-    MAX_HOSTS_PER_RUN: int = 1000
+    # Scanning limits
+    MAX_HOSTS_PER_RUN: int = 200
     MAX_DISCOVERY_PAGES: int = 50
 
-    # Evidence storage
-    STORAGE_DIR: str = "/var/data/evidence"
-
-    # Anti-SSRF & Network settings
+    # Anti-SSRF & network settings
     EGRESS_DNS_RESOLVERS: ClassVar[list[str]] = ["1.1.1.1", "8.8.8.8"]
     EGRESS_CONNECT_TIMEOUT_SEC: float = 10.0
     EGRESS_READ_TIMEOUT_SEC: float = 20.0
@@ -92,7 +97,6 @@ class DevelopmentConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5432/web_due_diligence_dev"
     )
-    STORAGE_DIR: str = "./var/data/evidence"
 
 
 class TestingConfig(BaseConfig):
@@ -112,7 +116,6 @@ class TestingConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5432/web_due_diligence_test"
     )
-    STORAGE_DIR: str = "./tmp/test_storage"
 
 
 class ProductionConfig(BaseConfig):
@@ -126,22 +129,24 @@ class ProductionConfig(BaseConfig):
     SESSION_COOKIE_SAMESITE: str = "Lax"
 
 
+def validate_db_schema(schema: str) -> None:
+    """Reject anything but a plain identifier (it is used in a libpq options string)."""
+    if schema and not _SCHEMA_NAME.fullmatch(schema):
+        raise ConfigurationError("DB_SCHEMA must be a plain identifier (letters, digits, _).")
+
+
 def validate_config(config_obj: Any) -> None:
     """Validate configuration settings, enforcing security invariants and mandatory settings."""
     env = getattr(config_obj, "ENV", "base")
     secret_key = getattr(config_obj, "SECRET_KEY", "")
     db_uri = getattr(config_obj, "SQLALCHEMY_DATABASE_URI", "")
-    storage_dir = getattr(config_obj, "STORAGE_DIR", "")
     max_hosts = getattr(config_obj, "MAX_HOSTS_PER_RUN", 0)
     max_pages = getattr(config_obj, "MAX_DISCOVERY_PAGES", 0)
     auth_rate_limit_key = getattr(config_obj, "AUTH_RATE_LIMIT_KEY", "")
     auth_rate_limit_failures = getattr(config_obj, "AUTH_RATE_LIMIT_FAILURES", 0)
     auth_rate_limit_window = getattr(config_obj, "AUTH_RATE_LIMIT_WINDOW_SECONDS", 0)
 
-    if not storage_dir or not str(storage_dir).strip():
-        raise ConfigurationError("STORAGE_DIR must be specified and non-empty.")
-    if "\x00" in str(storage_dir):
-        raise ConfigurationError("STORAGE_DIR contains invalid characters.")
+    validate_db_schema(getattr(config_obj, "DB_SCHEMA", ""))
 
     if not isinstance(max_hosts, int) or max_hosts <= 0:
         raise ConfigurationError("MAX_HOSTS_PER_RUN must be a positive integer.")
@@ -206,10 +211,9 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "SQLALCHEMY_DATABASE_URI": "TEST_DATABASE_URL"
             if config_class.TESTING
             else "DATABASE_URL",
-            "STORAGE_DIR": "TEST_STORAGE_DIR" if config_class.TESTING else "STORAGE_DIR",
+            "DB_SCHEMA": "DB_SCHEMA",
             "MAX_HOSTS_PER_RUN": "MAX_HOSTS_PER_RUN",
             "MAX_DISCOVERY_PAGES": "MAX_DISCOVERY_PAGES",
-            "FOUR_EYES_ENABLED": "FOUR_EYES_ENABLED",
         }
         for key, env_key in environment_keys.items():
             if env_key not in os.environ:
@@ -227,4 +231,14 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             else:
                 values[key] = raw
     values["SECURITY_TOTP_SECRETS"] = {"1": values["MFA_ENCRYPTION_KEY"]}
+
+    schema = str(values.get("DB_SCHEMA", ""))
+    validate_db_schema(schema)
+    if schema:
+        options = dict(values["SQLALCHEMY_ENGINE_OPTIONS"])
+        options["connect_args"] = {
+            **options.get("connect_args", {}),
+            "options": f"-c search_path={schema}",
+        }
+        values["SQLALCHEMY_ENGINE_OPTIONS"] = options
     return type("ResolvedConfig", (config_class,), values)

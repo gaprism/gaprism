@@ -49,20 +49,40 @@ def test_factory_rejects_invalid_config_object() -> None:
         create_app(object())  # type: ignore[arg-type]
 
 
-def test_validate_config_storage_dir_missing() -> None:
-    """Verify missing STORAGE_DIR fails validation."""
+@pytest.mark.parametrize(
+    "schema",
+    [
+        'x"; DROP SCHEMA public CASCADE; --',
+        "a -c statement_timeout=0",  # would smuggle a second libpq option
+        "1leading_digit",
+        "has space",
+        "x" * 64,
+    ],
+)
+def test_db_schema_must_be_a_plain_identifier(schema: str) -> None:
+    """DB_SCHEMA ends up in a libpq options string, so anything but an identifier is refused."""
 
-    class BadConfig(TestingConfig):
-        STORAGE_DIR = ""
+    class BadSchema(TestingConfig):
+        DB_SCHEMA = schema
 
-    with pytest.raises(ConfigurationError, match="STORAGE_DIR must be specified"):
-        validate_config(BadConfig)
+    with pytest.raises(ConfigurationError, match="DB_SCHEMA must be a plain identifier"):
+        validate_config(BadSchema)
+    with pytest.raises(ConfigurationError, match="DB_SCHEMA must be a plain identifier"):
+        create_app(BadSchema)
 
-    class InvalidPathConfig(TestingConfig):
-        STORAGE_DIR = "invalid\x00path"
 
-    with pytest.raises(ConfigurationError, match="STORAGE_DIR contains invalid characters"):
-        validate_config(InvalidPathConfig)
+def test_db_schema_sets_search_path_for_every_connection() -> None:
+    """A configured schema becomes the connection search_path; none leaves the default."""
+
+    class WithSchema(TestingConfig):
+        DB_SCHEMA = "due_diligence"
+
+    options = create_app(WithSchema).config["SQLALCHEMY_ENGINE_OPTIONS"]
+    assert options["connect_args"]["options"] == "-c search_path=due_diligence"
+    assert options["pool_pre_ping"] is True
+
+    default_options = create_app(TestingConfig).config["SQLALCHEMY_ENGINE_OPTIONS"]
+    assert "connect_args" not in default_options
 
 
 def test_validate_config_negative_limits() -> None:

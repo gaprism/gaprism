@@ -1,11 +1,10 @@
-"""Flask CLI commands for user administration and system bootstrapping."""
+"""Flask CLI commands: thin entry points that call services."""
 
 import click
 from flask import Flask
-from flask_security.utils import hash_password
 
 from app.extensions import db
-from app.models.auth import Membership, Role, User, Workspace
+from app.service import users as user_service
 
 
 def register_cli_commands(app: Flask) -> None:
@@ -13,90 +12,20 @@ def register_cli_commands(app: Flask) -> None:
 
     @app.cli.group(name="users")
     def users_group() -> None:
-        """User and identity administrative management commands."""
-        pass
+        """Team account administration."""
 
     @users_group.command(name="create-admin")
-    @click.option("--email", prompt="Admin Email", help="Admin email address.")
-    @click.option(
-        "--workspace",
-        "workspace_name",
-        default="Default Workspace",
-        help="Name of the initial workspace.",
-    )
-    def create_admin(email: str, workspace_name: str) -> None:
-        """Create or update a local administrator account and assign default workspace."""
-        password = click.prompt(
-            "Admin Password",
-            hide_input=True,
-            confirmation_prompt=True,
-            type=str,
-        )
-        clean_email = email.strip().lower()
-        if not clean_email:
-            click.echo("Error: Email cannot be empty.", err=True)
-            return
+    @click.option("--email", prompt="Admin e-mail", help="E-mail address of the administrator.")
+    def create_admin(email: str) -> None:
+        """Create an administrator, or reset the password of an existing account.
 
-        if len(password) < 12:
-            raise click.ClickException("Password must contain at least 12 characters.")
-
-        # Ensure admin & member roles exist
-        admin_role = db.session.query(Role).filter_by(name="admin").first()
-        if not admin_role:
-            admin_role = Role(name="admin", description="System Administrator")
-            db.session.add(admin_role)
-
-        member_role = db.session.query(Role).filter_by(name="member").first()
-        if not member_role:
-            member_role = Role(name="member", description="Team Member")
-            db.session.add(member_role)
-
-        db.session.flush()
-
-        # Ensure workspace exists
-        workspace = db.session.query(Workspace).filter_by(name=workspace_name).first()
-        if not workspace:
-            workspace = Workspace(name=workspace_name, enabled=True)
-            db.session.add(workspace)
-            db.session.flush()
-
-        # Find or create user
-        user = db.session.query(User).filter_by(email=clean_email).first()
-        if user:
-            user.password = hash_password(password)
-            user.active = True
-            if admin_role not in user.roles:
-                user.roles.append(admin_role)
-        else:
-            user = User(
-                email=clean_email,
-                password=hash_password(password),
-                active=True,
-            )
-            user.roles.append(admin_role)
-            db.session.add(user)
-            db.session.flush()
-
-        # Ensure active admin membership in the workspace
-        membership = (
-            db.session.query(Membership)
-            .filter_by(workspace_id=workspace.id, user_id=user.id)
-            .first()
-        )
-        if membership:
-            membership.role = "admin"
-            membership.active = True
-        else:
-            membership = Membership(
-                workspace_id=workspace.id,
-                user_id=user.id,
-                role="admin",
-                active=True,
-            )
-            db.session.add(membership)
-
+        The password is read from a hidden prompt on purpose: a command-line argument
+        would be visible in the process list and the shell history.
+        """
+        password = click.prompt("Password", hide_input=True, confirmation_prompt=True, type=str)
+        try:
+            user = user_service.create_admin(db.session(), email, password)
+        except user_service.UserAdminError as exc:
+            raise click.ClickException(str(exc)) from exc
         db.session.commit()
-        click.echo(
-            f"Successfully bootstrapped admin account '{clean_email}' in "
-            f"workspace '{workspace_name}'."
-        )
+        click.echo(f"Administrator '{user.email}' is ready.")

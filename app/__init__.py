@@ -5,7 +5,6 @@ import os
 from flask import Flask, Response, jsonify
 from flask_security.datastore import SQLAlchemyUserDatastore
 
-from app.blueprints.assessments import assessments_bp
 from app.commands import register_cli_commands
 from app.config import (
     BaseConfig,
@@ -85,9 +84,6 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
             "img-src 'self' data:;"
         )
         return response
-
-    # Register Blueprints
-    app.register_blueprint(assessments_bp)
 
     # Register CLI commands
     register_cli_commands(app)

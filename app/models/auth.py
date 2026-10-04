@@ -1,4 +1,4 @@
-"""Authentication and workspace membership database models."""
+"""Authentication models: users and roles (Flask-Security-Too)."""
 
 import uuid
 from datetime import datetime
@@ -6,7 +6,6 @@ from datetime import datetime
 from flask_security.core import RoleMixin, UserMixin
 from sqlalchemy import (
     Boolean,
-    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -16,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseUUIDModel, TimestampMixin, utc_now
+from app.models.base import BaseUUIDModel, utc_now
 
 
 class UserRoles(BaseUUIDModel):
@@ -37,13 +36,11 @@ class UserRoles(BaseUUIDModel):
         index=True,
     )
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "role_id", name="uq_user_roles_user_role"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "role_id", name="uq_user_roles_user_role"),)
 
 
 class Role(BaseUUIDModel, RoleMixin):  # type: ignore[misc]
-    """Role model for authorization groups."""
+    """Role model for authorization groups (``admin`` is the only role used so far)."""
 
     __tablename__ = "role"
 
@@ -115,67 +112,6 @@ class User(BaseUUIDModel, UserMixin):  # type: ignore[misc]
         backref="users",
         lazy="selectin",
     )
-    memberships: Mapped[list["Membership"]] = relationship(
-        "Membership",
-        back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"
-
-
-class Workspace(BaseUUIDModel, TimestampMixin):
-    """Workspace tenant container representing an internal team workspace."""
-
-    __tablename__ = "workspace"
-
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    memberships: Mapped[list["Membership"]] = relationship(
-        "Membership",
-        back_populates="workspace",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-
-    def __repr__(self) -> str:
-        return f"<Workspace {self.name}>"
-
-
-class Membership(BaseUUIDModel, TimestampMixin):
-    """Membership mapping linking users to workspaces with operational roles."""
-
-    __tablename__ = "membership"
-
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("workspace.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    role: Mapped[str] = mapped_column(
-        String(32),
-        default="member",
-        nullable=False,
-    )
-    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    workspace: Mapped[Workspace] = relationship("Workspace", back_populates="memberships")
-    user: Mapped[User] = relationship("User", back_populates="memberships")
-
-    __table_args__ = (
-        UniqueConstraint("workspace_id", "user_id", name="uq_membership_workspace_user"),
-        CheckConstraint("role IN ('admin', 'member')", name="ck_membership_role_valid"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<Membership user={self.user_id} workspace={self.workspace_id} role={self.role}>"

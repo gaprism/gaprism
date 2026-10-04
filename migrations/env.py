@@ -3,6 +3,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from flask import current_app
+from sqlalchemy import text
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -85,8 +86,14 @@ def run_migrations_online():
         conf_args["process_revision_directives"] = process_revision_directives
 
     connectable = get_engine()
+    # DB_SCHEMA is validated as a plain identifier by app.config before it gets here.
+    schema = current_app.config.get("DB_SCHEMA") or ""
 
     with connectable.connect() as connection:
+        if schema:
+            # Shared servers often forbid writing to `public`; the app then uses its own schema.
+            connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
+            connection.commit()
         context.configure(connection=connection, target_metadata=get_metadata(), **conf_args)
 
         with context.begin_transaction():

@@ -63,10 +63,7 @@ def canonicalise_domain(raw_input: str) -> DomainScope:
         raise ScopeValidationError("IP address literals are not allowed as domain scope.")
 
     # Reject URLs, schemes, paths, userinfo, ports, fragments, query strings
-    if (
-        "://" in cleaned
-        or cleaned.startswith(("http:", "https:", "ftp:", "file:", "ws:", "wss:"))
-    ):
+    if "://" in cleaned or cleaned.startswith(("http:", "https:", "ftp:", "file:", "ws:", "wss:")):
         raise ScopeValidationError("URL schemes (e.g. 'https://') are not allowed.")
     if "/" in cleaned or "\\" in cleaned:
         raise ScopeValidationError("Path syntax is not allowed in domain scope.")
