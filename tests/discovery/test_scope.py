@@ -110,6 +110,37 @@ class TestScopeCanonicalisation:
         with pytest.raises(ScopeValidationError, match="public suffix / TLD"):
             canonicalise_domain("s3.amazonaws.com")
 
+    @pytest.mark.parametrize(
+        "suffix",
+        [
+            "co.kr",
+            "com.mx",
+            "co.in",
+            "ne.kr",
+            "blogspot.com",
+            "myshopify.com",
+            "azureedge.net",
+            "web.core.windows.net",
+        ],
+    )
+    def test_reject_suffixes_the_old_curated_list_missed(self, suffix: str) -> None:
+        """A scan of a suffix would enumerate every unrelated owner underneath it."""
+        with pytest.raises(ScopeValidationError, match="public suffix / TLD"):
+            canonicalise_domain(suffix)
+
+    def test_names_below_a_suffix_are_valid_scopes(self) -> None:
+        assert canonicalise_domain("vendor.blogspot.com").canonical == "vendor.blogspot.com"
+        assert canonicalise_domain("vendor.co.uk").canonical == "vendor.co.uk"
+        # Exception rule (!city.kobe.jp): this is a registrable name, not a suffix.
+        assert canonicalise_domain("city.kobe.jp").canonical == "city.kobe.jp"
+        # Wildcard rule (*.ck) makes any single label under .ck a suffix.
+        with pytest.raises(ScopeValidationError, match="public suffix / TLD"):
+            canonicalise_domain("anything.ck")
+
+    def test_the_list_version_is_recorded_with_the_scope(self) -> None:
+        scope = canonicalise_domain("example.com")
+        assert scope.psl_version and scope.psl_version[0].isdigit()
+
 
 class TestScopeMembership:
     @pytest.fixture

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from flask import Flask
+from flask import Flask, g, has_app_context
 from flask.testing import FlaskClient
 from flask_security.utils import hash_password
 from sqlalchemy.orm import Session
@@ -59,7 +59,15 @@ def create_assessment(
 
 def login_as(client: FlaskClient, user: User) -> None:
     """Start a signed-in session without the login form. Tests only: no such path exists in
-    the application, which authenticates exclusively through Flask-Security."""
+    the application, which authenticates exclusively through Flask-Security.
+
+    Tests that use the ``db_session`` fixture keep one application context open, and Flask
+    reuses it for every request, so Flask-Login's per-request user cache on ``g`` would leak
+    from one request to the next. Clearing it makes switching users behave as in production,
+    where every request has its own context.
+    """
+    if has_app_context():
+        g.pop("_login_user", None)
     with client.session_transaction() as state:
         state.clear()
         state["_user_id"] = user.fs_uniquifier

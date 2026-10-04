@@ -82,6 +82,9 @@ class BaseConfig:
     # Scanning limits
     MAX_HOSTS_PER_RUN: int = 200
     MAX_DISCOVERY_PAGES: int = 50
+    # Domains (and everything below them) that may never be assessed, e.g. your own
+    # infrastructure. Comma-separated in the environment.
+    BLOCKED_DOMAINS: ClassVar[list[str]] = []
 
     # Anti-SSRF & network settings
     EGRESS_DNS_RESOLVERS: ClassVar[list[str]] = ["1.1.1.1", "8.8.8.8"]
@@ -223,6 +226,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "REQUIRE_MFA": "REQUIRE_MFA",
             "MAX_HOSTS_PER_RUN": "MAX_HOSTS_PER_RUN",
             "MAX_DISCOVERY_PAGES": "MAX_DISCOVERY_PAGES",
+            "BLOCKED_DOMAINS": "BLOCKED_DOMAINS",
         }
         for key, env_key in environment_keys.items():
             if env_key not in os.environ:
@@ -237,6 +241,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
                     values[key] = int(raw)
                 except ValueError as exc:
                     raise ConfigurationError(f"{env_key} must be an integer.") from exc
+            elif isinstance(values[key], list):
+                values[key] = [part.strip().lower() for part in raw.split(",") if part.strip()]
             else:
                 values[key] = raw
     values["SECURITY_TOTP_SECRETS"] = {"1": values["MFA_ENCRYPTION_KEY"]}

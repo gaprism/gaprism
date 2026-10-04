@@ -125,12 +125,6 @@ def canonicalise_domain(raw_input: str) -> DomainScope:
                 f"Domain label '{label}' contains invalid characters or illegal hyphen placement."
             )
 
-    # Screen against Public Suffix List
-    if is_public_suffix(canonical):
-        raise ScopeValidationError(
-            f"'{canonical}' is a public suffix / TLD and cannot be used as an assessment scope."
-        )
-
     # Human-readable unicode form
     try:
         unicode_form = canonical.encode("ascii").decode("idna")

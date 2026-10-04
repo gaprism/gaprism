@@ -1,233 +1,29 @@
-"""Local Public Suffix List (PSL) screening for scope validation."""
+"""Public Suffix List screening, using the maintained list shipped by `publicsuffixlist`."""
 
 from __future__ import annotations
 
-PSL_VERSION = "2026.1-curated"
+from functools import lru_cache
+from importlib.metadata import version
 
-# Comprehensive curated set of top-level domains, multi-part ccTLD public suffixes,
-# and well-known public hosting / cloud suffixes that cannot be assessed as domain apexes.
-_EXACT_PUBLIC_SUFFIXES: frozenset[str] = frozenset(
-    {
-        # Common gTLDs
-        "com",
-        "org",
-        "net",
-        "edu",
-        "gov",
-        "mil",
-        "int",
-        "info",
-        "biz",
-        "mobi",
-        "name",
-        "aero",
-        "asia",
-        "cat",
-        "coop",
-        "jobs",
-        "museum",
-        "pro",
-        "tel",
-        "travel",
-        "app",
-        "dev",
-        "io",
-        "ai",
-        "cloud",
-        "tech",
-        "online",
-        "site",
-        "store",
-        "security",
-        "agency",
-        "global",
-        "group",
-        "digital",
-        "systems",
-        "network",
-        "company",
-        "media",
-        "world",
-        "live",
-        "news",
-        "pub",
-        "one",
-        "law",
-        "bank",
-        "insurance",
-        "finance",
-        # European & major ccTLDs
-        "ch",
-        "de",
-        "at",
-        "li",
-        "fr",
-        "it",
-        "es",
-        "nl",
-        "be",
-        "lu",
-        "uk",
-        "ie",
-        "dk",
-        "se",
-        "no",
-        "fi",
-        "is",
-        "pt",
-        "gr",
-        "pl",
-        "cz",
-        "sk",
-        "hu",
-        "ro",
-        "bg",
-        "hr",
-        "si",
-        "ee",
-        "lv",
-        "lt",
-        "eu",
-        "us",
-        "ca",
-        "mx",
-        "br",
-        "ar",
-        "cl",
-        "co",
-        "za",
-        "au",
-        "nz",
-        "jp",
-        "cn",
-        "in",
-        "sg",
-        "hk",
-        "kr",
-        "tw",
-        "il",
-        "ae",
-        "sa",
-        "ru",
-        "ua",
-        "tr",
-        # Multi-part ccTLD suffixes
-        "co.uk",
-        "org.uk",
-        "me.uk",
-        "ltd.uk",
-        "plc.uk",
-        "net.uk",
-        "sch.uk",
-        "ac.uk",
-        "gov.uk",
-        "nhs.uk",
-        "police.uk",
-        "com.au",
-        "net.au",
-        "org.au",
-        "edu.au",
-        "gov.au",
-        "asn.au",
-        "id.au",
-        "co.at",
-        "or.at",
-        "gv.at",
-        "ac.at",
-        "co.nz",
-        "net.nz",
-        "org.nz",
-        "govt.nz",
-        "ac.nz",
-        "co.za",
-        "org.za",
-        "gov.za",
-        "ac.za",
-        "co.jp",
-        "ne.jp",
-        "or.jp",
-        "go.jp",
-        "ac.jp",
-        "ed.jp",
-        "lg.jp",
-        "com.br",
-        "net.br",
-        "org.br",
-        "gov.br",
-        "edu.br",
-        "com.cn",
-        "net.cn",
-        "org.cn",
-        "gov.cn",
-        "edu.cn",
-        "com.tw",
-        "org.tw",
-        "gov.tw",
-        "edu.tw",
-        "com.hk",
-        "org.hk",
-        "gov.hk",
-        "edu.hk",
-        "com.sg",
-        "org.sg",
-        "gov.sg",
-        "edu.sg",
-        "co.il",
-        "org.il",
-        "gov.il",
-        "ac.il",
-        "com.tr",
-        "org.tr",
-        "gov.tr",
-        "edu.tr",
-        "gc.ca",
-        "gov.on.ca",
-        "fed.us",
-        "state.tx.us",
-        "state.ca.us",
-        "state.ny.us",
-        # Public cloud & platform suffixes
-        "github.io",
-        "gitlab.io",
-        "pages.dev",
-        "workers.dev",
-        "vercel.app",
-        "netlify.app",
-        "herokuapp.com",
-        "azurewebsites.net",
-        "cloudapp.net",
-        "azurestaticapps.net",
-        "cloudfront.net",
-        "s3.amazonaws.com",
-        "s3-website.eu-central-1.amazonaws.com",
-        "s3-website.us-east-1.amazonaws.com",
-        "elasticbeanstalk.com",
-        "appspot.com",
-        "000webhostapp.com",
-        "firebaseapp.com",
-        "web.app",
-        "amplifyapp.com",
-        "fastlylb.net",
-        "fly.dev",
-        "render.com",
-        "onrender.com",
-    }
-)
+from publicsuffixlist import PublicSuffixList
+
+# The package version carries the list date, e.g. 1.0.2.20261003. Reading it is a local
+# metadata lookup; nothing here touches the network.
+PSL_VERSION = version("publicsuffixlist")
+
+
+@lru_cache(maxsize=1)
+def _suffix_list() -> PublicSuffixList:
+    return PublicSuffixList()
 
 
 def is_public_suffix(domain_ascii: str) -> bool:
-    """Check if the normalised ASCII domain is a known public suffix / TLD.
+    """True if the lower-case ASCII domain is a public suffix, a TLD or a single label.
 
-    A domain is rejected if:
-    1. It consists of only a single DNS label (e.g. 'com', 'ch', 'internal').
-    2. It matches a known multi-part public suffix (e.g. 'co.uk', 'github.io').
+    ICANN and private suffixes both count: ``co.kr``, ``github.io`` and ``blogspot.com`` are
+    suffixes (many unrelated owners underneath), while ``foo.blogspot.com`` is not.
     """
-    labels = domain_ascii.strip(".").lower().split(".")
-    if len(labels) <= 1:
+    domain = domain_ascii.strip(".").lower()
+    if "." not in domain:
         return True
-
-    clean_domain = ".".join(labels)
-    if clean_domain in _EXACT_PUBLIC_SUFFIXES:
-        return True
-
-    return False
+    return bool(_suffix_list().publicsuffix(domain) == domain)

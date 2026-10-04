@@ -1,10 +1,13 @@
 {% extends "base.html" %}
-{% from 'components/ui.html' import badge, empty %}
+{% from 'components/ui.html' import action, badge, empty %}
 {% block title %}{{ _('Assessments') }}{% endblock %}
 {% block content %}
-<div class="mb-5">
-  <p class="eyebrow">{{ _('Team workspace') }}</p>
-  <h1 class="mt-1">{{ _('Assessments') }}</h1>
+<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <p class="eyebrow">{{ _('Team workspace') }}</p>
+    <h1 class="mt-1">{{ _('Assessments') }}</h1>
+  </div>
+  {{ action(_('New assessment'), url_for('assessments.new'), 'primary') }}
 </div>
 <div class="panel">
   {% if assessments %}
@@ -22,7 +25,7 @@
       <tbody>
         {% for item in assessments %}
         <tr>
-          <td><bdi class="font-mono">{{ item.domain_display }}</bdi></td>
+          <td><a class="link" href="{{ url_for('assessments.detail', assessment_id=item.id) }}"><bdi class="font-mono">{{ item.domain_display }}</bdi></a></td>
           <td>{{ item.label or '—' }}</td>
           <td>{{ badge(_('Team') if item.visibility == 'team' else _('Private'), 'ok' if item.visibility == 'team' else 'muted') }}</td>
           <td><time datetime="{{ item.created_at.isoformat() }}">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></td>

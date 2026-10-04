@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from 'components/forms.html' import text_field, radio_group %}
+{% from 'components/ui.html' import action, icon %}
+{% block title %}{{ _('New assessment') }}{% endblock %}
+{% block content %}
+<div class="mb-5">
+  <a class="link text-sm" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
+  <h1 class="mt-2">{{ _('New assessment') }}</h1>
+</div>
+<form method="post" class="panel max-w-2xl p-5" novalidate>
+  {{ form.hidden_tag() }}
+  {% if existing %}
+  <div class="notice mb-4" role="alert">{{ icon('info') }}<p>{{ _('An assessment for this domain already exists:') }} <a class="link" href="{{ url_for('assessments.detail', assessment_id=existing.id) }}"><bdi>{{ existing.domain_display }}</bdi></a></p></div>
+  {% endif %}
+  {{ text_field(form.domain, _('Domain'), help=_('The vendor domain, for example example.com. No URL, no IP address, no wildcard.'), placeholder='example.com') }}
+  {{ text_field(form.label, _('Label (optional)'), help=_('A name to recognise the assessment, for example the vendor or the project.')) }}
+  {{ radio_group(form.visibility, _('Who can see it'), {
+       'private': (_('Only me'), _('Administrators can always see it.')),
+       'team': (_('The whole team'), _('Every signed-in user can open it.'))
+     }) }}
+  <div class="mt-5 flex flex-wrap gap-2">
+    {{ action(_('Create assessment'), variant='primary', type='submit') }}
+    {{ action(_('Cancel'), url_for('assessments.index'), 'quiet') }}
+  </div>
+</form>
+{% endblock %}

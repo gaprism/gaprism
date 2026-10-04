@@ -1,0 +1,27 @@
+{# Accessible form controls: visible label, help text and errors wired with aria-describedby. #}
+{% macro text_field(field, label, help='', placeholder='', autocomplete='off') -%}
+{% set described = field.id ~ '-help' ~ (' ' ~ field.id ~ '-error' if field.errors else '') %}
+<div class="field mb-4">
+  <label for="{{ field.id }}">{{ label }}</label>
+  {{ field(autocomplete=autocomplete, placeholder=placeholder, **{'aria-describedby': described, 'aria-invalid': 'true' if field.errors else 'false'}) }}
+  {% if help %}<p class="field-help" id="{{ field.id }}-help">{{ help }}</p>{% endif %}
+  {% for error in field.errors %}<p class="text-sm text-danger" id="{{ field.id }}-error">{{ error }}</p>{% endfor %}
+</div>
+{%- endmacro %}
+
+{# options maps each value to (label, help). #}
+{% macro radio_group(field, legend, options) -%}
+<fieldset class="mb-4">
+  <legend class="mb-2 text-sm font-medium">{{ legend }}</legend>
+  <div class="flex flex-col gap-2">
+    {% for subfield in field %}
+    {% set text = options.get(subfield.data, (subfield.data, '')) %}
+    <label class="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3">
+      {{ subfield() }}
+      <span><span class="block text-sm font-medium">{{ text[0] }}</span>{% if text[1] %}<span class="block text-sm text-muted">{{ text[1] }}</span>{% endif %}</span>
+    </label>
+    {% endfor %}
+  </div>
+  {% for error in field.errors %}<p class="mt-1 text-sm text-danger">{{ error }}</p>{% endfor %}
+</fieldset>
+{%- endmacro %}

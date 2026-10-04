@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from 'components/ui.html' import badge %}
+{% block title %}{{ assessment.domain_display }}{% endblock %}
+{% block content %}
+<div class="mb-5">
+  <a class="link text-sm" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
+  <div class="mt-2 flex flex-wrap items-center gap-3">
+    <h1><bdi class="font-mono">{{ assessment.domain_display }}</bdi></h1>
+    {{ badge(_('Team') if assessment.visibility == 'team' else _('Private'), 'ok' if assessment.visibility == 'team' else 'muted') }}
+  </div>
+  <p class="mt-1 text-sm text-muted">
+    {% if assessment.domain != assessment.domain_display %}<bdi class="font-mono">{{ assessment.domain }}</bdi> · {% endif %}
+    {% if assessment.label %}{{ assessment.label }} · {% endif %}
+    {{ _('Created') }} <time datetime="{{ assessment.created_at.isoformat() }}">{{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+  </p>
+</div>
+<div class="panel p-5 text-sm text-muted">{{ _('No scan has run yet.') }}</div>
+{% endblock %}
