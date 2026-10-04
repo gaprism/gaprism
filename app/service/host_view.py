@@ -1,0 +1,265 @@
+"""What the host views show: a one-line summary per check, and the full detail of one host.
+
+The summaries turn the stored facts into short, translated text with a badge tone. They state
+what was *collected* (an expired certificate, a dangling CNAME); judging it (findings and their
+severity) is the job of the rules that come later. Every string that comes from the assessed
+host is passed through untouched here and escaped by the templates.
+"""
+
+from __future__ import annotations
+
+import json
+import uuid
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.i18n import gettext as _
+from app.i18n import ngettext
+from app.models import Assessment, CheckResult, Host, Scan
+
+CHECK_ORDER = ("dns", "tls", "http")
+MAX_RAW_JSON_CHARS = 100_000
+
+
+def N_(message: str) -> str:  # noqa: N802 - the gettext marker: translated when used, not here
+    return message
+
+
+CHECK_TITLES = {
+    "dns": N_("DNS"),
+    "tls": N_("TLS certificate"),
+    "http": N_("HTTP"),
+}
+
+REASONS = {
+    "timeout": N_("Timed out"),
+    "refused": N_("Connection refused"),
+    "servfail": N_("Resolver error"),
+    "dns_error": N_("Resolver error"),
+    "network_error": N_("Network error"),
+    "connection_failed": N_("Connection failed"),
+    "handshake_failed": N_("TLS handshake failed"),
+    "tls_error": N_("TLS error"),
+    "tls_verification_failed": N_("Certificate not trusted"),
+    "blocked_destination": N_("Blocked destination"),
+    "dns_failed": N_("DNS lookup failed"),
+    "protocol_error": N_("Protocol error"),
+    "http_error": N_("HTTP error"),
+    "nxdomain": N_("Name does not exist"),
+    "no_records": N_("No records"),
+    "no_web_server": N_("No web server"),
+    "no_public_address": N_("No public address to connect to"),
+    "no_hostname": N_("No hostname"),
+    "no_certificate": N_("No certificate"),
+    "internal_error": N_("Internal error"),
+    "max_attempts_exceeded": N_("Gave up after repeated failures"),
+    "scan_cancelled": N_("Scan cancelled"),
+    "unknown_check": N_("Unknown check"),
+    "scan_missing": N_("Scan no longer exists"),
+    "too_many_redirects": N_("Too many redirects"),
+    "cname_loop": N_("CNAME loop"),
+    "cname_chain_too_long": N_("CNAME chain too long"),
+}
+
+TLS_FAILURES = {
+    "expired": N_("Expired"),
+    "not_yet_valid": N_("Not yet valid"),
+    "hostname_mismatch": N_("Name mismatch"),
+    "untrusted": N_("Not trusted"),
+    "verify_failed": N_("Verification failed"),
+    "handshake_failed": N_("TLS handshake failed"),
+}
+
+
+def reason_label(code: str | None) -> str | None:
+    """Translated text for a reason code (``None`` for no reason, the code itself if unknown)."""
+    if not code:
+        return None
+    if code.startswith("needs:"):
+        return _("Skipped: %(checks)s did not succeed", checks=code[len("needs:") :])
+    if code in REASONS:
+        return _(REASONS[code])
+    # A TLS check that read no certificate reports why verification failed as its reason.
+    return _(TLS_FAILURES[code]) if code in TLS_FAILURES else code
+
+
+def tls_failure_label(code: str) -> str:
+    return _(TLS_FAILURES[code]) if code in TLS_FAILURES else code
+
+
+@dataclass(frozen=True)
+class CheckCell:
+    """A check's outcome in one line: its status, the badge tone and the text."""
+
+    status: str
+    tone: str
+    text: str
+
+
+def _dns_cell(data: Mapping[str, Any]) -> CheckCell:
+    addresses = list(data.get("addresses", []))
+    blocked = list(data.get("blocked", []))
+    if data.get("dangling_cname"):
+        return CheckCell("ok", "high", _("Dangling CNAME"))
+    if blocked and not addresses:
+        return CheckCell("ok", "medium", _("Only private addresses"))
+    if blocked:
+        text = ngettext(
+            "%(num)s address, %(blocked)s private",
+            "%(num)s addresses, %(blocked)s private",
+            len(addresses),
+            blocked=len(blocked),
+        )
+        return CheckCell("ok", "medium", text)
+    if not addresses:
+        return CheckCell("ok", "muted", _("No address records"))
+    return CheckCell("ok", "ok", ngettext("%(num)s address", "%(num)s addresses", len(addresses)))
+
+
+def _tls_cell(data: Mapping[str, Any]) -> CheckCell:
+    if not data.get("verified"):
+        failures = list(data.get("failures", []))
+        return CheckCell(
+            "ok", "high", tls_failure_label(failures[0] if failures else "verify_failed")
+        )
+    days = (data.get("certificate") or {}).get("days_remaining")
+    if not isinstance(days, int):
+        return CheckCell("ok", "ok", _("Valid"))
+    if days <= 30:
+        return CheckCell(
+            "ok", "medium", ngettext("Expires in %(num)s day", "Expires in %(num)s days", days)
+        )
+    return CheckCell(
+        "ok", "ok", ngettext("Valid · %(num)s day left", "Valid · %(num)s days left", days)
+    )
+
+
+def _http_cell(data: Mapping[str, Any]) -> CheckCell:
+    status = data.get("status")
+    if not isinstance(status, int):
+        return CheckCell("ok", "muted", _("Answered"))
+    tone = "high" if status >= 500 else "medium" if status >= 400 else "ok"
+    if data.get("scheme") == "http":
+        return CheckCell("ok", "medium", _("%(status)s · HTTP only", status=status))
+    if data.get("redirect_incomplete"):
+        return CheckCell("ok", "medium", _("%(status)s · redirect not followed", status=status))
+    return CheckCell("ok", tone, str(status))
+
+
+_SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
+    "dns": _dns_cell,
+    "tls": _tls_cell,
+    "http": _http_cell,
+}
+
+
+def summarize(
+    check_key: str, status: str, reason_code: str | None, data: Mapping[str, Any]
+) -> CheckCell:
+    """One line about a check result, for the hosts table and the section headers."""
+    if status == "queued":
+        return CheckCell(status, "info", _("Queued"))
+    if status == "running":
+        return CheckCell(status, "info", _("Running"))
+    if status == "ok":
+        summary = _SUMMARIES.get(check_key)
+        return summary(data) if summary else CheckCell(status, "ok", _("Done"))
+    reason = reason_label(reason_code)
+    if status == "no_data":
+        return CheckCell(status, "muted", reason or _("No data"))
+    if status == "skipped":
+        return CheckCell(status, "muted", reason or _("Skipped"))
+    if status == "unavailable":
+        return CheckCell(status, "medium", reason or _("Unavailable"))
+    return CheckCell(status, "high", reason or _("Failed"))
+
+
+def check_title(check_key: str) -> str:
+    return _(CHECK_TITLES[check_key]) if check_key in CHECK_TITLES else check_key
+
+
+def _order(check_key: str) -> tuple[int, str]:
+    return (CHECK_ORDER.index(check_key), "") if check_key in CHECK_ORDER else (99, check_key)
+
+
+def host_cells(session: Session, host_ids: Sequence[uuid.UUID]) -> dict[Any, dict[str, CheckCell]]:
+    """For each host, the one-line summary of each of its checks."""
+    if not host_ids:
+        return {}
+    cells: dict[Any, dict[str, CheckCell]] = {}
+    rows = session.execute(
+        select(
+            CheckResult.host_id,
+            CheckResult.check_key,
+            CheckResult.status,
+            CheckResult.reason_code,
+            CheckResult.data,
+        ).where(CheckResult.host_id.in_(host_ids))
+    )
+    for host_id, check_key, status, reason_code, data in rows:
+        cells.setdefault(host_id, {})[check_key] = summarize(check_key, status, reason_code, data)
+    return cells
+
+
+# --------------------------------------------------------------------------- one host in full
+
+
+@dataclass(frozen=True)
+class CheckSection:
+    """One check of a host, with everything a detail page shows about it."""
+
+    key: str
+    title: str
+    cell: CheckCell
+    reason: str | None
+    data: dict[str, Any]
+    collected_at: datetime | None
+    duration_ms: int | None
+    raw_json: str
+    raw_truncated: bool
+
+
+@dataclass(frozen=True)
+class HostDetail:
+    host: Host
+    scan: Scan
+    assessment: Assessment
+    sections: list[CheckSection]
+
+
+def raw_json(data: Mapping[str, Any]) -> tuple[str, bool]:
+    """The stored data as readable JSON, cut at ``MAX_RAW_JSON_CHARS``."""
+    text = json.dumps(data, indent=2, ensure_ascii=False, default=str)
+    return text[:MAX_RAW_JSON_CHARS], len(text) > MAX_RAW_JSON_CHARS
+
+
+def get_host_detail(session: Session, host_id: uuid.UUID) -> HostDetail | None:
+    """A host with its scan, assessment and every check result (``None``: no such host)."""
+    host = session.get(Host, host_id)
+    scan = session.get(Scan, host.scan_id) if host else None
+    assessment = session.get(Assessment, scan.assessment_id) if scan else None
+    if host is None or scan is None or assessment is None:
+        return None
+    results = session.scalars(select(CheckResult).where(CheckResult.host_id == host.id)).all()
+    sections = []
+    for result in sorted(results, key=lambda row: _order(row.check_key)):
+        text, truncated = raw_json(result.data)
+        sections.append(
+            CheckSection(
+                key=result.check_key,
+                title=check_title(result.check_key),
+                cell=summarize(result.check_key, result.status, result.reason_code, result.data),
+                reason=reason_label(result.reason_code),
+                data=dict(result.data),
+                collected_at=result.collected_at,
+                duration_ms=result.duration_ms,
+                raw_json=text,
+                raw_truncated=truncated,
+            )
+        )
+    return HostDetail(host=host, scan=scan, assessment=assessment, sections=sections)

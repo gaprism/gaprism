@@ -16,10 +16,15 @@ from app.i18n import gettext as _
 from app.models.assessment import Assessment
 from app.models.auth import User
 from app.service import assessments as assessment_service
+from app.service import host_view as host_view_service
 from app.service import scans as scan_service
 from app.service.discovery.scope import ScopeValidationError
 
 MAX_HOSTNAMES_INPUT = 20_000  # characters accepted in the "add hosts" box
+
+# Translated labels for reason codes, available in every template.
+assessments_bp.add_app_template_global(host_view_service.reason_label, "reason_label")
+assessments_bp.add_app_template_global(host_view_service.tls_failure_label, "tls_failure_label")
 
 
 def _current_user() -> User:
@@ -38,11 +43,22 @@ def _panel_context(assessment: Assessment) -> dict[str, Any]:
     """What the scan panel needs: the latest scan, its hosts (filtered, paged) and notes."""
     query = request.args.get("q", "")[:100]
     page = max(1, request.args.get("page", 1, type=int) or 1)
+    state = request.args.get("state", "all")
+    if state not in scan_service.HOST_STATES:
+        state = "all"
     scan = scan_service.get_latest_scan(db.session(), assessment.id)
     overview = (
-        scan_service.scan_overview(db.session(), scan, query=query, page=page) if scan else None
+        scan_service.scan_overview(db.session(), scan, query=query, page=page, state=state)
+        if scan
+        else None
     )
-    return {"assessment": assessment, "overview": overview, "q": query, "page": page}
+    return {
+        "assessment": assessment,
+        "overview": overview,
+        "q": query,
+        "page": page,
+        "state": state,
+    }
 
 
 @assessments_bp.get("/")
@@ -131,6 +147,17 @@ def cancel_scan(assessment_id: uuid.UUID) -> Response:
         db.session.rollback()
         flash(_("There is no running scan to cancel."), "warning")
     return redirect(url_for("assessments.detail", assessment_id=assessment.id))
+
+
+@assessments_bp.get("/<uuid:assessment_id>/hosts/<uuid:host_id>")
+@login_required
+def host_detail(assessment_id: uuid.UUID, host_id: uuid.UUID) -> str:
+    """Everything collected about one host, check by check."""
+    assessment = _get_accessible(assessment_id)
+    detail = host_view_service.get_host_detail(db.session(), host_id)
+    if detail is None or detail.assessment.id != assessment.id:
+        abort(404)  # also for a host of someone else's assessment: never confirm it exists
+    return render_template("assessments/host.html", assessment=assessment, detail=detail)
 
 
 @assessments_bp.post("/<uuid:assessment_id>/hosts")

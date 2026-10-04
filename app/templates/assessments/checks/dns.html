@@ -1,0 +1,32 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set blocked_ips = d.blocked|map(attribute='ip')|list %}
+{% if d.dangling_cname %}
+<div class="mb-4">{{ notice(_('Dangling CNAME'), _('This name is an alias for %(target)s, which does not exist. Whoever can register that name could serve content under this host.', target=d.canonical_name), 'warning') }}</div>
+{% endif %}
+{% if d.blocked %}
+<div class="mb-4">{{ notice(_('Private or reserved addresses in public DNS'), _('These addresses were not connected to: %(addresses)s', addresses=d.blocked|map(attribute='ip')|join(', ')), 'warning') }}</div>
+{% endif %}
+{% if d.errors %}
+{% set error_text %}{% for rdtype, code in d.errors.items() %}{{ rdtype }}: {{ reason_label(code) }}{% if not loop.last %}, {% endif %}{% endfor %}{% endset %}
+<div class="mb-4">{{ notice(_('Some record types could not be read'), error_text, 'warning') }}</div>
+{% endif %}
+
+<div class="table-scroll">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('DNS records of this host') }}</caption>
+    <thead><tr><th scope="col">{{ _('Type') }}</th><th scope="col">{{ _('Value') }}</th><th scope="col">{{ _('TTL') }}</th></tr></thead>
+    <tbody>
+      {% for rec in d.cname %}<tr><td>CNAME</td><td><bdi class="font-mono">{{ rec.name }} → {{ rec.target }}</bdi></td><td>{{ rec.ttl }}</td></tr>{% endfor %}
+      {% for rec in d.a %}<tr><td>A</td><td><bdi class="font-mono">{{ rec.ip }}</bdi>{% if rec.ip in blocked_ips %} {{ badge(_('not connected to'), 'medium') }}{% endif %}</td><td>{{ rec.ttl }}</td></tr>{% endfor %}
+      {% for rec in d.aaaa %}<tr><td>AAAA</td><td><bdi class="font-mono">{{ rec.ip }}</bdi>{% if rec.ip in blocked_ips %} {{ badge(_('not connected to'), 'medium') }}{% endif %}</td><td>{{ rec.ttl }}</td></tr>{% endfor %}
+      {% for rec in d.mx %}<tr><td>MX</td><td><bdi class="font-mono">{{ rec.preference }} {{ rec.host }}</bdi></td><td>{{ rec.ttl }}</td></tr>{% endfor %}
+      {% for rec in d.ns %}<tr><td>NS</td><td><bdi class="font-mono">{{ rec.host }}</bdi></td><td>{{ rec.ttl }}</td></tr>{% endfor %}
+      {% for rec in d.txt %}<tr><td>TXT</td><td><bdi class="font-mono break-all">{{ rec.value }}</bdi></td><td>{{ rec.ttl }}</td></tr>{% endfor %}
+      {% for rec in d.caa %}<tr><td>CAA</td><td><bdi class="font-mono">{{ rec.flags }} {{ rec.tag }} "{{ rec.value }}"</bdi></td><td>{{ rec.ttl }}</td></tr>{% endfor %}
+      {% if not (d.cname or d.a or d.aaaa or d.mx or d.ns or d.txt or d.caa) %}<tr><td colspan="3" class="text-muted">{{ _('No records.') }}</td></tr>{% endif %}
+    </tbody>
+  </table>
+</div>
+{% if d.truncated %}<p class="mt-2 text-xs text-muted">{{ _('Long record lists were cut after 50 entries: %(types)s', types=d.truncated|join(', ')) }}</p>{% endif %}
+<p class="mt-3 text-xs text-muted">{{ _('Asked: %(resolvers)s', resolvers=d.resolvers|join(', ') if d.resolvers else _('the system resolver')) }}</p>

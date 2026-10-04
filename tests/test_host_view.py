@@ -1,0 +1,479 @@
+"""What the analyst sees per host: table cells, the host page, filters, escaping."""
+
+from __future__ import annotations
+
+import re
+import uuid
+from typing import Any
+
+import pytest
+from flask.testing import FlaskClient
+from sqlalchemy.orm import Session
+
+from app.checks.base import CheckOutcome
+from app.checks.tls import outcome_from_probe
+from app.models import Assessment, CheckResult, Host, Scan
+from app.models.base import utc_now
+from app.service import host_view
+from app.service import scans as scan_service
+from tests.checks.test_dns_check import answer, rr
+from tests.checks.test_dns_check import run as run_dns
+from tests.checks.test_http_check import HOST as WEB_HOST
+from tests.checks.test_http_check import Site, page, redirect
+from tests.checks.test_http_check import run as run_http
+from tests.checks.test_tls_check import probe_result
+from tests.helpers import create_assessment, create_user, login_as
+from tests.test_engine import CONFIG
+
+SCRIPT = "<script>alert(1)</script>"
+ESCAPED = "&lt;script&gt;alert(1)&lt;/script&gt;"
+
+
+# ------------------------------------------------------------------------------ real outcomes
+
+
+def dns_outcome(host: str = WEB_HOST, txt: str = "v=spf1 -all") -> CheckOutcome:
+    cname = "edge.cdn.example.net"
+    outcome, _ = run_dns(
+        {
+            (host, "CNAME"): answer(host, "CNAME", rr(host, 300, "CNAME", f"{cname}.")),
+            (host, "A"): answer(
+                host, "A", rr(host, 300, "CNAME", f"{cname}."), rr(cname, 60, "A", "93.184.216.34")
+            ),
+            (host, "AAAA"): answer(host, "AAAA", rr(host, 60, "AAAA", "2606:2800:220:1::1")),
+            (host, "MX"): answer(host, "MX", rr(host, 60, "MX", "10 mail.example.com.")),
+            (host, "TXT"): answer(host, "TXT", rr(host, 60, "TXT", f'"{txt}"')),
+            (host, "CAA"): answer(host, "CAA", rr(host, 60, "CAA", '0 issue "letsencrypt.org"')),
+        },
+        host=host,
+    )
+    return outcome
+
+
+def tls_outcome(**fields: Any) -> CheckOutcome:
+    return outcome_from_probe(probe_result(**fields))
+
+
+def http_outcome(
+    server: str = "nginx", title: str = "Example", location: str | None = None
+) -> CheckOutcome:
+    site = Site(
+        {
+            ("https", WEB_HOST, "/"): page(
+                headers=[
+                    ("Server", server),
+                    ("Strict-Transport-Security", "max-age=63072000"),
+                    ("Set-Cookie", "sid=SECRET; Secure; HttpOnly; SameSite=Lax"),
+                ],
+                body=f"<html><head><title>{title}</title></head></html>",
+            )
+            if location is None
+            else redirect(location),
+            ("http", WEB_HOST, "/"): redirect(f"https://{WEB_HOST}/"),
+        }
+    )
+    return run_http(site)
+
+
+# ------------------------------------------------------------------------------ summaries
+
+
+@pytest.mark.parametrize(
+    ("key", "status", "reason", "data", "tone", "text"),
+    [
+        ("dns", "queued", None, {}, "info", "Queued"),
+        ("tls", "running", None, {}, "info", "Running"),
+        (
+            "dns",
+            "ok",
+            None,
+            {"addresses": ["1.1.1.1", "9.9.9.9"], "blocked": []},
+            "ok",
+            "2 addresses",
+        ),
+        ("dns", "ok", None, {"addresses": ["1.1.1.1"], "blocked": []}, "ok", "1 address"),
+        (
+            "dns",
+            "ok",
+            None,
+            {"addresses": ["1.1.1.1"], "blocked": [{"ip": "10.0.0.1"}]},
+            "medium",
+            "1 address, 1 private",
+        ),
+        (
+            "dns",
+            "ok",
+            None,
+            {"addresses": [], "blocked": [{"ip": "10.0.0.1"}]},
+            "medium",
+            "Only private addresses",
+        ),
+        ("dns", "ok", None, {"dangling_cname": True, "addresses": []}, "high", "Dangling CNAME"),
+        ("dns", "ok", None, {"addresses": [], "blocked": []}, "muted", "No address records"),
+        ("dns", "no_data", "nxdomain", {}, "muted", "Name does not exist"),
+        ("dns", "error", "timeout", {}, "high", "Timed out"),
+        (
+            "tls",
+            "ok",
+            None,
+            {"verified": True, "certificate": {"days_remaining": 45}},
+            "ok",
+            "Valid · 45 days left",
+        ),
+        (
+            "tls",
+            "ok",
+            None,
+            {"verified": True, "certificate": {"days_remaining": 1}},
+            "medium",
+            "Expires in 1 day",
+        ),
+        (
+            "tls",
+            "ok",
+            None,
+            {"verified": True, "certificate": {"days_remaining": 12}},
+            "medium",
+            "Expires in 12 days",
+        ),
+        ("tls", "ok", None, {"verified": False, "failures": ["expired"]}, "high", "Expired"),
+        (
+            "tls",
+            "ok",
+            None,
+            {"verified": False, "failures": ["hostname_mismatch", "expired"]},
+            "high",
+            "Name mismatch",
+        ),
+        ("tls", "no_data", "refused", {}, "muted", "Connection refused"),
+        ("tls", "error", "untrusted", {}, "high", "Not trusted"),  # no certificate could be read
+        ("tls", "error", "handshake_failed", {}, "high", "TLS handshake failed"),
+        ("tls", "skipped", "needs:dns", {}, "muted", "Skipped: dns did not succeed"),
+        ("tls", "skipped", "no_public_address", {}, "muted", "No public address to connect to"),
+        ("http", "ok", None, {"status": 200}, "ok", "200"),
+        ("http", "ok", None, {"status": 404}, "medium", "404"),
+        ("http", "ok", None, {"status": 503}, "high", "503"),
+        ("http", "ok", None, {"status": 200, "scheme": "http"}, "medium", "200 · HTTP only"),
+        (
+            "http",
+            "ok",
+            None,
+            {"status": 301, "redirect_incomplete": {"reason": "x"}},
+            "medium",
+            "301 · redirect not followed",
+        ),
+        ("http", "no_data", "no_web_server", {}, "muted", "No web server"),
+        ("http", "error", "something_new", {}, "high", "something_new"),
+        ("http", "unavailable", None, {}, "medium", "Unavailable"),
+        ("future_check", "ok", None, {}, "ok", "Done"),
+    ],
+)
+def test_summaries_say_what_was_collected(
+    key: str, status: str, reason: str | None, data: dict[str, Any], tone: str, text: str
+) -> None:
+    cell = host_view.summarize(key, status, reason, data)
+    assert (cell.tone, cell.text) == (tone, text)
+
+
+def test_the_summaries_understand_what_the_real_checks_produce() -> None:
+    """The contract between the checks' data and the display: real outputs, not hand-made ones."""
+    assert host_view.summarize("dns", *_parts(dns_outcome())).text == "2 addresses"
+    assert host_view.summarize("tls", *_parts(tls_outcome())).text == "Valid · 60 days left"
+    bad = tls_outcome(
+        is_valid=False, chain_trust=False, failure_reasons=["CERTIFICATE_EXPIRED"], forensic=True
+    )
+    assert host_view.summarize("tls", *_parts(bad)).text == "Expired"
+    assert host_view.summarize("http", *_parts(http_outcome())).text == "200"
+
+
+def _parts(outcome: CheckOutcome) -> tuple[str, str | None, dict[str, Any]]:
+    return outcome.status, outcome.reason_code, outcome.data
+
+
+def test_raw_json_is_bounded() -> None:
+    text, cut = host_view.raw_json({"x": "y" * 10})
+    assert cut is False and '"x": "yyyyyyyyyy"' in text
+    big, cut = host_view.raw_json({"x": "y" * (host_view.MAX_RAW_JSON_CHARS + 5)})
+    assert cut is True and len(big) == host_view.MAX_RAW_JSON_CHARS
+
+
+# ------------------------------------------------------------------------------ pages
+
+
+@pytest.fixture
+def signed_in(client: FlaskClient, db_session: Session) -> tuple[FlaskClient, Assessment, Scan]:
+    user = create_user(db_session)
+    assessment = create_assessment(db_session, user, "example.com")
+    login_as(client, user)
+    scan = scan_service.start_scan(db_session, assessment, user, CONFIG)
+    scan.status = "completed"  # finished: the panel does not poll
+    scan.finished_at = utc_now()
+    db_session.commit()
+    return client, assessment, scan
+
+
+def add_host(
+    session: Session,
+    scan: Scan,
+    hostname: str,
+    results: dict[str, tuple[CheckOutcome, str | None]] | dict[str, CheckOutcome],
+) -> Host:
+    host = Host(scan_id=scan.id, hostname=hostname, source="ct", ct_sources=["ctlogs"])
+    session.add(host)
+    session.flush()
+    for key, item in results.items():
+        outcome, status = item if isinstance(item, tuple) else (item, None)
+        session.add(
+            CheckResult(
+                scan_id=scan.id,
+                host_id=host.id,
+                check_key=key,
+                status=status or outcome.status,
+                reason_code=outcome.reason_code,
+                data=outcome.data,
+                source=outcome.source,
+                collected_at=utc_now(),
+                duration_ms=12,
+            )
+        )
+    session.commit()
+    return host
+
+
+def healthy() -> dict[str, CheckOutcome]:
+    return {"dns": dns_outcome(), "tls": tls_outcome(), "http": http_outcome()}
+
+
+def test_the_hosts_table_has_one_cell_per_check_and_links_to_the_host(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(db_session, scan, WEB_HOST, healthy())
+
+    body = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "2 addresses" in body and "Valid · 60 days left" in body
+    assert re.search(r">\s*200\s*</span>", body)
+    assert f"/assessments/{assessment.id}/hosts/{host.id}" in body
+
+
+def test_a_host_still_being_checked_shows_queued_cells(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    queued = CheckOutcome("ok")
+    add_host(
+        db_session,
+        scan,
+        "new.example.com",
+        {key: (queued, "queued") for key in ("dns", "tls", "http")},
+    )
+    body = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert body.count("Queued") >= 3
+
+
+def test_the_host_page_shows_the_facts_of_every_check(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(db_session, scan, WEB_HOST, healthy())
+
+    response = client.get(f"/assessments/{assessment.id}/hosts/{host.id}")
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200
+    # order and headings
+    assert body.index("DNS") < body.index("TLS certificate") < body.index("HTTP")
+    # DNS
+    for fact in ("93.184.216.34", "2606:2800:220:1::1", "edge.cdn.example.net", "letsencrypt.org"):
+        assert fact in body
+    assert "v=spf1 -all" in body and "10 mail.example.com" in body
+    # TLS
+    for fact in (
+        "Verified",
+        "www.example.com",
+        "Example CA",
+        "secp256r1",
+        "ecdsa-with-SHA256",
+        "TLSv1.3",
+    ):
+        assert fact in body
+    assert "CN=Example Root" in body and "SHA-256 fingerprint" in body
+    # HTTP
+    for fact in (
+        "nginx",
+        "max-age=63072000",
+        "Redirects to HTTPS",
+        "sid",
+        "Cookie values are never stored",
+    ):
+        assert fact in body
+    assert "Not present" in body  # the absent security headers are explicit
+    assert "SECRET" not in body  # a cookie value never reaches the page
+    # raw JSON for each check, collapsed
+    assert body.count("Raw data (JSON)") == 3 and "<details" in body
+
+
+def test_a_bad_certificate_is_labelled_and_its_forensic_origin_explained(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    bad = tls_outcome(
+        is_valid=False,
+        chain_trust=False,
+        failure_reasons=["CERTIFICATE_EXPIRED"],
+        days_until_expiration=-12,
+        forensic=True,
+    )
+    host = add_host(db_session, scan, WEB_HOST, {"tls": bad})
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "Not verified" in body and "Expired" in body
+    assert "Certificate read without trust" in body
+    assert "expired 12 days ago" in body
+
+
+def test_a_failed_check_shows_its_reason_instead_of_facts(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(
+        db_session,
+        scan,
+        WEB_HOST,
+        {
+            "dns": dns_outcome(),
+            "tls": CheckOutcome(
+                "error", "timeout", {"ip": "93.184.216.34", "failures": ["timeout"]}
+            ),
+            "http": CheckOutcome("skipped", "needs:dns"),
+        },
+    )
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert "Timed out" in body and "Skipped: dns did not succeed" in body
+    assert "SHA-256 fingerprint" not in body
+
+
+def test_everything_the_target_supplies_is_escaped(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    results = {
+        "dns": dns_outcome(txt=SCRIPT),
+        "tls": tls_outcome(
+            subject_cn=SCRIPT, sans=[SCRIPT], chain_subjects=[SCRIPT], issuer_cn=SCRIPT
+        ),
+        "http": http_outcome(server=SCRIPT, title=ESCAPED),  # the title arrives HTML-encoded
+    }
+    host = add_host(db_session, scan, WEB_HOST, results)
+
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert SCRIPT not in body  # nowhere, not even in the raw JSON
+    assert body.count(ESCAPED) >= 6
+    table = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert SCRIPT not in table
+
+
+def test_a_redirect_target_with_markup_is_escaped_too(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(
+        db_session,
+        scan,
+        WEB_HOST,
+        {"http": http_outcome(location=f"https://{WEB_HOST}/{SCRIPT}")},
+    )
+    body = client.get(f"/assessments/{assessment.id}/hosts/{host.id}").get_data(as_text=True)
+    assert SCRIPT not in body and "Redirects" in body
+
+
+def test_the_host_page_is_as_private_as_its_assessment(
+    client: FlaskClient, db_session: Session
+) -> None:
+    owner = create_user(db_session)
+    mine = create_assessment(db_session, owner, "mine.example", "private")
+    scan = scan_service.start_scan(db_session, mine, owner, CONFIG)
+    scan.status = "completed"
+    db_session.commit()
+    host = add_host(db_session, scan, "www.mine.example", healthy())
+
+    other = create_user(db_session)
+    theirs = create_assessment(db_session, other, "theirs.example", "private")
+    login_as(client, other)
+    assert client.get(f"/assessments/{mine.id}/hosts/{host.id}").status_code == 404
+    # A host that exists, asked for under an assessment the user does own: still not found.
+    assert client.get(f"/assessments/{theirs.id}/hosts/{host.id}").status_code == 404
+    login_as(client, owner)
+    assert client.get(f"/assessments/{mine.id}/hosts/{host.id}").status_code == 200
+    assert client.get(f"/assessments/{mine.id}/hosts/{uuid.uuid4()}").status_code == 404
+
+
+# ------------------------------------------------------------------------------ the filter
+
+
+def seed_states(session: Session, scan: Scan) -> None:
+    add_host(session, scan, "good.example.com", healthy())
+    add_host(
+        session,
+        scan,
+        "broken.example.com",
+        {"dns": CheckOutcome("error", "timeout"), "tls": CheckOutcome("skipped", "needs:dns")},
+    )
+    add_host(
+        session,
+        scan,
+        "busy.example.com",
+        {"dns": (CheckOutcome("ok"), "running"), "tls": (CheckOutcome("ok"), "queued")},
+    )
+
+
+@pytest.mark.parametrize(
+    ("state", "shown", "hidden"),
+    [
+        ("all", {"good", "broken", "busy"}, set()),
+        ("", {"good", "broken", "busy"}, set()),
+        ("nonsense", {"good", "broken", "busy"}, set()),  # unknown values mean "all"
+        ("problems", {"broken"}, {"good", "busy"}),
+        ("pending", {"busy"}, {"good", "broken"}),
+    ],
+)
+def test_the_state_filter_narrows_the_hosts(
+    signed_in: Any, db_session: Session, state: str, shown: set[str], hidden: set[str]
+) -> None:
+    client, assessment, scan = signed_in
+    seed_states(db_session, scan)
+    body = client.get(f"/assessments/{assessment.id}?state={state}").get_data(as_text=True)
+    for name in shown:
+        assert f"{name}.example.com" in body
+    for name in hidden:
+        assert f"{name}.example.com" not in body
+
+
+def test_the_filters_combine_and_the_polling_url_keeps_them(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    seed_states(db_session, scan)
+    body = client.get(f"/assessments/{assessment.id}?state=problems&q=zzz").get_data(as_text=True)
+    assert "No host matches this filter." in body
+
+    scan.status = "running"  # an active scan polls its panel; the filter must survive the swaps
+    db_session.commit()
+    panel = client.get(f"/assessments/{assessment.id}/scan-panel?state=problems&q=bro").get_data(
+        as_text=True
+    )
+    assert "state=problems" in panel and "q=bro" in panel and "every 2s" in panel
+    assert 'hx-preserve="true"' in panel  # what is typed in the filter survives a swap
+
+
+# ------------------------------------------------------------------------------ details
+
+
+def test_sections_come_in_a_fixed_order_with_unknown_checks_last(
+    signed_in: Any, db_session: Session
+) -> None:
+    _, _, scan = signed_in
+    host = add_host(
+        db_session,
+        scan,
+        WEB_HOST,
+        {"zzz_future": CheckOutcome("ok"), "http": CheckOutcome("ok"), "dns": CheckOutcome("ok")},
+    )
+    detail = host_view.get_host_detail(db_session, host.id)
+    assert detail is not None
+    assert [section.key for section in detail.sections] == ["dns", "http", "zzz_future"]
+    assert detail.sections[-1].title == "zzz_future"  # unknown checks keep their key as title
+
+
+def test_an_unknown_host_has_no_detail(db_session: Session) -> None:
+    assert host_view.get_host_detail(db_session, uuid.uuid4()) is None

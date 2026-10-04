@@ -8,7 +8,7 @@
 {%- endmacro %}
 {# Polled by HTMX while a scan is active; once it finishes the attributes disappear and polling stops. #}
 <section id="scan-panel" class="mt-6" aria-live="polite" aria-busy="{{ 'true' if overview and overview.is_active else 'false' }}"
-  {% if overview and overview.is_active %}hx-get="{{ url_for('assessments.scan_panel', assessment_id=assessment.id, q=q or none, page=page if page > 1 else none) }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  {% if overview and overview.is_active %}hx-get="{{ url_for('assessments.scan_panel', assessment_id=assessment.id, q=q or none, state=state if state != 'all' else none, page=page if page > 1 else none) }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
 {% if not overview %}
   <div class="panel p-5 text-sm text-muted">{{ _('No scan has run yet. Start one to discover and review the hosts of this domain.') }}</div>
 {% else %}
@@ -85,9 +85,16 @@
   <div class="panel mt-4">
     <div class="section-head">
       <h2>{{ _('Hosts') }} <span class="text-sm font-normal text-muted">({{ hosts.total }})</span></h2>
-      <form method="get" class="flex gap-2" role="search">
+      {# hx-preserve keeps what the analyst is typing when the polled panel is swapped #}
+      <form id="host-filter" hx-preserve="true" method="get" class="flex flex-wrap gap-2" role="search">
         <label class="sr-only" for="host-q">{{ _('Filter hosts') }}</label>
         <input id="host-q" name="q" type="search" value="{{ q }}" placeholder="{{ _('Filter by hostname') }}" maxlength="100">
+        <label class="sr-only" for="host-state">{{ _('Show') }}</label>
+        <select id="host-state" name="state">
+          <option value="all"{% if state == 'all' %} selected{% endif %}>{{ _('All hosts') }}</option>
+          <option value="problems"{% if state == 'problems' %} selected{% endif %}>{{ _('With check problems') }}</option>
+          <option value="pending"{% if state == 'pending' %} selected{% endif %}>{{ _('Still being checked') }}</option>
+        </select>
         <button class="btn btn-secondary" type="submit">{{ _('Filter') }}</button>
       </form>
     </div>
@@ -95,22 +102,21 @@
     <div class="table-scroll">
       <table class="data-table">
         <caption class="sr-only">{{ _('Hosts of the latest scan') }}</caption>
-        <thead><tr><th scope="col">{{ _('Hostname') }}</th><th scope="col">{{ _('Found by') }}</th><th scope="col">{{ _('Last seen in certificates') }}</th><th scope="col">{{ _('Checks') }}</th></tr></thead>
+        <thead><tr><th scope="col">{{ _('Hostname') }}</th><th scope="col">{{ _('Found by') }}</th><th scope="col">{{ _('DNS') }}</th><th scope="col">{{ _('TLS') }}</th><th scope="col">{{ _('HTTP') }}</th></tr></thead>
         <tbody>
           {% for host in hosts.rows %}
+          {% set cells = overview.host_cells.get(host.id, {}) %}
           <tr>
-            <td><bdi class="font-mono">{{ host.hostname }}</bdi></td>
+            <td><a class="link" href="{{ url_for('assessments.host_detail', assessment_id=assessment.id, host_id=host.id) }}"><bdi class="font-mono">{{ host.hostname }}</bdi></a></td>
             <td>
               {% if host.source == 'ct' %}{{ _('Certificate Transparency') }}{% if host.ct_sources %} <span class="text-muted">({{ host.ct_sources|map('replace', 'ctlogs', 'ctlogs.dev')|join(', ') }})</span>{% endif %}
               {% elif host.source == 'apex' %}{{ _('The domain itself') }}
               {% elif host.source == 'manual' %}{{ _('Added by hand') }}
               {% else %}{{ _('Fallback (no source answered)') }}{% endif %}
             </td>
-            <td>{% if host.last_seen %}<time datetime="{{ host.last_seen.isoformat() }}">{{ host.last_seen.strftime('%Y-%m-%d') }}</time>{% else %}—{% endif %}</td>
-            <td>
-              {% set summary = overview.host_checks.get(host.id) %}
-              {% if summary %}{% for status, count in summary.items() %}<span class="mr-1">{{ badge(count ~ ' ' ~ status, 'ok' if status == 'ok' else 'muted' if status in ['queued', 'running', 'skipped', 'no_data'] else 'high') }}</span>{% endfor %}{% else %}<span class="text-muted">—</span>{% endif %}
-            </td>
+            {% for key in ['dns', 'tls', 'http'] %}
+            <td>{% if cells.get(key) %}{{ badge(cells[key].text, cells[key].tone) }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            {% endfor %}
           </tr>
           {% endfor %}
         </tbody>
@@ -120,13 +126,13 @@
     <nav class="flex items-center justify-between gap-3 border-t border-line px-4 py-3 text-sm" aria-label="{{ _('Pages') }}">
       <span class="text-muted">{{ _('Page %(page)s of %(pages)s', page=hosts.page, pages=hosts.pages) }}</span>
       <span class="flex gap-2">
-        {% if hosts.page > 1 %}<a class="btn btn-secondary" href="{{ url_for('assessments.detail', assessment_id=assessment.id, q=q or none, page=hosts.page - 1 if hosts.page > 2 else none) }}">{{ _('Previous') }}</a>{% endif %}
-        {% if hosts.page < hosts.pages %}<a class="btn btn-secondary" href="{{ url_for('assessments.detail', assessment_id=assessment.id, q=q or none, page=hosts.page + 1) }}">{{ _('Next') }}</a>{% endif %}
+        {% if hosts.page > 1 %}<a class="btn btn-secondary" href="{{ url_for('assessments.detail', assessment_id=assessment.id, q=q or none, state=state if state != 'all' else none, page=hosts.page - 1 if hosts.page > 2 else none) }}">{{ _('Previous') }}</a>{% endif %}
+        {% if hosts.page < hosts.pages %}<a class="btn btn-secondary" href="{{ url_for('assessments.detail', assessment_id=assessment.id, q=q or none, state=state if state != 'all' else none, page=hosts.page + 1) }}">{{ _('Next') }}</a>{% endif %}
       </span>
     </nav>
     {% endif %}
     {% else %}
-    <p class="p-5 text-sm text-muted">{% if q %}{{ _('No host matches this filter.') }}{% elif overview.is_active %}{{ _('Hosts appear here as discovery finishes.') }}{% else %}{{ _('This scan has no hosts.') }}{% endif %}</p>
+    <p class="p-5 text-sm text-muted">{% if q or state != 'all' %}{{ _('No host matches this filter.') }}{% elif overview.is_active %}{{ _('Hosts appear here as discovery finishes.') }}{% else %}{{ _('This scan has no hosts.') }}{% endif %}</p>
     {% endif %}
   </div>
 {% endif %}

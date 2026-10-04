@@ -1,0 +1,59 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set p = d.http_port80 %}
+{% if d.https_error %}
+<div class="mb-4">{{ notice(_('HTTPS could not be reached'), _('Reason: %(reason)s. The answer below is what plain HTTP returned.', reason=reason_label(d.https_error)), 'warning') }}</div>
+{% endif %}
+{% if d.redirect_incomplete %}
+<div class="mb-4">{{ notice(_('A redirect was not followed'), _('Stopped at %(url)s (%(reason)s).', url=d.redirect_incomplete.stopped_at, reason=reason_label(d.redirect_incomplete.reason) or '—'), 'warning') }}</div>
+{% endif %}
+<dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  <div><dt>{{ _('Response') }}</dt><dd><span class="font-semibold">{{ d.status }}</span> <bdi class="font-mono break-all">{{ d.final_url }}</bdi></dd></div>
+  <div><dt>{{ _('Connected to') }}</dt><dd><bdi class="font-mono">{{ d.connected_ip }}</bdi></dd></div>
+  <div><dt>{{ _('Plain HTTP (port 80)') }}</dt><dd>
+    {% if p.status is none %}{{ _('Not reachable') }}{% if p.error %} <span class="text-muted">({{ reason_label(p.error) }})</span>{% endif %}
+    {% elif p.redirects_to_https %}{{ badge(_('Redirects to HTTPS'), 'ok') }}
+    {% else %}{{ badge(_('Answers without redirecting to HTTPS'), 'medium') }} <span class="text-muted">({{ p.status }})</span>{% endif %}
+  </dd></div>
+  <div><dt>{{ _('Server') }}</dt><dd>{{ d.server or '—' }}{% if d.powered_by %} <span class="text-muted">· {{ d.powered_by }}</span>{% endif %}</dd></div>
+  <div><dt>{{ _('Page title') }}</dt><dd>{{ d.html_title or '—' }}</dd></div>
+  <div><dt>{{ _('Time and size') }}</dt><dd>{{ d.timing_ms }} ms · {{ d.body_bytes }} {{ _('bytes') }}{% if d.body_truncated %} <span class="text-muted">({{ _('cut at 512 KB') }})</span>{% endif %}</dd></div>
+</dl>
+
+{% if d.redirects %}
+<h3 class="mt-5 text-sm">{{ _('Redirects') }}</h3>
+<div class="table-scroll mt-1"><table class="data-table">
+  <thead><tr><th scope="col">{{ _('Status') }}</th><th scope="col">{{ _('From') }}</th><th scope="col">{{ _('To') }}</th></tr></thead>
+  <tbody>{% for hop in d.redirects %}<tr><td>{{ hop.status }}</td><td><bdi class="font-mono break-all">{{ hop.url }}</bdi></td><td><bdi class="font-mono break-all">{{ hop.location }}</bdi></td></tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}
+
+<h3 class="mt-5 text-sm">{{ _('Security headers') }}</h3>
+<div class="table-scroll mt-1"><table class="data-table">
+  <thead><tr><th scope="col">{{ _('Header') }}</th><th scope="col">{{ _('Value') }}</th></tr></thead>
+  <tbody>{% for name, value in d.security_headers.items() %}<tr><td><code>{{ name }}</code></td><td>{% if value %}<bdi class="font-mono break-all">{{ value }}</bdi>{% else %}{{ badge(_('Not present'), 'muted') }}{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div>
+
+<h3 class="mt-5 text-sm">{{ _('Cookies') }}</h3>
+{% if d.cookies %}
+<div class="table-scroll mt-1"><table class="data-table">
+  <thead><tr><th scope="col">{{ _('Name') }}</th><th scope="col">Secure</th><th scope="col">HttpOnly</th><th scope="col">SameSite</th><th scope="col">{{ _('Lifetime') }}</th></tr></thead>
+  <tbody>{% for cookie in d.cookies %}<tr>
+    <td><bdi class="font-mono">{{ cookie.name }}</bdi>{% if cookie.prefix %} <span class="text-muted">({{ cookie.prefix }})</span>{% endif %}</td>
+    <td>{{ _('Yes') if cookie.secure else _('No') }}</td>
+    <td>{{ _('Yes') if cookie.httponly else _('No') }}</td>
+    <td>{{ cookie.samesite or '—' }}</td>
+    <td>{{ _('Session') if cookie.session else _('Persistent') }}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+<p class="mt-1 text-xs text-muted">{{ _('Cookie values are never stored.') }}</p>
+{% else %}
+<p class="mt-1 text-sm text-muted">{{ _('No cookies were set.') }}</p>
+{% endif %}
+
+{% if d.headers %}
+<details class="mt-4">
+  <summary class="text-sm font-semibold">{{ _('All response headers (%(count)s)', count=d.headers|length) }}</summary>
+  <dl class="mt-2 grid gap-1 text-xs">{% for header in d.headers %}<div class="flex flex-wrap gap-x-2"><dt class="font-mono text-ink">{{ header.name }}</dt><dd class="mt-0 font-mono text-muted break-all">{{ header.value }}</dd></div>{% endfor %}</dl>
+</details>
+{% endif %}

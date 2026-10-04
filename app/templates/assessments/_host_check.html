@@ -1,0 +1,28 @@
+{% from 'components/ui.html' import badge, notice %}
+{# One check of a host: the typed outcome first, the facts of the check, then the raw JSON. #}
+<section class="panel mt-6" aria-labelledby="check-{{ section.key }}">
+  <div class="section-head">
+    <h2 id="check-{{ section.key }}">{{ section.title }}</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      {{ badge(section.cell.text, section.cell.tone) }}
+      {% if section.collected_at %}<span class="text-xs text-muted"><time datetime="{{ section.collected_at.isoformat() }}">{{ section.collected_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</time>{% if section.duration_ms is not none %} · {{ section.duration_ms }} ms{% endif %}</span>{% endif %}
+    </div>
+  </div>
+  <div class="p-4">
+    {% if section.reason and section.cell.status != 'ok' %}
+    <p class="text-sm text-muted">{{ section.reason }}</p>
+    {% endif %}
+    {% if section.cell.status == 'ok' and section.key in ['dns', 'tls', 'http'] %}
+    {% include 'assessments/checks/' ~ section.key ~ '.html' %}
+    {% elif section.cell.status in ['queued', 'running'] %}
+    <p class="text-sm text-muted">{{ _('This check has not finished yet. Reload the page in a moment.') }}</p>
+    {% endif %}
+    {% if section.data %}
+    <details class="mt-4">
+      <summary class="text-sm font-semibold">{{ _('Raw data (JSON)') }}</summary>
+      {% if section.raw_truncated %}<p class="mt-2 text-xs text-muted">{{ _('Shortened to the first 100,000 characters.') }}</p>{% endif %}
+      <pre class="mt-2 max-h-96 overflow-auto rounded-md border border-line bg-canvas p-3 text-xs leading-5 whitespace-pre-wrap break-all">{{ section.raw_json }}</pre>
+    </details>
+    {% endif %}
+  </div>
+</section>

@@ -1,0 +1,32 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set c = d.certificate %}
+{% if d.forensic %}
+<div class="mb-4">{{ notice(_('Certificate read without trust'), _('The certificate could not be verified, so its details were read through a separate, unverified connection and are shown for information only.'), 'warning') }}</div>
+{% endif %}
+<p class="flex flex-wrap items-center gap-2">
+  {% if d.verified %}{{ badge(_('Verified'), 'ok') }}{% else %}{{ badge(_('Not verified'), 'high') }}{% endif %}
+  {% for code in d.failures %}{{ badge(tls_failure_label(code), 'high') }}{% endfor %}
+</p>
+<dl class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  <div><dt>{{ _('Subject') }}</dt><dd><bdi class="font-mono">{{ c.subject_cn or '—' }}</bdi></dd></div>
+  <div><dt>{{ _('Issuer') }}</dt><dd>{{ c.issuer_cn or '—' }}{% if c.issuer_org %} <span class="text-muted">({{ c.issuer_org }})</span>{% endif %}</dd></div>
+  <div><dt>{{ _('Valid') }}</dt><dd>{% if c.not_before and c.not_after %}<time datetime="{{ c.not_before }}">{{ c.not_before[:10] }}</time> → <time datetime="{{ c.not_after }}">{{ c.not_after[:10] }}</time>{% if c.days_remaining is not none %} <span class="text-muted">({{ ngettext('%(num)s day left', '%(num)s days left', c.days_remaining) if c.days_remaining >= 0 else _('expired %(num)s days ago', num=-c.days_remaining) }})</span>{% endif %}{% else %}—{% endif %}</dd></div>
+  <div><dt>{{ _('Key') }}</dt><dd>{{ c.key_type or '—' }}{% if c.key_bits %} {{ c.key_bits }}{% endif %}{% if c.key_curve %} <span class="text-muted">({{ c.key_curve }})</span>{% endif %}</dd></div>
+  <div><dt>{{ _('Signature') }}</dt><dd><bdi class="font-mono">{{ c.signature_algorithm or '—' }}</bdi></dd></div>
+  <div><dt>{{ _('Wildcard certificate') }}</dt><dd>{{ _('Yes') if c.wildcard else _('No') }}</dd></div>
+  <div><dt>{{ _('Protocol') }}</dt><dd>{{ d.protocol or '—' }}{% if d.alpn %} <span class="text-muted">({{ d.alpn }})</span>{% endif %}</dd></div>
+  <div><dt>{{ _('Cipher') }}</dt><dd><bdi class="font-mono">{{ d.cipher or '—' }}</bdi></dd></div>
+  <div><dt>{{ _('Connected to') }}</dt><dd><bdi class="font-mono">{{ d.ip }}:{{ d.port }}</bdi></dd></div>
+</dl>
+{% if d.chain_subjects %}
+<h3 class="mt-5 text-sm">{{ _('Certificate chain') }}</h3>
+<ol class="mt-1 list-decimal pl-5 text-sm">{% for subject in d.chain_subjects %}<li><bdi class="font-mono break-all">{{ subject }}</bdi></li>{% endfor %}</ol>
+{% endif %}
+{% if c.sans %}
+<details class="mt-4">
+  <summary class="text-sm font-semibold">{{ _('Names in the certificate (%(count)s)', count=c.san_count) }}</summary>
+  <ul class="mt-2 flex flex-wrap gap-2">{% for san in c.sans %}<li class="rounded-md border border-line bg-canvas px-2 py-0.5"><bdi class="font-mono text-xs">{{ san }}</bdi></li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% if c.fingerprint_sha256 %}<p class="mt-4 text-xs text-muted">{{ _('SHA-256 fingerprint') }}: <bdi class="font-mono break-all">{{ c.fingerprint_sha256 }}</bdi></p>{% endif %}

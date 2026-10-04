@@ -42,6 +42,8 @@ Deferred (kept in the archive, not deleted): RLS and per-report grants (INV-01/0
 
 **Earliest visible results.** *Demo 1* (domain → hosts, no checks yet) after R0, S1.1–S1.3, a basic worker (S1.4a: single-threaded claim-and-run, discovery as the first task), basic progress polling (S1.5) and the hosts list of S1.9. *Demo 2* (live DNS/TLS/HTTP) after the rest of S1.4 (thread pool, limits, stale-lock requeue, cancel) and S1.6–S1.8. Everything after is additive.
 
+**Status (2026-10-04, branch `mvp`).** Shipped: R0 (S0.1–S0.4), all of R1's stories (S1.1–S1.9: assessments, CT discovery, manual hosts, the threaded engine, progress, DNS, TLS and HTTP checks, the hosts table with a state filter and a host page with per-check facts and raw-JSON toggles). *Demo 1* and *Demo 2* are runnable with `flask run` plus `flask worker`. Next is R2 (IP intelligence and location, ports, email security, registration, rules, summary cards, finding acceptance). S0.5 (dependency diet) is still open.
+
 **Sizes** are rough guesses to be recalibrated after R0/R1: **S** ≤ ½ day, **M** ≈ 1 day, **L** 2–3 days of focused, AI-assisted work. R0–R3 ≈ 27 days in total (S1.2 and S2.1 are now L, S2.6 is M); R4/R5 are not estimated.
 
 ## 4. Epics and stories

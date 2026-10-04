@@ -46,6 +46,12 @@ def gettext(message: str, **variables: object) -> str:
     return text % variables if variables else text
 
 
+def ngettext(singular: str, plural: str, n: int, **variables: object) -> str:
+    """Translate the right plural form for ``n``; ``%(num)s`` is ``n``, other ``%(name)s`` too."""
+    text = _translations().ngettext(singular, plural, n)
+    return text % {"num": n, **variables}
+
+
 def init_i18n(app: Flask) -> None:
     """Enable ``{{ _('...') }}`` in templates and expose the active locale as ``locale``."""
     app.jinja_env.add_extension("jinja2.ext.i18n")

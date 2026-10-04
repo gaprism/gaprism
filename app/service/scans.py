@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.checks import DISCOVERY_KEY, Check, checks_with_scope
 from app.models import Assessment, CheckResult, Host, Scan, User
 from app.models.base import utc_now
+from app.service.host_view import CheckCell, host_cells
 
 OPEN_CHECK_STATUSES = ("queued", "running")
 PROBLEM_CHECK_STATUSES = ("error", "unavailable")
@@ -282,10 +283,32 @@ def _escape_like(text: str) -> str:
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+HOST_STATES = ("all", "problems", "pending")
+
+
+def _with_check_in(statuses: Sequence[str]) -> Any:
+    """SQL condition: the host has at least one check in one of these statuses."""
+    return (
+        select(CheckResult.id)
+        .where(CheckResult.host_id == Host.id, CheckResult.status.in_(list(statuses)))
+        .exists()
+    )
+
+
 def list_hosts(
-    session: Session, scan_id: Any, *, query: str = "", page: int = 1, per_page: int = 50
+    session: Session,
+    scan_id: Any,
+    *,
+    query: str = "",
+    page: int = 1,
+    per_page: int = 50,
+    state: str = "all",
 ) -> HostPage:
-    """Hosts of a scan, filtered by a hostname fragment and paged in SQL."""
+    """Hosts of a scan, filtered and paged in SQL.
+
+    ``query``: a hostname fragment. ``state``: ``problems`` keeps hosts with a check that failed
+    or was unavailable, ``pending`` those with a check still queued or running.
+    """
     page = max(1, page)
     per_page = max(1, min(per_page, 100))
     stmt = select(Host).where(Host.scan_id == scan_id)
@@ -293,6 +316,10 @@ def list_hosts(
         stmt = stmt.where(
             Host.hostname.ilike(f"%{_escape_like(query.strip().lower())}%", escape="\\")
         )
+    if state == "problems":
+        stmt = stmt.where(_with_check_in(PROBLEM_CHECK_STATUSES))
+    elif state == "pending":
+        stmt = stmt.where(_with_check_in(OPEN_CHECK_STATUSES))
     total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows = list(
         session.scalars(stmt.order_by(Host.hostname).limit(per_page).offset((page - 1) * per_page))
@@ -384,7 +411,7 @@ class ScanOverview:
     discovery_status: str | None
     waiting_for_worker: bool
     hosts: HostPage
-    host_checks: dict[Any, dict[str, int]]
+    host_cells: dict[Any, dict[str, CheckCell]]
 
     @property
     def is_active(self) -> bool:
@@ -409,23 +436,14 @@ class ScanOverview:
 WAITING_FOR_WORKER_AFTER = timedelta(seconds=10)
 
 
-def host_check_summary(session: Session, host_ids: Sequence[Any]) -> dict[Any, dict[str, int]]:
-    """Per host, how many of its checks are in which status."""
-    if not host_ids:
-        return {}
-    summary: dict[Any, dict[str, int]] = {}
-    rows = session.execute(
-        select(CheckResult.host_id, CheckResult.status, func.count())
-        .where(CheckResult.host_id.in_(host_ids))
-        .group_by(CheckResult.host_id, CheckResult.status)
-    )
-    for host_id, status, count in rows:
-        summary.setdefault(host_id, {})[status] = count
-    return summary
-
-
 def scan_overview(
-    session: Session, scan: Scan, *, query: str = "", page: int = 1, per_page: int = 50
+    session: Session,
+    scan: Scan,
+    *,
+    query: str = "",
+    page: int = 1,
+    per_page: int = 50,
+    state: str = "all",
 ) -> ScanOverview:
     """Gather progress, discovery notes and one page of hosts for the scan panel."""
     discovery = get_discovery(session, scan)
@@ -443,7 +461,7 @@ def scan_overview(
         )
         for item in data.get("sources", [])
     ]
-    hosts = list_hosts(session, scan.id, query=query, page=page, per_page=per_page)
+    hosts = list_hosts(session, scan.id, query=query, page=page, per_page=per_page, state=state)
     return ScanOverview(
         scan=scan,
         progress=scan_progress(session, scan),
@@ -456,5 +474,5 @@ def scan_overview(
         waiting_for_worker=scan.status == "queued"
         and utc_now() - scan.created_at > WAITING_FOR_WORKER_AFTER,
         hosts=hosts,
-        host_checks=host_check_summary(session, [host.id for host in hosts.rows]),
+        host_cells=host_cells(session, [host.id for host in hosts.rows]),
     )

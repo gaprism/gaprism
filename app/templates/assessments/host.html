@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from 'components/ui.html' import badge %}
+{% block title %}{{ detail.host.hostname }}{% endblock %}
+{% block content %}
+{% set host = detail.host %}
+{% set scan = detail.scan %}
+<nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
+  <a class="link" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
+  <span class="text-muted" aria-hidden="true">/</span>
+  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}"><bdi class="font-mono">{{ assessment.domain_display }}</bdi></a>
+</nav>
+<div class="mt-2 flex flex-wrap items-center gap-3">
+  <h1><bdi class="font-mono">{{ host.hostname }}</bdi></h1>
+</div>
+<p class="mt-1 text-sm text-muted">
+  {% if host.source == 'ct' %}{{ _('Found in Certificate Transparency') }}{% if host.ct_sources %} ({{ host.ct_sources|map('replace', 'ctlogs', 'ctlogs.dev')|join(', ') }}){% endif %}
+  {% elif host.source == 'apex' %}{{ _('The domain itself') }}
+  {% elif host.source == 'manual' %}{{ _('Added by hand') }}
+  {% else %}{{ _('Fallback (no source answered)') }}{% endif %}
+  {% if host.last_seen %} · {{ _('last seen in certificates') }} <time datetime="{{ host.last_seen.isoformat() }}">{{ host.last_seen.strftime('%Y-%m-%d') }}</time>{% endif %}
+  · {{ _('scan of') }} <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+</p>
+
+{% for section in detail.sections %}
+  {% include 'assessments/_host_check.html' %}
+{% else %}
+<div class="panel mt-6 p-5 text-sm text-muted">{{ _('No checks have been recorded for this host.') }}</div>
+{% endfor %}
+{% endblock %}
