@@ -1,23 +1,33 @@
-/tests/test_data/
-/node_modules/
-/config/.env
-/.venv/
-/uploads/
-/data/
-/scripts/temp/
-/**/*.bak
-/startup.prof
-/compose/data/pg_data/
-/compose/data/dev/backup.dump
-/compose/data/dev/backup.sql
-/compose/config/app.env
-/__pycache__/
-/**/__pycache__/
-/data/huggingface
-/scripts/downloads
-/scripts/is_development.txt
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and local config (keep .env.example)
 .env
-/statistcs.ps1
-.junie
-.idea
-/.junie/
+.env.*
+!.env.example
+
+# Node / assets
+node_modules/
+
+# Local data: datasets, evidence, temp
+/var/
+/tmp/
+*.mmdb
+*.mmdb.gz
+
+# IDE and agent tooling
+.idea/
+.vscode/
+.junie/
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
