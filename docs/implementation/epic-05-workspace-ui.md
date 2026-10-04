@@ -18,6 +18,9 @@ The objective of Epic 05 is to build a responsive, server-rendered web interface
 ## 2. Stories Breakdown
 
 ### Story 5.1: Assessment Overview & Summary Cards
+- **Coding-agent model**: `gpt-6-luna` with reasoning effort `high`.
+- **Price/performance rationale**: The overview and summary cards are scoped UI work with an approved design system and concrete HTMX/test contracts.
+- **Escalation rule**: Escalate to `gpt-6.1-sol` (`medium`) for query aggregation, accessibility, or state-synchronisation issues spanning several layers.
 - **Goal**: Render the Assessment Overview screen featuring Location, Provider Dependencies, and Security Signal summary cards with live HTMX scan progress updates.
 - **Invariants Enforced**: INV-03, INV-04
 - **Technical Contracts**:
@@ -41,6 +44,9 @@ The objective of Epic 05 is to build a responsive, server-rendered web interface
 ---
 
 ### Story 5.2: Searchable Host Inventory Table
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Database pagination, filtering, sorting, 1,000-host performance, and accessible interaction require coordinated backend and UI changes.
+- **Escalation rule**: Use Luna for isolated template refinements; escalate to Astra only if access isolation and query planning conflict.
 - **Goal**: Implement a paginated, filterable host table capable of sorting and searching 1,000 hosts with sub-200ms latency and full keyboard navigation.
 - **Invariants Enforced**: INV-03
 - **Technical Contracts**:
@@ -63,6 +69,9 @@ The objective of Epic 05 is to build a responsive, server-rendered web interface
 ---
 
 ### Story 5.3: Finding Revision & Annotation Engine
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Optimistic concurrency, immutable observations, validation, and authorisation make this more than a simple form implementation.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) if append-only revision history or concurrent insert semantics remain ambiguous.
 - **Goal**: Implement optimistic-locking annotation forms allowing analysts to flag false positives or provide technical context without overwriting original observations.
 - **Invariants Enforced**: INV-03, INV-07
 - **Technical Contracts**:

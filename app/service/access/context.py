@@ -33,18 +33,19 @@ class ActorContext:
         """Construct ActorContext from User entity and verified active workspace membership."""
         # Find active membership in the designated workspace
         matching_membership = next(
-            (
-                m
-                for m in user.memberships
-                if m.workspace_id == workspace_id and m.active
-            ),
+            (m for m in user.memberships if m.workspace_id == workspace_id and m.active),
             None,
         )
 
+        if (
+            not user.active
+            or matching_membership is None
+            or not matching_membership.workspace.enabled
+        ):
+            raise PermissionError("Active user and workspace membership required.")
+
         is_admin = False
         if matching_membership and matching_membership.role == "admin":
-            is_admin = True
-        elif any(role.name == "admin" for role in user.roles):
             is_admin = True
 
         return cls(

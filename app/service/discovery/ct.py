@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.models.discovery import CTNameObservation, Host, RunHost
 from app.models.scan_run import ScanRun
-from app.service.discovery.scope import DomainScope, is_in_scope
+from app.service.discovery.scope import DomainScope, canonicalise_domain, is_in_scope
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +55,12 @@ class CTDiscoveryAdapter:
         base_url: str = "https://api.ctlogs.dev/v1",
         timeout: float = 15.0,
         http_client: httpx.Client | None = None,
+        api_key: str | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client = http_client
+        self._api_key = api_key
 
     def fetch_page(
         self,
@@ -67,28 +69,31 @@ class CTDiscoveryAdapter:
         limit: int = 100,
     ) -> CTPagedResult:
         """Fetch a single page of Certificate Transparency log records for a domain."""
-        url = f"{self.base_url}/certificates"
-        params: dict[str, str | int] = {
-            "domain": domain_ascii,
-            "limit": limit,
-        }
+        domain = canonicalise_domain(domain_ascii).canonical
+        if not 1 <= limit <= 100:
+            raise ValueError("CT page limit must be between 1 and 100.")
+        url = f"{self.base_url}/hosts/{domain}"
+        params: dict[str, str | int] = {"limit": limit}
+        headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
         if cursor:
-            params["cursor"] = cursor
+            params["after"] = cursor
 
-        client = self._client or httpx.Client(timeout=self.timeout)
+        client = self._client or httpx.Client(
+            timeout=self.timeout, trust_env=False, follow_redirects=False
+        )
         try:
-            response = client.get(url, params=params)
-            if response.status_code == 404:
-                return CTPagedResult(entries=[], next_cursor=None, has_more=False)
+            response = client.get(url, params=params, headers=headers, follow_redirects=False)
             response.raise_for_status()
             data = response.json()
+            if not isinstance(data, dict) or "hosts" not in data:
+                raise CTDiscoveryError("CT API returned an unexpected hosts response.")
             return self.parse_ct_response(data)
-        except httpx.HTTPStatusError as e:
-            raise CTDiscoveryError(
-                f"CT API HTTP {e.response.status_code}: {e.response.text}"
-            ) from e
-        except Exception as e:
-            raise CTDiscoveryError(f"CT query network failure: {e}") from e
+        except CTDiscoveryError:
+            raise
+        except httpx.HTTPStatusError as exc:
+            raise CTDiscoveryError(f"CT API HTTP {exc.response.status_code}") from None
+        except (httpx.RequestError, ValueError):
+            raise CTDiscoveryError("CT query failed or returned invalid JSON.") from None
         finally:
             if self._client is None:
                 client.close()
@@ -96,6 +101,42 @@ class CTDiscoveryAdapter:
     @staticmethod
     def parse_ct_response(data: dict[str, Any]) -> CTPagedResult:
         """Parse varied CT JSON payload structures into standard CTPagedResult."""
+        if not isinstance(data, dict):
+            raise CTDiscoveryError("CT response must be an object.")
+        if "hosts" in data:
+            hosts = data["hosts"]
+            cursor = data.get("next_cursor") or None
+            has_next = data.get("has_next")
+            if (
+                not isinstance(hosts, list)
+                or not isinstance(has_next, bool)
+                or (cursor is not None and not isinstance(cursor, str))
+                or has_next != bool(cursor)
+            ):
+                raise CTDiscoveryError("Invalid CT hosts pagination envelope.")
+            parsed_entries = []
+            for row in hosts:
+                if not isinstance(row, dict) or not isinstance(row.get("host"), str):
+                    raise CTDiscoveryError("Invalid CT hostname row.")
+                name = row["host"].strip().lower()
+                count = row.get("certs")
+                if not name or type(count) is not int or count < 1:
+                    raise CTDiscoveryError("Invalid CT hostname or certificate count.")
+                times = []
+                for field in ("first_seen", "last_seen"):
+                    try:
+                        value = datetime.fromisoformat(row[field]) if row.get(field) else None
+                        if value is not None and value.tzinfo is None:
+                            raise ValueError("missing timezone")
+                    except (ValueError, TypeError):
+                        raise CTDiscoveryError("Invalid CT observation timestamp.") from None
+                    times.append(value)
+                parsed_entries.append(
+                    CTEntry(name, count, times[0], times[1], name.startswith("*."))
+                )
+            return CTPagedResult(parsed_entries, cursor, has_more=has_next)
+        if not any(key in data for key in ("items", "certificates", "names")):
+            raise CTDiscoveryError("Unrecognised CT response schema.")
         entries: list[CTEntry] = []
         next_cursor: str | None = data.get("next_cursor") or data.get("cursor")
 
@@ -203,9 +244,9 @@ def commit_discovery_page(
     discovered_count = 0
 
     # Count existing hosts attached to this run
-    current_run_hosts_count = session.scalar(
-        select(func.count(RunHost.id)).where(RunHost.run_id == run_id)
-    ) or 0
+    current_run_hosts_count = (
+        session.scalar(select(func.count(RunHost.id)).where(RunHost.run_id == run_id)) or 0
+    )
 
     cap_reached = current_run_hosts_count >= max_hosts_per_run
 

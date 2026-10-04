@@ -56,9 +56,8 @@ warn_unused_configs = true
 [[tool.mypy.overrides]]
 module = [
     "flask_security.*",
-    "flask_migrate.*",
+    "flask_migrate",
     "flask_wtf.*",
-    "testcontainers.*",
     "playwright.*",
 ]
 ignore_missing_imports = true

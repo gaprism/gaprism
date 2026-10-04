@@ -78,6 +78,13 @@ Policy families:
 
 Avoid recursive RLS when policies consult grant/membership tables. Keep the lookup path small: a dedicated, reviewed helper can read access metadata using an owner without table ownership over evidence. If a `SECURITY DEFINER` helper is necessary, fix its `search_path`, schema-qualify objects, revoke public execution, use no dynamic SQL and derive the actor from validated transaction context rather than a caller-chosen user ID. Grant helper execution only to intended roles and test it directly. Include the actual SQL policies/functions in migrations, not only Python checks.
 
+The implemented policy helpers are owned by the controlled migration identity. That identity
+must have `BYPASSRLS` (or be a superuser during local disposable tests) because the protected
+tables use `FORCE ROW LEVEL SECURITY`; it must never be the web or coordinator login. Helper
+execution is revoked from `PUBLIC` and must be granted explicitly to each provisioned runtime
+role together with only the table operations that role needs. A deployment must fail rather
+than changing the helper owner to the web runtime role or granting that role `BYPASSRLS`.
+
 The job queue needs cross-case claim ability without cross-case interactive browsing. Expose a narrowly scoped queue claim operation to the coordinator; return only required job metadata. Data access for execution must validate current job ID/lease owner/generation and scope. Do not solve worker access by giving the entire coordinator `BYPASSRLS`. The trusted coordinator still handles provider credentials; the browser/collector process does not connect to PostgreSQL at all.
 
 ## 5. Privileged changes and audit

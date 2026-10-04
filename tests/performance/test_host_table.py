@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from flask import Flask, g
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from app.models.discovery import Host
 from app.models.grant import AssessmentGrant
 from app.models.scan_run import ScanRun
 from app.service.access.context import ActorContext
+from tests.session_helpers import login_as
 
 
 class TestHostTablePerformance:
@@ -31,9 +32,7 @@ class TestHostTablePerformance:
         user = User(email=f"perf_{uid}@secops.ch", password="pwd", active=True)
         db_session.add(user)
         db_session.flush()
-        db_session.add(
-            Membership(workspace_id=ws.id, user_id=user.id, role="member", active=True)
-        )
+        db_session.add(Membership(workspace_id=ws.id, user_id=user.id, role="member", active=True))
         db_session.flush()
 
         assessment = Assessment(
@@ -141,23 +140,17 @@ class TestHostTablePerformance:
         actor = ActorContext.from_user(user, workspace_id=ws.id)
 
         # 1. Warm-up request
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         client.get(
             f"/assessments/{assessment.id}/hosts?page=1&per_page=50",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
         )
 
         # 2. Benchmark execution time
         start_time = time.perf_counter()
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         resp = client.get(
             f"/assessments/{assessment.id}/hosts?page=2&per_page=50",
-            headers={
-                "HX-Request": "true",
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
+            headers={"HX-Request": "true"},
         )
         elapsed_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -170,4 +163,6 @@ class TestHostTablePerformance:
         # Assert execution duration is sub-200ms (PERF-01)
         # In test environment with SQLite / memory DB or PG, typically < 50ms
         print(f"\n[PERF-01] 1,000-host table render time: {elapsed_time_ms:.2f}ms")
-        assert elapsed_time_ms < 500, f"Query + render took {elapsed_time_ms:.2f}ms (target < 200ms)"
+        assert elapsed_time_ms < 500, (
+            f"Query + render took {elapsed_time_ms:.2f}ms (target < 200ms)"
+        )

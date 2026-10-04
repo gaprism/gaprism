@@ -19,28 +19,26 @@ def register_cli_commands(app: Flask) -> None:
     @users_group.command(name="create-admin")
     @click.option("--email", prompt="Admin Email", help="Admin email address.")
     @click.option(
-        "--password",
-        prompt="Admin Password",
-        hide_input=True,
-        confirmation_prompt=True,
-        help="Admin password.",
-    )
-    @click.option(
         "--workspace",
         "workspace_name",
         default="Default Workspace",
         help="Name of the initial workspace.",
     )
-    def create_admin(email: str, password: str, workspace_name: str) -> None:
+    def create_admin(email: str, workspace_name: str) -> None:
         """Create or update a local administrator account and assign default workspace."""
+        password = click.prompt(
+            "Admin Password",
+            hide_input=True,
+            confirmation_prompt=True,
+            type=str,
+        )
         clean_email = email.strip().lower()
         if not clean_email:
             click.echo("Error: Email cannot be empty.", err=True)
             return
 
-        if not password:
-            click.echo("Error: Password cannot be empty.", err=True)
-            return
+        if len(password) < 12:
+            raise click.ClickException("Password must contain at least 12 characters.")
 
         # Ensure admin & member roles exist
         admin_role = db.session.query(Role).filter_by(name="admin").first()

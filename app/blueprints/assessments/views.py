@@ -41,10 +41,8 @@ assessments_bp = Blueprint("assessments", __name__, url_prefix="/assessments")
 
 
 def _get_db() -> Session:
-    """Retrieve active database session, respecting testing session overrides."""
-    if hasattr(g, "db_session") and isinstance(g.db_session, Session):
-        return g.db_session
-    return db.session
+    """Retrieve the application-scoped database session."""
+    return db.session()
 
 
 def _get_current_actor() -> ActorContext:
@@ -52,50 +50,34 @@ def _get_current_actor() -> ActorContext:
     if hasattr(g, "actor") and isinstance(g.actor, ActorContext):
         return g.actor
 
-    s = _get_db()
+    # Identity must come exclusively from Flask-Security's completed login flow.
+    # Test helpers belong in tests, never in a request-header authentication path.
+    if not current_user.is_authenticated or not current_user.is_active:
+        abort(401, description="Authentication required.")
+    user = current_user._get_current_object()
+    if not isinstance(user, User):
+        abort(401, description="Authentication required.")
 
-    if request.headers.get("X-Test-Actor-Id"):
-        test_actor_id = request.headers.get("X-Test-Actor-Id")
-        test_ws_id = request.headers.get("X-Test-Workspace-Id")
-        if test_actor_id:
-            user_uuid = uuid.UUID(str(test_actor_id))
-            ws_uuid = uuid.UUID(str(test_ws_id)) if test_ws_id else None
-            user_obj = s.scalar(select(User).where(User.id == user_uuid))
-            if user_obj and user_obj.memberships:
-                ws_uuid = ws_uuid or user_obj.memberships[0].workspace_id
-                actor_obj = ActorContext.from_user(user_obj, workspace_id=ws_uuid)
-                g.actor = actor_obj
-                return actor_obj
-            elif ws_uuid:
-                actor_obj = ActorContext(
-                    user_id=user_uuid,
-                    workspace_id=ws_uuid,
-                    auth_freshness=datetime.now(UTC),
-                )
-                g.actor = actor_obj
-                return actor_obj
-
-    user: User | None = None
-    if current_user and current_user.is_authenticated and isinstance(current_user, User):
-        user = current_user
-    elif "actor_user_id" in session:
-        user_id_val = session.get("actor_user_id")
-        if user_id_val:
-            user = s.scalar(select(User).where(User.id == uuid.UUID(str(user_id_val))))
-
-    if user:
-        workspace_id: uuid.UUID | None = None
-        if "workspace_id" in session:
-            workspace_id = uuid.UUID(str(session["workspace_id"]))
-        elif user.memberships:
-            workspace_id = user.memberships[0].workspace_id
-
-        if workspace_id:
-            actor = ActorContext.from_user(user, workspace_id=workspace_id)
-            g.actor = actor
-            return actor
-
-    abort(401, description="Authentication required.")
+    active_memberships = [m for m in user.memberships if m.active and m.workspace.enabled]
+    if not active_memberships:
+        abort(403, description="Active workspace membership required.")
+    try:
+        workspace_id = (
+            uuid.UUID(str(session["workspace_id"]))
+            if "workspace_id" in session
+            else active_memberships[0].workspace_id
+        )
+        authenticated_at = session.get("fs_paa")
+        freshness = (
+            datetime.fromtimestamp(authenticated_at, UTC)
+            if isinstance(authenticated_at, (int, float))
+            else datetime.min.replace(tzinfo=UTC)
+        )
+        actor = ActorContext.from_user(user, workspace_id, auth_freshness=freshness)
+    except (ValueError, TypeError, OverflowError, PermissionError):
+        abort(403, description="Active workspace membership required.")
+    g.actor = actor
+    return actor
 
 
 @dataclass(frozen=True)
@@ -130,10 +112,7 @@ def _compute_progress_stats(assessment_id: uuid.UUID, run: ScanRun | None) -> di
     """Compute progress counts for active and completed jobs."""
     s = _get_db()
     hosts_count = (
-        s.scalar(
-            select(func.count(Host.id)).where(Host.assessment_id == assessment_id)
-        )
-        or 0
+        s.scalar(select(func.count(Host.id)).where(Host.assessment_id == assessment_id)) or 0
     )
 
     if run is None:
@@ -146,9 +125,7 @@ def _compute_progress_stats(assessment_id: uuid.UUID, run: ScanRun | None) -> di
 
     job_counts = dict(
         s.execute(
-            select(Job.status, func.count(Job.id))
-            .where(Job.run_id == run.id)
-            .group_by(Job.status)
+            select(Job.status, func.count(Job.id)).where(Job.run_id == run.id).group_by(Job.status)
         ).all()
     )
 
@@ -274,9 +251,7 @@ def _compute_overview_summary(assessment_id: uuid.UUID, run_id: uuid.UUID | None
         and f.attribution in ("shared_infrastructure", "ip_only")
     )
     missing_headers_count = sum(
-        1
-        for f in findings
-        if "HEADER" in f.rule_id or f.rule_id == "HTTP_SECURITY_HEADERS"
+        1 for f in findings if "HEADER" in f.rule_id or f.rule_id == "HTTP_SECURITY_HEADERS"
     )
 
     return {
@@ -302,7 +277,9 @@ def overview(id: uuid.UUID) -> str:
     s = _get_db()
 
     assessment = s.scalar(select(Assessment).where(Assessment.id == id))
-    if assessment is None or not check_permission(actor, assessment, ActionEnum.READ_CASE, session=s):
+    if assessment is None or not check_permission(
+        actor, assessment, ActionEnum.READ_CASE, session=s
+    ):
         abort(404, description="Assessment not found.")
 
     latest_run = _get_latest_run(id)
@@ -326,7 +303,9 @@ def progress(id: uuid.UUID) -> str:
     s = _get_db()
 
     assessment = s.scalar(select(Assessment).where(Assessment.id == id))
-    if assessment is None or not check_permission(actor, assessment, ActionEnum.READ_CASE, session=s):
+    if assessment is None or not check_permission(
+        actor, assessment, ActionEnum.READ_CASE, session=s
+    ):
         abort(404, description="Assessment not found.")
 
     latest_run = _get_latest_run(id)
@@ -347,7 +326,9 @@ def host_inventory(id: uuid.UUID) -> str:
     s = _get_db()
 
     assessment = s.scalar(select(Assessment).where(Assessment.id == id))
-    if assessment is None or not check_permission(actor, assessment, ActionEnum.READ_CASE, session=s):
+    if assessment is None or not check_permission(
+        actor, assessment, ActionEnum.READ_CASE, session=s
+    ):
         abort(404, description="Assessment not found.")
 
     # Query params
@@ -376,12 +357,8 @@ def host_inventory(id: uuid.UUID) -> str:
     all_matched_hosts = s.scalars(base_host_query).all()
 
     # Pre-fetch check results and findings for this assessment
-    check_results = s.scalars(
-        select(CheckResult).where(CheckResult.assessment_id == id)
-    ).all()
-    findings = s.scalars(
-        select(Finding).where(Finding.assessment_id == id)
-    ).all()
+    check_results = s.scalars(select(CheckResult).where(CheckResult.assessment_id == id)).all()
+    findings = s.scalars(select(Finding).where(Finding.assessment_id == id)).all()
 
     checks_by_host: dict[uuid.UUID, dict[str, CheckResult]] = {}
     for cr in check_results:
@@ -537,29 +514,25 @@ def host_detail(id: uuid.UUID, host_id: uuid.UUID) -> str:
     s = _get_db()
 
     assessment = s.scalar(select(Assessment).where(Assessment.id == id))
-    if assessment is None or not check_permission(actor, assessment, ActionEnum.READ_CASE, session=s):
+    if assessment is None or not check_permission(
+        actor, assessment, ActionEnum.READ_CASE, session=s
+    ):
         abort(404, description="Assessment not found.")
 
-    host = s.scalar(
-        select(Host).where(Host.id == host_id, Host.assessment_id == id)
-    )
+    host = s.scalar(select(Host).where(Host.id == host_id, Host.assessment_id == id))
     if host is None:
         abort(404, description="Host not found.")
 
     # Get all check results for this host
     checks = s.scalars(
-        select(CheckResult).where(
-            CheckResult.assessment_id == id, CheckResult.host_id == host_id
-        )
+        select(CheckResult).where(CheckResult.assessment_id == id, CheckResult.host_id == host_id)
     ).all()
 
     checks_by_type = {c.check_type: c for c in checks}
 
     # Get findings with eager loaded annotations
     findings = s.scalars(
-        select(Finding).where(
-            Finding.assessment_id == id, Finding.host_id == host_id
-        )
+        select(Finding).where(Finding.assessment_id == id, Finding.host_id == host_id)
     ).all()
 
     return render_template(
@@ -587,9 +560,7 @@ def annotate_finding(id: uuid.UUID, finding_id: uuid.UUID) -> tuple[str, int]:
     if not check_permission(actor, assessment, ActionEnum.ADD_TECHNICAL_ANNOTATION, session=s):
         abort(403, description="Permission denied.")
 
-    finding = s.scalar(
-        select(Finding).where(Finding.id == finding_id, Finding.assessment_id == id)
-    )
+    finding = s.scalar(select(Finding).where(Finding.id == finding_id, Finding.assessment_id == id))
     if finding is None:
         abort(404, description="Finding not found.")
 
@@ -627,15 +598,11 @@ def annotate_finding(id: uuid.UUID, finding_id: uuid.UUID) -> tuple[str, int]:
     except OptimisticLockConflictError as e:
         s.rollback()
         # Fetch current finding and annotation to display
-        current_finding = s.scalar(
-            select(Finding).where(Finding.id == finding_id)
-        )
+        current_finding = s.scalar(select(Finding).where(Finding.id == finding_id))
         current_ann = s.scalar(
             select(FindingAnnotation).where(FindingAnnotation.finding_id == finding_id)
         )
-        current_assessment = s.scalar(
-            select(Assessment).where(Assessment.id == id)
-        )
+        current_assessment = s.scalar(select(Assessment).where(Assessment.id == id))
         html = render_template(
             "assessments/partials/annotation_form.html",
             assessment=current_assessment or assessment,
@@ -647,15 +614,11 @@ def annotate_finding(id: uuid.UUID, finding_id: uuid.UUID) -> tuple[str, int]:
 
     except (ValidationError, ValueError) as e:
         s.rollback()
-        current_finding = s.scalar(
-            select(Finding).where(Finding.id == finding_id)
-        )
+        current_finding = s.scalar(select(Finding).where(Finding.id == finding_id))
         current_ann = s.scalar(
             select(FindingAnnotation).where(FindingAnnotation.finding_id == finding_id)
         )
-        current_assessment = s.scalar(
-            select(Assessment).where(Assessment.id == id)
-        )
+        current_assessment = s.scalar(select(Assessment).where(Assessment.id == id))
         html = render_template(
             "assessments/partials/annotation_form.html",
             assessment=current_assessment or assessment,

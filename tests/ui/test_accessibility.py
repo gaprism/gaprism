@@ -5,17 +5,16 @@ from __future__ import annotations
 import re
 import uuid
 
-from flask import Flask, g
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
 from app.models.assessment import Assessment
 from app.models.auth import Membership, User, Workspace
-from app.models.check import CheckResult, Finding
 from app.models.discovery import Host
 from app.models.grant import AssessmentGrant
-from app.models.scan_run import ScanRun
 from app.service.access.context import ActorContext
+from tests.session_helpers import login_as
 
 
 class TestAccessibilityAndUX:
@@ -34,9 +33,7 @@ class TestAccessibilityAndUX:
         )
         db_session.add(user)
         db_session.flush()
-        db_session.add(
-            Membership(workspace_id=ws.id, user_id=user.id, role="member", active=True)
-        )
+        db_session.add(Membership(workspace_id=ws.id, user_id=user.id, role="member", active=True))
         db_session.flush()
 
         assessment = Assessment(
@@ -74,12 +71,9 @@ class TestAccessibilityAndUX:
         actor = ActorContext.from_user(user, workspace_id=ws.id)
 
         # 1. Main hosts page
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         resp = client.get(
             f"/assessments/{assessment.id}/hosts",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
         )
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
@@ -99,12 +93,9 @@ class TestAccessibilityAndUX:
         assert 'aria-label="Inspect details for gateway.a11y.target.ch"' in html
 
         # 2. Host detail modal
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         detail_resp = client.get(
             f"/assessments/{assessment.id}/hosts/{host.id}",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
         )
         assert detail_resp.status_code == 200
         detail_html = detail_resp.get_data(as_text=True)
@@ -130,9 +121,7 @@ class TestAccessibilityAndUX:
         )
         db_session.add(user)
         db_session.flush()
-        db_session.add(
-            Membership(workspace_id=ws.id, user_id=user.id, role="member", active=True)
-        )
+        db_session.add(Membership(workspace_id=ws.id, user_id=user.id, role="member", active=True))
         db_session.flush()
 
         assessment = Assessment(
@@ -169,16 +158,16 @@ class TestAccessibilityAndUX:
 
         actor = ActorContext.from_user(user, workspace_id=ws.id)
 
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         resp = client.get(
             f"/assessments/{assessment.id}/hosts",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
         )
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
 
         # Ensure raw unescaped script tag is NOT in the response
         assert "<script>alert('xss')</script>" not in html
-        assert "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;" in html or "&lt;script&gt;alert('xss')&lt;/script&gt;" in html
+        assert (
+            "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;" in html
+            or "&lt;script&gt;alert('xss')&lt;/script&gt;" in html
+        )

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import datetime
 import ipaddress
-import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+import httpx
 
 from runner.dns import is_ip_public
 
@@ -51,77 +53,25 @@ class GeoIPResult:
         }
 
 
-# Curated dataset of European country codes
-_EU_COUNTRY_CODES = frozenset(
-    {
-        "AT",
-        "BE",
-        "BG",
-        "CY",
-        "CZ",
-        "DE",
-        "DK",
-        "EE",
-        "ES",
-        "FI",
-        "FR",
-        "GR",
-        "HR",
-        "HU",
-        "IE",
-        "IT",
-        "LT",
-        "LU",
-        "LV",
-        "MT",
-        "NL",
-        "PL",
-        "PT",
-        "RO",
-        "SE",
-        "SI",
-        "SK",
-    }
-)
-
-# Built-in synthetic dataset for local development/testing and fallback lookup
-_SYNTHETIC_SUBNETS: list[tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, dict[str, Any]]] = [
-    (
-        ipaddress.IPv4Network("93.184.216.0/24"),
-        {"country": "US", "name": "United States", "asn": 15133, "org": "Edgecast Inc."},
-    ),
-    (
-        ipaddress.IPv4Network("193.134.0.0/16"),
-        {"country": "CH", "name": "Switzerland", "asn": 3303, "org": "Swisscom AG"},
-    ),
-    (
-        ipaddress.IPv4Network("194.12.0.0/16"),
-        {"country": "DE", "name": "Germany", "asn": 3320, "org": "Deutsche Telekom AG"},
-    ),
-    (
-        ipaddress.IPv4Network("104.16.0.0/12"),
-        {"country": "US", "name": "United States", "asn": 13335, "org": "Cloudflare, Inc."},
-    ),
-    (
-        ipaddress.IPv4Network("13.32.0.0/15"),
-        {"country": "US", "name": "United States", "asn": 16509, "org": "Amazon.com, Inc."},
-    ),
-]
-
-
 def lookup_geoip(
     ip_str: str,
     db_path: str | None = None,
     allow_fallback: bool = True,
 ) -> GeoIPResult:
-    """Lookup geographical location and Autonomous System (ASN) for an IP address.
+    """Lookup geographical location and ASN for an IP address.
 
     Enforces:
-    - IP validation: Private or invalid IPs return status="failed", reason_code="invalid_ip".
-    - Missing dataset: If explicit db_path is missing and no fallback, returns status="unlicensed".
-    - Distinction between match and no_match.
+    - Invalid IPs return status="failed", reason_code="invalid_ip".
+    - Private/reserved/non-public IPs return status="failed",
+      reason_code="private_ip".
+    - If no local dataset is available and fallback is disabled,
+      status="unlicensed" is returned.
+    - If fallback is enabled, ipwho.is is queried synchronously.
+    - Successful lookups distinguish between match and no_match.
     """
+
     clean_ip = ip_str.strip().strip("[]")
+
     try:
         ip_obj = ipaddress.ip_address(clean_ip)
     except ValueError:
@@ -134,56 +84,131 @@ def lookup_geoip(
 
     if not is_ip_public(ip_obj):
         return GeoIPResult(
-            ip=ip_str,
+            ip=clean_ip,
             status="failed",
             reason_code="private_ip",
             verdict="unknown",
         )
 
-    # 1. Attempt lookup with local MaxMind database if provided and exists
-    if db_path:
-        if not os.path.exists(db_path):
-            return GeoIPResult(
-                ip=clean_ip,
-                status="unlicensed",
-                reason_code="dataset_not_installed",
-                verdict="unknown",
-                database_version=None,
-            )
-        # Note: If maxminddb is installed, we can read binary format.
-        # Otherwise fallback or parse.
-
-    # 2. Synthetic / embedded fallback lookup
-    if allow_fallback:
-        for net, data in _SYNTHETIC_SUBNETS:
-            if isinstance(ip_obj, ipaddress.IPv4Address) and isinstance(net, ipaddress.IPv4Network):
-                if ip_obj in net:
-                    country_code = str(data["country"])
-                    return GeoIPResult(
-                        ip=clean_ip,
-                        status="succeeded",
-                        reason_code=None,
-                        verdict="match",
-                        iso_country_code=country_code,
-                        country_name=str(data["name"]),
-                        asn=int(data["asn"]),
-                        as_org=str(data["org"]),
-                        is_eu=country_code in _EU_COUNTRY_CODES,
-                        database_version="curated-2026.1",
-                    )
-
-        # Public IP with no dataset match
+    # No local GeoIP reader is currently available.
+    # Preserve the previous behaviour unless external fallback
+    # was explicitly permitted by the caller.
+    if not allow_fallback:
         return GeoIPResult(
             ip=clean_ip,
-            status="succeeded",
-            reason_code=None,
-            verdict="no_match",
-            database_version="curated-2026.1",
+            status="unlicensed",
+            reason_code=(
+                "dataset_reader_unavailable"
+                if db_path and Path(db_path).is_file()
+                else "dataset_not_installed"
+            ),
+            verdict="unknown",
         )
+
+    url = f"https://ipwho.is/{clean_ip}"
+
+    try:
+        with httpx.Client(
+            timeout=httpx.Timeout(5.0),
+            follow_redirects=False,
+        ) as client:
+            response = client.get(
+                url,
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": "geoip-lookup/1.0",
+                },
+            )
+
+    except httpx.TimeoutException:
+        return GeoIPResult(
+            ip=clean_ip,
+            status="failed",
+            reason_code="provider_timeout",
+            verdict="unknown",
+        )
+
+    except httpx.RequestError:
+        return GeoIPResult(
+            ip=clean_ip,
+            status="failed",
+            reason_code="provider_unavailable",
+            verdict="unknown",
+        )
+
+    if response.status_code == 429:
+        return GeoIPResult(
+            ip=clean_ip,
+            status="failed",
+            reason_code="provider_rate_limited",
+            verdict="unknown",
+        )
+
+    if response.status_code >= 400:
+        return GeoIPResult(
+            ip=clean_ip,
+            status="failed",
+            reason_code=f"provider_http_{response.status_code}",
+            verdict="unknown",
+        )
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return GeoIPResult(
+            ip=clean_ip,
+            status="failed",
+            reason_code="invalid_provider_response",
+            verdict="unknown",
+        )
+
+    if not isinstance(payload, dict):
+        return GeoIPResult(
+            ip=clean_ip,
+            status="failed",
+            reason_code="invalid_provider_response",
+            verdict="unknown",
+        )
+
+    # ipwho.is may return HTTP 200 while indicating an
+    # application-level lookup failure.
+    if payload.get("success") is not True:
+        return GeoIPResult(
+            ip=clean_ip,
+            status="failed",
+            reason_code="provider_lookup_failed",
+            verdict="unknown",
+        )
+
+    connection = payload.get("connection") or {}
+
+    country_code = payload.get("country_code")
+    country_name = payload.get("country")
+    city_name = payload.get("city")
+    asn = connection.get("asn")
+    as_org = connection.get("org")
+
+    has_match = any(
+        value is not None
+        for value in (
+            country_code,
+            country_name,
+            city_name,
+            asn,
+            as_org,
+        )
+    )
 
     return GeoIPResult(
         ip=clean_ip,
-        status="unlicensed",
-        reason_code="dataset_not_installed",
-        verdict="unknown",
+        status="succeeded",
+        reason_code=None,
+        verdict="match" if has_match else "no_match",
+        iso_country_code=country_code,
+        country_name=country_name,
+        city_name=city_name,
+        asn=asn if isinstance(asn, int) else None,
+        as_org=as_org if isinstance(as_org, str) else None,
+        is_eu=payload.get("is_eu") is True,
+        database_version=None,
     )

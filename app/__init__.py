@@ -2,7 +2,7 @@
 
 import os
 
-from flask import Flask, Response, g, jsonify
+from flask import Flask, Response, jsonify
 from flask_security.datastore import SQLAlchemyUserDatastore
 
 from app.blueprints.assessments import assessments_bp
@@ -13,10 +13,12 @@ from app.config import (
     DevelopmentConfig,
     ProductionConfig,
     TestingConfig,
+    resolve_config,
     validate_config,
 )
 from app.extensions import csrf, db, migrate, security
 from app.models.auth import Role, User
+from app.service.auth.rate_limit import register_auth_rate_limit
 
 
 def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
@@ -29,8 +31,10 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
             config_class = ProductionConfig
         elif env_mode == "testing":
             config_class = TestingConfig
-        else:
+        elif env_mode == "development":
             config_class = DevelopmentConfig
+        else:
+            raise ConfigurationError(f"Unknown configuration profile: {env_mode}")
     elif isinstance(config_object, str):
         config_map: dict[str, type[BaseConfig]] = {
             "development": DevelopmentConfig,
@@ -46,6 +50,9 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
     else:
         raise ConfigurationError("Invalid configuration object provided.")
 
+    config_class = resolve_config(
+        config_class, config_object is None or isinstance(config_object, str)
+    )
     validate_config(config_class)
 
     app = Flask(
@@ -63,6 +70,7 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
 
     user_datastore = SQLAlchemyUserDatastore(db, User, Role)
     security.init_app(app, user_datastore)
+    register_auth_rate_limit(app)
 
     # Register basic security headers
     @app.after_request
@@ -77,11 +85,6 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
             "img-src 'self' data:;"
         )
         return response
-
-    @app.before_request
-    def set_test_session() -> None:
-        if app.testing and hasattr(app, "_test_db_session") and getattr(app, "_test_db_session", None) is not None:
-            g.db_session = getattr(app, "_test_db_session")
 
     # Register Blueprints
     app.register_blueprint(assessments_bp)

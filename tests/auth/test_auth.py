@@ -6,6 +6,7 @@ from flask_security.utils import hash_password, verify_password
 from sqlalchemy.orm import Session
 
 from app.models.auth import Membership, User, Workspace
+from app.models.auth_rate_limit import AuthRateLimitBucket
 
 
 def test_cli_create_admin_success(
@@ -18,11 +19,10 @@ def test_cli_create_admin_success(
             "create-admin",
             "--email",
             "admin@example.org",
-            "--password",
-            "StrongAdminPass123!",
             "--workspace",
             "Security Team",
-        ]
+        ],
+        input="StrongAdminPass123!\nStrongAdminPass123!\n",
     )
     assert result.exit_code == 0
     assert "Successfully bootstrapped admin account 'admin@example.org'" in result.output
@@ -39,9 +39,7 @@ def test_cli_create_admin_success(
     assert workspace.enabled is True
 
     membership = (
-        db_session.query(Membership)
-        .filter_by(workspace_id=workspace.id, user_id=user.id)
-        .first()
+        db_session.query(Membership).filter_by(workspace_id=workspace.id, user_id=user.id).first()
     )
     assert membership is not None
     assert membership.role == "admin"
@@ -55,10 +53,10 @@ def test_public_registration_is_disabled(client: FlaskClient) -> None:
     assert response.status_code == 404
 
 
-def test_login_success_and_logout(
+def test_password_login_requires_mfa_enrolment(
     app: Flask, client: FlaskClient, db_session: Session
 ) -> None:
-    """Verify standard user login and logout flow."""
+    """Verify a password-only account is sent to mandatory MFA enrolment."""
     # Create test user
     user = User(
         email="analyst@example.com",
@@ -72,13 +70,74 @@ def test_login_success_and_logout(
     response = client.post(
         "/auth/login",
         data={"email": "analyst@example.com", "password": "ValidPassword123!"},
-        follow_redirects=True,
+        follow_redirects=False,
     )
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert "/tf-setup" in response.headers.get("Location", "")
+    with client.session_transaction() as state:
+        assert "_user_id" not in state
 
     # Logout
-    logout_resp = client.get("/auth/logout", follow_redirects=True)
+    logout_resp = client.post("/auth/logout", follow_redirects=True)
     assert logout_resp.status_code == 200
+
+
+def test_cli_rejects_password_process_argument(cli_runner: FlaskCliRunner) -> None:
+    result = cli_runner.invoke(
+        args=[
+            "users",
+            "create-admin",
+            "--email",
+            "unsafe@example.org",
+            "--password",
+            "VisibleInProcessList123!",
+        ]
+    )
+    assert result.exit_code != 0
+    assert "No such option '--password'" in result.output
+
+
+def test_login_failures_are_generic_and_rate_limited(
+    client: FlaskClient, db_session: Session
+) -> None:
+    user = User(
+        email="rate-limited@example.org",
+        password=hash_password("CorrectPassword123!"),
+        active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    known_response = client.post(
+        "/auth/login",
+        data={"email": user.email, "password": "wrong-password"},
+    )
+    unknown_response = client.post(
+        "/auth/login",
+        data={"email": "unknown@example.org", "password": "wrong-password"},
+    )
+    assert known_response.status_code == unknown_response.status_code == 200
+    assert known_response.data.replace(user.email.encode(), b"<identity>") == (
+        unknown_response.data.replace(b"unknown@example.org", b"<identity>")
+    )
+
+    for _ in range(3):
+        response = client.post(
+            "/auth/login",
+            data={"email": user.email, "password": "wrong-password"},
+        )
+        assert response.status_code == 200
+    bucket_state = sorted(
+        (bucket.bucket_kind, bucket.failures)
+        for bucket in db_session.query(AuthRateLimitBucket).all()
+    )
+    assert bucket_state == [("ip", 5), ("principal", 1), ("principal", 4)]
+    blocked = client.post(
+        "/auth/login",
+        data={"email": user.email, "password": "CorrectPassword123!"},
+    )
+    assert blocked.status_code == 429
+    assert b"rate-limited@example.org" not in blocked.data
 
 
 def test_login_invalid_credentials(client: FlaskClient, db_session: Session) -> None:

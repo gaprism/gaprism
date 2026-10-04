@@ -5,12 +5,11 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from flask import Flask, g
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.annotation import FindingAnnotation
 from app.models.assessment import Assessment
 from app.models.auth import Membership, User, Workspace
 from app.models.check import Finding
@@ -22,6 +21,7 @@ from app.service.assessment.annotation import (
     OptimisticLockConflictError,
     create_or_update_annotation,
 )
+from tests.session_helpers import login_as
 
 
 def _setup_annotation_environment(
@@ -97,14 +97,14 @@ def _setup_annotation_environment(
 
 
 class TestAnnotationEngine:
-    def test_create_initial_annotation(
-        self, app: Flask, db_session: Session
-    ) -> None:
-        ws, user, assessment, finding, actor = _setup_annotation_environment(db_session)
+    def test_create_initial_annotation(self, app: Flask, db_session: Session) -> None:
+        _ws, user, _assessment, finding, actor = _setup_annotation_environment(db_session)
 
         with app.app_context():
             schema = AnnotationSchema(
-                justification="Confirmed shared Cloudflare reverse proxy; not vulnerable vendor software.",
+                justification=(
+                    "Confirmed shared Cloudflare reverse proxy; not vulnerable vendor software."
+                ),
                 revised_severity="low",
                 is_false_positive=True,
             )
@@ -129,10 +129,8 @@ class TestAnnotationEngine:
             assert refreshed_finding.severity == "high"
             assert refreshed_finding.rule_id == "SHODAN_CVE_OBSERVED"
 
-    def test_update_annotation_increments_version(
-        self, app: Flask, db_session: Session
-    ) -> None:
-        ws, user, assessment, finding, actor = _setup_annotation_environment(db_session)
+    def test_update_annotation_increments_version(self, app: Flask, db_session: Session) -> None:
+        _ws, _user, _assessment, finding, actor = _setup_annotation_environment(db_session)
 
         with app.app_context():
             # Initial create
@@ -174,7 +172,7 @@ class TestAnnotationEngine:
     def test_optimistic_locking_conflict_raises_error(
         self, app: Flask, db_session: Session
     ) -> None:
-        ws, user, assessment, finding, actor = _setup_annotation_environment(db_session)
+        _ws, _user, _assessment, finding, actor = _setup_annotation_environment(db_session)
 
         with app.app_context():
             # First edit sets version to 1
@@ -227,15 +225,12 @@ class TestAnnotationEngine:
     def test_annotation_http_endpoint_conflict_returns_409(
         self, app: Flask, client: FlaskClient, db_session: Session
     ) -> None:
-        ws, user, assessment, finding, actor = _setup_annotation_environment(db_session)
+        _ws, _user, assessment, finding, actor = _setup_annotation_environment(db_session)
 
         # 1. Successful first submission
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         resp1 = client.post(
             f"/assessments/{assessment.id}/findings/{finding.id}/annotate",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
             data={
                 "version_id": "1",
                 "justification": "First annotation entry",
@@ -248,12 +243,9 @@ class TestAnnotationEngine:
         assert "First annotation entry" in html1
 
         # 2. Concurrent submission with stale version_id returns 409
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         resp_conflict = client.post(
             f"/assessments/{assessment.id}/findings/{finding.id}/annotate",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
             data={
                 "version_id": "99",
                 "justification": "Conflict test",

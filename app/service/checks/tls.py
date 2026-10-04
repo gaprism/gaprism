@@ -79,6 +79,28 @@ def evaluate_tls_check(
         elif "CONNECTION_FAILED" in str(probe_result.failure_reasons):
             reason_code = "connection_failed"
 
+        if reason_code != "invalid_tls":
+            return TLSCheckEvaluation(
+                status="failed",
+                reason_code=reason_code,
+                verdict="unknown",
+                should_skip_http=True,
+                skip_reason="skipped_due_to_tls_failure",
+                findings=[
+                    CheckFinding(
+                        rule_id="COLLECTION_INCOMPLETE",
+                        rule_version=rule_version,
+                        subject_key=subject_key,
+                        severity="informational",
+                        confidence="unknown",
+                        attribution="hostname_supported",
+                        message_key="rules.collection_incomplete",
+                        message_parameters={"check": "tls", "reason_code": reason_code},
+                    )
+                ],
+                payload=payload,
+            )
+
         # Emit TLS_VALIDATION_FAILED finding if certificate/handshake failed
         findings.append(
             CheckFinding(

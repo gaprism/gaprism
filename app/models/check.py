@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     CheckConstraint,
@@ -17,6 +17,9 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseUUIDModel, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.annotation import FindingAnnotation
 
 
 class CheckResult(BaseUUIDModel, TimestampMixin):
@@ -115,7 +118,7 @@ class Finding(BaseUUIDModel, TimestampMixin):
     message_key: Mapped[str] = mapped_column(String(128), nullable=False)
     message_parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
-    annotations: Mapped[list["FindingAnnotation"]] = relationship(
+    annotations: Mapped[list[FindingAnnotation]] = relationship(
         "FindingAnnotation",
         back_populates="finding",
         cascade="all, delete-orphan",

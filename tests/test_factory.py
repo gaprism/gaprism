@@ -1,5 +1,8 @@
 """Tests for the application factory and configuration validation."""
 
+import subprocess
+import sys
+
 import pytest
 
 from app import create_app
@@ -40,17 +43,31 @@ def test_factory_invalid_config_name() -> None:
         create_app("nonexistent_profile")
 
 
+def test_factory_rejects_invalid_config_object() -> None:
+    """Reject objects that are neither profile names nor BaseConfig classes."""
+    with pytest.raises(ConfigurationError, match="Invalid configuration object"):
+        create_app(object())  # type: ignore[arg-type]
+
+
 def test_validate_config_storage_dir_missing() -> None:
     """Verify missing STORAGE_DIR fails validation."""
+
     class BadConfig(TestingConfig):
         STORAGE_DIR = ""
 
     with pytest.raises(ConfigurationError, match="STORAGE_DIR must be specified"):
         validate_config(BadConfig)
 
+    class InvalidPathConfig(TestingConfig):
+        STORAGE_DIR = "invalid\x00path"
+
+    with pytest.raises(ConfigurationError, match="STORAGE_DIR contains invalid characters"):
+        validate_config(InvalidPathConfig)
+
 
 def test_validate_config_negative_limits() -> None:
     """Verify negative or zero scan limits fail validation."""
+
     class BadLimitConfig(TestingConfig):
         MAX_HOSTS_PER_RUN = 0
 
@@ -66,6 +83,7 @@ def test_validate_config_negative_limits() -> None:
 
 def test_validate_production_config_weak_secrets() -> None:
     """Verify production fails fast on short or default secrets."""
+
     class WeakSecretProd(ProductionConfig):
         SECRET_KEY = "dev-insecure-key-12345678901234567890"
         SECURITY_PASSWORD_SALT = "long-enough-password-salt-key"
@@ -87,10 +105,12 @@ def test_validate_production_config_weak_secrets() -> None:
 
 def test_validate_production_config_valid() -> None:
     """Verify valid production config passes validation."""
+
     class ValidProd(ProductionConfig):
         SECRET_KEY = "a_very_strong_and_secure_random_production_key_32chars"
         SECURITY_PASSWORD_SALT = "a_strong_random_salt_16"
         MFA_ENCRYPTION_KEY = "a_strong_mfa_encryption_key_32"
+        AUTH_RATE_LIMIT_KEY = "a_strong_auth_rate_limit_key_32_chars"
         SQLALCHEMY_DATABASE_URI = "postgresql+psycopg://user:pass@localhost:5432/prod_db"
 
     validate_config(ValidProd)
@@ -109,3 +129,23 @@ def test_healthz_endpoint_and_security_headers() -> None:
     assert response.headers.get("X-Content-Type-Options") == "nosniff"
     assert response.headers.get("X-Frame-Options") == "DENY"
     assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+
+
+def test_import_has_no_runtime_side_effects() -> None:
+    """Importing the package must not open sockets, run workers, or build an app."""
+    probe = """
+import socket
+from unittest.mock import patch
+
+with patch.object(socket, 'create_connection', side_effect=AssertionError('network access')):
+    import app
+    assert callable(app.create_app)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr

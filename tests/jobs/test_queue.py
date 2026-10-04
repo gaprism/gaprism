@@ -379,3 +379,72 @@ def test_cancel_job(
     db_session.commit()
     db_session.refresh(job2)
     assert job2.cancel_requested is True
+
+
+@pytest.mark.parametrize("operation", ["heartbeat", "complete", "fail"])
+@pytest.mark.parametrize("lost", ["expired", "cancelled"])
+def test_lost_lease_cannot_mutate_job(
+    db_session: Session,
+    test_setup_entities: tuple[Workspace, User, Assessment, ScanRun],
+    operation: str,
+    lost: str,
+) -> None:
+    ws, _, assessment, run = test_setup_entities
+    job = enqueue_job(db_session, ws.id, assessment.id, "fixture", "fencing", {}, run_id=run.id)
+    claim_jobs(db_session, "worker")
+    if lost == "expired":
+        job.lease_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    else:
+        job.cancel_requested = True
+    db_session.flush()
+    before = (job.status, job.lease_expires_at, job.result_payload)
+    if operation == "heartbeat":
+        accepted = heartbeat(db_session, job.id, "worker", job.generation_id)
+    elif operation == "complete":
+        accepted = complete_job(
+            db_session,
+            job.id,
+            "worker",
+            job.generation_id,
+            result_payload={"untrusted": True},
+        )
+    else:
+        accepted = fail_job(
+            db_session,
+            job.id,
+            "worker",
+            job.generation_id,
+            error_message="late worker",
+        )
+    assert not accepted
+    assert (job.status, job.lease_expires_at, job.result_payload) == before
+
+
+def test_crashed_worker_cannot_retry_forever(
+    db_session: Session,
+    test_setup_entities: tuple[Workspace, User, Assessment, ScanRun],
+) -> None:
+    ws, _, assessment, run = test_setup_entities
+    job = enqueue_job(
+        db_session, ws.id, assessment.id, "fixture", "bounded", {}, run_id=run.id, max_attempts=1
+    )
+    assert len(claim_jobs(db_session, "worker-a")) == 1
+    job.lease_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    db_session.flush()
+    assert claim_jobs(db_session, "worker-b") == []
+    assert job.status == "failed"
+    attempt = db_session.query(JobAttempt).filter_by(job_id=job.id).one()
+    assert attempt.status == "failed"
+    assert attempt.finished_at is not None
+
+
+def test_waiting_provider_can_be_cancelled(
+    db_session: Session,
+    test_setup_entities: tuple[Workspace, User, Assessment, ScanRun],
+) -> None:
+    ws, _, assessment, run = test_setup_entities
+    job = enqueue_job(db_session, ws.id, assessment.id, "fixture", "waiting", {}, run_id=run.id)
+    job.status = "waiting_provider"
+    db_session.flush()
+    assert cancel_job(db_session, job.id)
+    assert job.status == "cancelled"

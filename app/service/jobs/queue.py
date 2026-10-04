@@ -65,6 +65,8 @@ def claim_jobs(
     Claims jobs in 'queued' status that are available, or 'running' jobs whose lease
     has expired. Increments generation_id and records a JobAttempt.
     """
+    if not 1 <= batch_size <= 100 or lease_duration.total_seconds() <= 0:
+        raise ValueError("Invalid claim batch size or lease duration.")
     now = utc_now()
 
     # Query claimable jobs with row-level locks skipping locked rows
@@ -72,7 +74,7 @@ def claim_jobs(
         select(Job)
         .where(
             or_(
-                Job.status == "queued",
+                Job.status.in_(("queued", "waiting_provider")),
                 and_expired_lease(now),
             ),
             Job.available_at <= now,
@@ -81,12 +83,30 @@ def claim_jobs(
         .order_by(Job.priority.asc(), Job.created_at.asc())
         .limit(batch_size)
         .with_for_update(skip_locked=True)
+        .execution_options(populate_existing=True)
     )
 
     jobs = list(session.execute(stmt).scalars().all())
     claimed_jobs: list[Job] = []
 
     for job in jobs:
+        if job.status == "running":
+            previous = session.scalar(
+                select(JobAttempt).where(
+                    JobAttempt.job_id == job.id,
+                    JobAttempt.generation_id == job.generation_id,
+                )
+            )
+            if previous is not None:
+                previous.status = "failed"
+                previous.finished_at = now
+                previous.error_message = "lease_expired"
+        if job.attempts >= job.max_attempts:
+            job.status = "failed"
+            job.last_error = "attempt_limit_reached"
+            job.lease_owner = None
+            job.lease_expires_at = None
+            continue
         job.status = "running"
         job.lease_owner = worker_id
         job.lease_expires_at = now + lease_duration
@@ -110,7 +130,7 @@ def claim_jobs(
 
 def and_expired_lease(now: datetime) -> Any:
     """Helper clause for finding jobs with expired leases."""
-    return and_(Job.status == "running", Job.lease_expires_at < now)
+    return and_(Job.status == "running", Job.lease_expires_at <= now)
 
 
 def heartbeat(
@@ -121,17 +141,28 @@ def heartbeat(
     lease_duration: timedelta = timedelta(seconds=60),
 ) -> bool:
     """Renew the lease on a running job if generation_id and worker match."""
-    now = utc_now()
-    stmt = select(Job).where(Job.id == job_id).with_for_update()
+    if lease_duration.total_seconds() <= 0:
+        raise ValueError("Lease duration must be positive.")
+    stmt = (
+        select(Job)
+        .where(Job.id == job_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     job = session.execute(stmt).scalar_one_or_none()
 
     if job is None:
         return False
 
+    now = utc_now()
+
     if (
         job.lease_owner != worker_id
         or job.generation_id != generation_id
         or job.status != "running"
+        or job.lease_expires_at is None
+        or job.lease_expires_at <= now
+        or job.cancel_requested
     ):
         return False
 
@@ -149,18 +180,27 @@ def complete_job(
     result_payload: dict[str, Any] | None = None,
 ) -> bool:
     """Complete a running job if the worker holds the valid lease and generation."""
-    now = utc_now()
-    stmt = select(Job).where(Job.id == job_id).with_for_update()
+    stmt = (
+        select(Job)
+        .where(Job.id == job_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     job = session.execute(stmt).scalar_one_or_none()
 
     if job is None:
         return False
+
+    now = utc_now()
 
     # Generation fencing verification (JOB-02)
     if (
         job.lease_owner != worker_id
         or job.generation_id != generation_id
         or job.status != "running"
+        or job.lease_expires_at is None
+        or job.lease_expires_at <= now
+        or job.cancel_requested
     ):
         return False
 
@@ -196,18 +236,27 @@ def fail_job(
     retry_delay: timedelta = timedelta(seconds=10),
 ) -> bool:
     """Record a failure for a job and reschedule or mark failed based on max_attempts."""
-    now = utc_now()
-    stmt = select(Job).where(Job.id == job_id).with_for_update()
+    stmt = (
+        select(Job)
+        .where(Job.id == job_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     job = session.execute(stmt).scalar_one_or_none()
 
     if job is None:
         return False
+
+    now = utc_now()
 
     # Generation fencing verification
     if (
         job.lease_owner != worker_id
         or job.generation_id != generation_id
         or job.status != "running"
+        or job.lease_expires_at is None
+        or job.lease_expires_at <= now
+        or job.cancel_requested
     ):
         return False
 
@@ -250,7 +299,12 @@ def cancel_job(
     reason: str | None = None,
 ) -> bool:
     """Request cancellation for a job."""
-    stmt = select(Job).where(Job.id == job_id).with_for_update()
+    stmt = (
+        select(Job)
+        .where(Job.id == job_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     job = session.execute(stmt).scalar_one_or_none()
 
     if job is None:
@@ -259,7 +313,7 @@ def cancel_job(
     if job.is_terminal():
         return False
 
-    if job.status == "queued":
+    if job.status in ("queued", "waiting_provider"):
         job.status = "cancelled"
         job.last_error = reason
     elif job.status == "running":

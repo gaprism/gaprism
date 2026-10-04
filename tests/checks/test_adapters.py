@@ -15,32 +15,21 @@ from app.service.checks.webrisk import lookup_threat_uri
 
 
 class TestGeoIPAdapter:
-    def test_valid_public_ip_match(self) -> None:
-        res = lookup_geoip("193.134.1.1")
-        assert res.status == "succeeded"
-        assert res.verdict == "match"
-        assert res.iso_country_code == "CH"
-        assert res.country_name == "Switzerland"
-        assert res.asn == 3303
-        assert res.is_eu is False
+    def test_missing_dataset_never_fabricates_a_location(self) -> None:
+        for address in ("193.134.1.1", "194.12.1.1", "8.8.8.8"):
+            res = lookup_geoip(address)
+            assert res.status == "unlicensed"
+            assert res.verdict == "unknown"
+            assert res.iso_country_code is None
+            assert res.asn is None
+            findings = evaluate_geoip_findings(res)
+            assert len(findings) == 1
+            assert findings[0].rule_id == "COLLECTION_INCOMPLETE"
 
-        findings = evaluate_geoip_findings(res)
-        assert len(findings) == 1
-        assert findings[0].rule_id == "PROVIDER_DEPENDENCY_OBSERVED"
-        assert findings[0].severity == "informational"
-
-    def test_public_ip_de_eu(self) -> None:
-        res = lookup_geoip("194.12.1.1")
-        assert res.status == "succeeded"
-        assert res.verdict == "match"
-        assert res.iso_country_code == "DE"
-        assert res.is_eu is True
-
-    def test_public_ip_no_match(self) -> None:
-        res = lookup_geoip("8.8.8.8")
-        assert res.status == "succeeded"
-        assert res.verdict == "no_match"
-        assert res.iso_country_code is None
+    def test_legacy_fallback_flag_cannot_emit_synthetic_evidence(self) -> None:
+        res = lookup_geoip("193.134.1.1", allow_fallback=True)
+        assert res.status == "unlicensed"
+        assert res.verdict == "unknown"
 
     def test_private_ip_rejected(self) -> None:
         res = lookup_geoip("192.168.1.1")

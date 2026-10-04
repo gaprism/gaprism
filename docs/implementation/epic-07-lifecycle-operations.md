@@ -17,6 +17,9 @@ The objective of Epic 07 is to implement strict calendar-month retention calcula
 ## 2. Stories Breakdown
 
 ### Story 7.1: Calendar-Month Retention Clocks & Daily Purge
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Calendar arithmetic, idempotent purging, access expiry, and destructive-operation safeguards demand careful implementation and negative tests.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) for unresolved deletion ordering, evidence dependencies, or rollback semantics.
 - **Goal**: Implement 12-calendar-month UTC expiry calculators with leap-day clamping and automated idempotent purge tasks.
 - **Invariants Enforced**: INV-09
 - **Technical Contracts**:
@@ -43,6 +46,9 @@ The objective of Epic 07 is to implement strict calendar-month retention calcula
 ---
 
 ### Story 7.2: Administrative Holds & Backup/Restore Deletion Replay
+- **Coding-agent model**: `gpt-6-astra` with reasoning effort `xhigh`.
+- **Price/performance rationale**: Legal holds and post-restore deletion replay span live data, backups, external durable state, and compliance evidence; design errors can resurrect expired data.
+- **Escalation rule**: Do not downgrade the architecture or recovery review. Sol may implement an approved external-journal design and repeatable restore tests.
 - **Goal**: Implement administrative legal holds and a deletion journal to replay purges upon database restoration from backup snapshots.
 - **Invariants Enforced**: INV-09
 - **Technical Contracts**:
@@ -64,6 +70,9 @@ The objective of Epic 07 is to implement strict calendar-month retention calcula
 ---
 
 ### Story 7.3: Operator Runbook & Production Hardening
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `medium`.
+- **Price/performance rationale**: Production hardening and runbooks need cross-component synthesis and operational clarity, while commands and recovery drills provide direct verification.
+- **Escalation rule**: Use `gpt-6-astra` (`high`) for the final threat-model and disaster-recovery completeness review.
 - **Goal**: Author comprehensive operator runbooks for system bootstrapping, secret rotation, worker lease reclamation, quota recovery, and disaster recovery.
 - **Invariants Enforced**: INV-09, INV-12
 - **Technical Contracts**:

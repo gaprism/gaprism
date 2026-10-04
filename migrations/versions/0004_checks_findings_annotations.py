@@ -7,8 +7,8 @@ Create Date: 2026-10-02 09:00:00.000000
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0004_checks_findings_annotations"
@@ -220,23 +220,16 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
         sa.CheckConstraint(
-            "revised_severity IS NULL OR revised_severity IN ('informational', 'low', 'medium', 'high', 'critical')",
+            "revised_severity IS NULL OR revised_severity IN "
+            "('informational', 'low', 'medium', 'high', 'critical')",
             name="ck_annotation_revised_severity",
         ),
         sa.CheckConstraint("version_id >= 1", name="ck_annotation_version_positive"),
     )
-    op.create_index(
-        "ix_finding_annotation_workspace_id", "finding_annotation", ["workspace_id"]
-    )
-    op.create_index(
-        "ix_finding_annotation_assessment_id", "finding_annotation", ["assessment_id"]
-    )
-    op.create_index(
-        "ix_finding_annotation_finding_id", "finding_annotation", ["finding_id"]
-    )
-    op.create_index(
-        "ix_finding_annotation_author_id", "finding_annotation", ["author_id"]
-    )
+    op.create_index("ix_finding_annotation_workspace_id", "finding_annotation", ["workspace_id"])
+    op.create_index("ix_finding_annotation_assessment_id", "finding_annotation", ["assessment_id"])
+    op.create_index("ix_finding_annotation_finding_id", "finding_annotation", ["finding_id"])
+    op.create_index("ix_finding_annotation_author_id", "finding_annotation", ["author_id"])
 
     # 4. PostgreSQL RLS configuration for new tables
     tables = [

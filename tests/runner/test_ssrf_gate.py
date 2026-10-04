@@ -125,7 +125,7 @@ class TestEgressHTTPClient:
 
         # Transport simulating a 302 redirect from public -> metadata
         def redirect_handler(request: httpx.Request) -> httpx.Response:
-            if "public.example.com" in str(request.url):
+            if request.headers["Host"] == "public.example.com":
                 return httpx.Response(
                     302,
                     headers={"Location": "http://169.254.169.254/latest/meta-data/"},
@@ -151,7 +151,7 @@ class TestEgressHTTPClient:
             return dns_map.get(host, ["93.184.216.34"])
 
         def redirect_handler(request: httpx.Request) -> httpx.Response:
-            if "origin.example.com" in str(request.url):
+            if request.headers["Host"] == "origin.example.com":
                 return httpx.Response(
                     301,
                     headers={"Location": "https://target.example.com/home"},

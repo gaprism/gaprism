@@ -69,6 +69,7 @@ def test_mfa_login_challenge_flow(app: Flask, client: FlaskClient) -> None:
         )
         db.session.add(user)
         db.session.commit()
+        user_id = user.id
 
     # Step 1: Initial password login
     response = client.post(
@@ -107,3 +108,12 @@ def test_mfa_login_challenge_flow(app: Flask, client: FlaskClient) -> None:
     # User is now fully authenticated
     with client.session_transaction() as sess:
         assert "_user_id" in sess
+
+    with app.app_context():
+        stored_user = db.session.get(User, user_id)
+        assert stored_user is not None
+        stored_user.active = False
+        db.session.commit()
+
+    denied = client.get("/assessments/00000000-0000-0000-0000-000000000001")
+    assert denied.status_code == 401

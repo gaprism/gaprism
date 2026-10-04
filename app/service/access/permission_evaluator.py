@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.extensions import db
 from app.models.assessment import Assessment, ReportVersion
+from app.models.base import utc_now
 from app.models.grant import AssessmentGrant, ReportGrant
 from app.service.access.context import ActorContext
 
@@ -74,6 +75,8 @@ def check_permission(
         return _evaluate_assessment_grant(grant, action)
 
     if isinstance(target, ReportVersion):
+        if target.expires_at is not None and target.expires_at <= (at_time or utc_now()):
+            return False
         # Path 1: Check if actor holds an assessment grant for the parent assessment
         case_grant = (
             db_session.query(AssessmentGrant)

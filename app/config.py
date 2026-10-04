@@ -2,6 +2,7 @@
 
 import datetime
 import os
+from copy import deepcopy
 from typing import Any, ClassVar
 
 
@@ -17,16 +18,16 @@ class BaseConfig:
     TESTING: bool = False
 
     # Security & Sessions
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", "")
-    SECURITY_PASSWORD_SALT: str = os.environ.get("SECURITY_PASSWORD_SALT", "")
-    MFA_ENCRYPTION_KEY: str = os.environ.get("MFA_ENCRYPTION_KEY", "")
+    SECRET_KEY: str = ""
+    SECURITY_PASSWORD_SALT: str = ""
+    MFA_ENCRYPTION_KEY: str = ""
 
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SECURE: bool = True
     SESSION_COOKIE_SAMESITE: str = "Lax"
 
     WTF_CSRF_ENABLED: bool = True
-    WTF_CSRF_CHECK_DEFAULT: bool = False
+    WTF_CSRF_CHECK_DEFAULT: bool = True
     WTF_CSRF_TIME_LIMIT: int | None = 3600
 
     # Flask-Security-Too defaults
@@ -44,26 +45,31 @@ class BaseConfig:
     SECURITY_POST_LOGOUT_VIEW: str = "/auth/login"
     SECURITY_UNAUTHORIZED_VIEW: str = "/auth/login"
     SECURITY_FLASH_MESSAGES: bool = True
-    SECURITY_LOGOUT_METHODS: ClassVar[list[str]] = ["GET", "POST"]
-    SECURITY_TWO_FACTOR_ALWAYS_VALIDATE: bool = False
+    SECURITY_RETURN_GENERIC_RESPONSES: bool = True
+    SECURITY_LOGOUT_METHODS: ClassVar[list[str]] = ["POST"]
+    SECURITY_CHANGE_URL: str = "/change-password"
+    SECURITY_TWO_FACTOR_ALWAYS_VALIDATE: bool = True
     SECURITY_TWO_FACTOR_LOGIN_VALIDITY: datetime.timedelta = datetime.timedelta(minutes=2)
     SECURITY_TWO_FACTOR_RESCUE_MAIL: bool = False
-    SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS: bool = True
-    SECURITY_TOTP_SECRETS: ClassVar[dict[str, str]] = {
-        "1": os.environ.get("MFA_ENCRYPTION_KEY", "fallback-totp-key-32-chars-length")
-    }
+    SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS: bool = False
+    SECURITY_TOTP_SECRETS: ClassVar[dict[str, str]] = {}
+
+    # Authentication abuse controls
+    AUTH_RATE_LIMIT_KEY: str = ""
+    AUTH_RATE_LIMIT_FAILURES: int = 5
+    AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 15 * 60
 
     # Database
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get("DATABASE_URL", "")
+    SQLALCHEMY_DATABASE_URI: str = ""
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
 
     # Governance & Scanning limits
-    FOUR_EYES_ENABLED: bool = os.environ.get("FOUR_EYES_ENABLED", "false").lower() in ("true", "1")
-    MAX_HOSTS_PER_RUN: int = int(os.environ.get("MAX_HOSTS_PER_RUN", "1000"))
-    MAX_DISCOVERY_PAGES: int = int(os.environ.get("MAX_DISCOVERY_PAGES", "50"))
+    FOUR_EYES_ENABLED: bool = False
+    MAX_HOSTS_PER_RUN: int = 1000
+    MAX_DISCOVERY_PAGES: int = 50
 
     # Evidence storage
-    STORAGE_DIR: str = os.environ.get("STORAGE_DIR", "/var/data/evidence")
+    STORAGE_DIR: str = "/var/data/evidence"
 
     # Anti-SSRF & Network settings
     EGRESS_DNS_RESOLVERS: ClassVar[list[str]] = ["1.1.1.1", "8.8.8.8"]
@@ -79,18 +85,14 @@ class DevelopmentConfig(BaseConfig):
     TESTING: bool = False
     SESSION_COOKIE_SECURE: bool = False
 
-    SECRET_KEY: str = os.environ.get(
-        "SECRET_KEY", "dev-insecure-secret-key-do-not-use-in-production-32b"
+    SECRET_KEY: str = "dev-insecure-secret-key-do-not-use-in-production-32b"
+    SECURITY_PASSWORD_SALT: str = "dev-password-salt-key"
+    MFA_ENCRYPTION_KEY: str = "dev-mfa-encryption-key-32-chars-long"
+    AUTH_RATE_LIMIT_KEY: str = "dev-auth-rate-limit-key-32-chars-long"
+    SQLALCHEMY_DATABASE_URI: str = (
+        "postgresql+psycopg://postgres:postgres@localhost:5432/web_due_diligence_dev"
     )
-    SECURITY_PASSWORD_SALT: str = os.environ.get("SECURITY_PASSWORD_SALT", "dev-password-salt-key")
-    MFA_ENCRYPTION_KEY: str = os.environ.get(
-        "MFA_ENCRYPTION_KEY", "dev-mfa-encryption-key-32-chars-long"
-    )
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+psycopg://postgres:postgres@localhost:5432/web_due_diligence_dev",
-    )
-    STORAGE_DIR: str = os.environ.get("STORAGE_DIR", "./var/data/evidence")
+    STORAGE_DIR: str = "./var/data/evidence"
 
 
 class TestingConfig(BaseConfig):
@@ -105,14 +107,12 @@ class TestingConfig(BaseConfig):
     SECRET_KEY: str = "test-secret-key-32-chars-minimum-length-req"
     SECURITY_PASSWORD_SALT: str = "test-password-salt-sample"
     MFA_ENCRYPTION_KEY: str = "test-mfa-encryption-key-32-bytes-len"
-    SECURITY_TOTP_SECRETS: ClassVar[dict[str, str]] = {
-        "1": "test-mfa-encryption-key-32-bytes-len"
-    }
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "TEST_DATABASE_URL",
-        "postgresql+psycopg://postgres:postgres@localhost:5432/web_due_diligence_test",
+    AUTH_RATE_LIMIT_KEY: str = "test-auth-rate-limit-key-32-bytes-len"
+    SECURITY_TOTP_SECRETS: ClassVar[dict[str, str]] = {"1": "test-mfa-encryption-key-32-bytes-len"}
+    SQLALCHEMY_DATABASE_URI: str = (
+        "postgresql+psycopg://postgres:postgres@localhost:5432/web_due_diligence_test"
     )
-    STORAGE_DIR: str = os.environ.get("TEST_STORAGE_DIR", "./tmp/test_storage")
+    STORAGE_DIR: str = "./tmp/test_storage"
 
 
 class ProductionConfig(BaseConfig):
@@ -134,15 +134,25 @@ def validate_config(config_obj: Any) -> None:
     storage_dir = getattr(config_obj, "STORAGE_DIR", "")
     max_hosts = getattr(config_obj, "MAX_HOSTS_PER_RUN", 0)
     max_pages = getattr(config_obj, "MAX_DISCOVERY_PAGES", 0)
+    auth_rate_limit_key = getattr(config_obj, "AUTH_RATE_LIMIT_KEY", "")
+    auth_rate_limit_failures = getattr(config_obj, "AUTH_RATE_LIMIT_FAILURES", 0)
+    auth_rate_limit_window = getattr(config_obj, "AUTH_RATE_LIMIT_WINDOW_SECONDS", 0)
 
     if not storage_dir or not str(storage_dir).strip():
         raise ConfigurationError("STORAGE_DIR must be specified and non-empty.")
+    if "\x00" in str(storage_dir):
+        raise ConfigurationError("STORAGE_DIR contains invalid characters.")
 
     if not isinstance(max_hosts, int) or max_hosts <= 0:
         raise ConfigurationError("MAX_HOSTS_PER_RUN must be a positive integer.")
 
     if not isinstance(max_pages, int) or max_pages <= 0:
         raise ConfigurationError("MAX_DISCOVERY_PAGES must be a positive integer.")
+
+    if not isinstance(auth_rate_limit_failures, int) or auth_rate_limit_failures <= 0:
+        raise ConfigurationError("AUTH_RATE_LIMIT_FAILURES must be a positive integer.")
+    if not isinstance(auth_rate_limit_window, int) or auth_rate_limit_window <= 0:
+        raise ConfigurationError("AUTH_RATE_LIMIT_WINDOW_SECONDS must be a positive integer.")
 
     if env == "production":
         if not secret_key or len(secret_key) < 32:
@@ -166,6 +176,11 @@ def validate_config(config_obj: Any) -> None:
                 "MFA_ENCRYPTION_KEY must be set in production with at least 16 characters."
             )
 
+        if not auth_rate_limit_key or len(auth_rate_limit_key) < 32:
+            raise ConfigurationError(
+                "AUTH_RATE_LIMIT_KEY must be set in production with at least 32 characters."
+            )
+
         if not db_uri or not db_uri.startswith("postgresql"):
             raise ConfigurationError(
                 "Production SQLALCHEMY_DATABASE_URI must be a valid PostgreSQL connection URI."
@@ -173,3 +188,43 @@ def validate_config(config_obj: Any) -> None:
     elif env != "testing":
         if not db_uri:
             raise ConfigurationError("SQLALCHEMY_DATABASE_URI must be configured.")
+
+
+def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> type[BaseConfig]:
+    """Build independent configuration values for this factory invocation."""
+    values = {
+        name: deepcopy(getattr(config_class, name)) for name in dir(config_class) if name.isupper()
+    }
+    if read_environment:
+        environment_keys = {
+            "SECRET_KEY": "SECRET_KEY",
+            "SECURITY_PASSWORD_SALT": "SECURITY_PASSWORD_SALT",
+            "MFA_ENCRYPTION_KEY": "MFA_ENCRYPTION_KEY",
+            "AUTH_RATE_LIMIT_KEY": "AUTH_RATE_LIMIT_KEY",
+            "AUTH_RATE_LIMIT_FAILURES": "AUTH_RATE_LIMIT_FAILURES",
+            "AUTH_RATE_LIMIT_WINDOW_SECONDS": "AUTH_RATE_LIMIT_WINDOW_SECONDS",
+            "SQLALCHEMY_DATABASE_URI": "TEST_DATABASE_URL"
+            if config_class.TESTING
+            else "DATABASE_URL",
+            "STORAGE_DIR": "TEST_STORAGE_DIR" if config_class.TESTING else "STORAGE_DIR",
+            "MAX_HOSTS_PER_RUN": "MAX_HOSTS_PER_RUN",
+            "MAX_DISCOVERY_PAGES": "MAX_DISCOVERY_PAGES",
+            "FOUR_EYES_ENABLED": "FOUR_EYES_ENABLED",
+        }
+        for key, env_key in environment_keys.items():
+            if env_key not in os.environ:
+                continue
+            raw = os.environ[env_key]
+            if isinstance(values[key], bool):
+                if raw.lower() not in ("true", "false", "1", "0"):
+                    raise ConfigurationError(f"{env_key} must be true or false.")
+                values[key] = raw.lower() in ("true", "1")
+            elif isinstance(values[key], int):
+                try:
+                    values[key] = int(raw)
+                except ValueError as exc:
+                    raise ConfigurationError(f"{env_key} must be an integer.") from exc
+            else:
+                values[key] = raw
+    values["SECURITY_TOTP_SECRETS"] = {"1": values["MFA_ENCRYPTION_KEY"]}
+    return type("ResolvedConfig", (config_class,), values)

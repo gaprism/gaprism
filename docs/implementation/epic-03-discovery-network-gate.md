@@ -19,6 +19,9 @@ The objective of Epic 03 is to establish rigorous input sanitisation, Certificat
 ## 2. Stories Breakdown
 
 ### Story 3.1: Scope Normaliser & Public Suffix Screening
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `medium`.
+- **Price/performance rationale**: Domain normalisation and PSL handling are precise standards work with strong fixture-based verification and moderate implementation complexity.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) only for unresolved IDNA/PSL security boundary cases.
 - **Goal**: Implement deterministic domain scope canonicalisation, IDNA translation, and Public Suffix List (PSL) rejection.
 - **Invariants Enforced**: INV-06
 - **Technical Contracts**:
@@ -43,6 +46,9 @@ The objective of Epic 03 is to establish rigorous input sanitisation, Certificat
 ---
 
 ### Story 3.2: CT Log Discovery Adapter
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `medium`.
+- **Price/performance rationale**: The CT adapter is a bounded external-API integration with pagination, quotas, deduplication, and explicit response contracts.
+- **Escalation rule**: Use `gpt-6-luna` (`high`) for additional provider fixture cases; escalate to Astra only if source attribution rules change.
 - **Goal**: Query Certificate Transparency logs via cursor pagination, deduplicate hostnames, retain wildcard patterns, and enforce run host caps.
 - **Invariants Enforced**: INV-03, INV-05
 - **Technical Contracts**:
@@ -66,6 +72,9 @@ The objective of Epic 03 is to establish rigorous input sanitisation, Certificat
 ---
 
 ### Story 3.3: DNS Resolver & SSRF Egress Gate
+- **Coding-agent model**: `gpt-6-sol` with reasoning effort `high`.
+- **Price/performance rationale**: DNS rebinding, mixed address answers, connection pinning, redirects, and cloud metadata blocking make this a critical SSRF trust boundary.
+- **Escalation rule**: Do not downgrade the egress design or bypass analysis. Sol may add regression fixtures after Astra fixes the boundary.
 - **Goal**: Build an isolated DNS resolver and egress screening gate rejecting all private, link-local, loopback, and cloud metadata destinations.
 - **Invariants Enforced**: INV-06
 - **Technical Contracts**:

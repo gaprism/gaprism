@@ -7,8 +7,8 @@ Create Date: 2026-10-02 08:30:00.000000
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0003_discovery_and_observations"
@@ -162,9 +162,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("run_id", "name_pattern", name="uq_ct_obs_run_name_pattern"),
         sa.CheckConstraint("entry_count >= 0", name="ck_ct_obs_entry_count_non_negative"),
     )
-    op.create_index(
-        "ix_ct_name_observation_workspace_id", "ct_name_observation", ["workspace_id"]
-    )
+    op.create_index("ix_ct_name_observation_workspace_id", "ct_name_observation", ["workspace_id"])
     op.create_index(
         "ix_ct_name_observation_assessment_id", "ct_name_observation", ["assessment_id"]
     )

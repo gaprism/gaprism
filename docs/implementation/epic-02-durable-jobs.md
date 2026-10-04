@@ -18,6 +18,9 @@ The objective of Epic 02 is to build a reliable, lightweight transactional job q
 ## 2. Stories Breakdown
 
 ### Story 2.1: Transactional Queue State Machine
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Lease expiry, generation fencing, concurrent claims, and crash recovery are complex but well-specified transactional state-machine work.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) if concurrency tests expose an unclear linearisation point or stale-write path.
 - **Goal**: Implement `Job` and `JobAttempt` models with lease-based claiming, generation fencing, and crash recovery.
 - **Invariants Enforced**: INV-08
 - **Technical Contracts**:
@@ -42,6 +45,9 @@ The objective of Epic 02 is to build a reliable, lightweight transactional job q
 ---
 
 ### Story 2.2: Quota Ledger & Rate Limiting
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Quota reservation has transactional and temporal edge cases, while its bounded state model makes Sol the cost-effective default.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) for unresolved cross-window accounting or provider-contract ambiguity.
 - **Goal**: Implement pre-call API quota reservation and consumption accounting to avoid exceeding third-party provider limits.
 - **Invariants Enforced**: INV-04
 - **Technical Contracts**:
@@ -65,6 +71,9 @@ The objective of Epic 02 is to build a reliable, lightweight transactional job q
 ---
 
 ### Story 2.3: Scan Run Lifecycle & Cancellation
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Run finalisation and cancellation involve race conditions and dynamic child jobs, fitting Sol's complex coding profile.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) if JOB-03 cannot establish a single safe transaction boundary.
 - **Goal**: Implement scan run state progression, dynamic child job tracking, and graceful scan cancellation.
 - **Invariants Enforced**: INV-08
 - **Technical Contracts**:

@@ -299,6 +299,10 @@ class TestHostnamePatternMatching:
 
 
 class TestTLSProberLive:
+    @pytest.fixture(autouse=True)
+    def allow_local_fixture(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("runner.tls.is_ip_public", lambda address: str(address) == "127.0.0.1")
+
     def test_valid_tls_endpoint(self, test_pki: dict[str, str]) -> None:
         server = EphemeralTLSServer(test_pki["valid_cert"], test_pki["valid_key"])
         try:

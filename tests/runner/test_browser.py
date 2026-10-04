@@ -131,12 +131,12 @@ class TestBrowserSandbox:
         assert res_pinned.status == "failed"
         assert res_pinned.reason_code == "blocked_destination"
 
-    def test_non_html_content_marked_not_applicable(
-        self, http_server: EphemeralHTTPServer
-    ) -> None:
+    def test_missing_isolation_blocks_capture(self, http_server: EphemeralHTTPServer) -> None:
         url = f"http://example.com:{http_server.port}/api/health"
         res = capture_screenshot(url, pinned_ip="93.184.216.34")
-        assert res.status in ("not_applicable", "failed", "succeeded")
+        assert res.status == "failed"
+        assert res.reason_code == "runner_isolation_unavailable"
+        assert res.screenshot_bytes is None
 
     def test_ssrf_subresources_interception(self) -> None:
         blocked_count = 0

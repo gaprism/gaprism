@@ -20,6 +20,9 @@ The objective of Epic 04 is to implement active endpoint verification (live TLS 
 ## 2. Stories Breakdown
 
 ### Story 4.1: Live TLS Endpoint Prober
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: TLS validation combines network pinning, certificate semantics, failure classification, and evidence capture, but has clear protocol contracts.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) if verification and forensic metadata collection cannot be separated safely.
 - **Goal**: Probe HTTPS endpoints to record certificate trust chains, SAN coverage, validity dates, and cipher suites, skipping dependent active checks on TLS failure.
 - **Invariants Enforced**: INV-03, INV-05
 - **Technical Contracts**:
@@ -43,6 +46,9 @@ The objective of Epic 04 is to implement active endpoint verification (live TLS 
 ---
 
 ### Story 4.2: Isolated Screenshot Sandbox Supervisor
+- **Coding-agent model**: `gpt-6-astra` with reasoning effort `xhigh`.
+- **Price/performance rationale**: Executing an untrusted page crosses process, browser, DNS, network, filesystem, and resource-isolation boundaries; route interception alone is insufficient.
+- **Escalation rule**: Keep Astra for the sandbox architecture and escape analysis. Sol may implement approved container/proxy plumbing and deterministic tests.
 - **Goal**: Execute isolated Playwright Chromium screenshot capture within strict resource, timeout, and egress ceilings.
 - **Invariants Enforced**: INV-06
 - **Technical Contracts**:
@@ -67,6 +73,9 @@ The objective of Epic 04 is to implement active endpoint verification (live TLS 
 ---
 
 ### Story 4.3: GeoIP, Shodan & Reputation Adapters
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Three provider contracts, attribution confidence, licensing states, and malformed-response handling need strong integration reasoning at a controlled scope.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) if provider evidence could be misattributed to the assessed SaaS.
 - **Goal**: Implement MaxMind/IP2Location local reader, Shodan IP-level queries, and Google Web Risk URL reputation lookup with strict attribution and error typing.
 - **Invariants Enforced**: INV-04, INV-05
 - **Technical Contracts**:

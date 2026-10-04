@@ -20,6 +20,9 @@ The objective of Epic 06 is to build a secure, private artifact storage driver, 
 ## 2. Stories Breakdown
 
 ### Story 6.1: Storage Driver & Staging Lifecycle
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Atomic staging, hashes, path containment, private storage, and replaceable backends are complex security-sensitive implementation with clear interfaces.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) for unresolved filesystem race, symlink, or object-store consistency threats.
 - **Goal**: Implement `StorageDriver` interface with private filesystem backend, atomic staging, SHA-256 verification, and path traversal rejection.
 - **Invariants Enforced**: INV-07
 - **Technical Contracts**:
@@ -46,6 +49,9 @@ The objective of Epic 06 is to build a secure, private artifact storage driver, 
 ---
 
 ### Story 6.2: Canonical Report Snapshot Builder
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Canonical serialization and immutable hash binding require precision and broad data-model context, while deterministic golden tests constrain the solution.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) if snapshot semantics conflict with retention, grants, or evidence lineage.
 - **Goal**: Serialise assessment run facts, findings, and evidence references into deterministic, canonical UTF-8 JSON with immutable hash binding.
 - **Invariants Enforced**: INV-07
 - **Technical Contracts**:
@@ -68,6 +74,9 @@ The objective of Epic 06 is to build a secure, private artifact storage driver, 
 ---
 
 ### Story 6.3: Bilingual PDF Renderer & Manifest Generator
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Bilingual rendering, offline assets, manifests, and visual parity are coordinated deliverable work well suited to Sol.
+- **Escalation rule**: Use `gpt-6-luna` (`high`) for translation-key coverage; escalate to Astra for unresolved evidentiary or rendering-integrity decisions.
 - **Goal**: Render offline, defensible PDF reports in English (`en`) and Swiss Standard German (`de-CH`) via Playwright and generate cryptographic SHA-256 manifests.
 - **Invariants Enforced**: INV-02, INV-07, INV-10
 - **Technical Contracts**:
@@ -92,6 +101,9 @@ The objective of Epic 06 is to build a secure, private artifact storage driver, 
 ---
 
 ### Story 6.4: Manual TPRM Handoff Logger
+- **Coding-agent model**: `gpt-6-luna` with reasoning effort `high`.
+- **Price/performance rationale**: The handoff logger is a bounded audit-record workflow with straightforward validation, permissions, and tests.
+- **Escalation rule**: Escalate to `gpt-6.1-sol` (`medium`) if the external reference lifecycle or immutability contract expands.
 - **Goal**: Implement manual transfer confirmation logging to track TPRM handoffs with external ticket references.
 - **Invariants Enforced**: INV-11
 - **Technical Contracts**:

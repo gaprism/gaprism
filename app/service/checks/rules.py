@@ -165,6 +165,20 @@ def evaluate_geoip_findings(
     findings: list[CheckFinding] = []
     subject_key = f"ip:{result.ip}"
 
+    if result.status != "succeeded":
+        return [
+            CheckFinding(
+                rule_id="COLLECTION_INCOMPLETE",
+                rule_version=rule_version,
+                subject_key=subject_key,
+                severity="informational",
+                confidence="unknown",
+                attribution="ip_only",
+                message_key="rules.collection_incomplete",
+                message_parameters={"check": "geoip", "reason_code": result.reason_code},
+            )
+        ]
+
     if result.status == "succeeded" and result.verdict == "match":
         if result.as_org:
             findings.append(

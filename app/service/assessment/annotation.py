@@ -21,7 +21,8 @@ class OptimisticLockConflictError(Exception):
 
     def __init__(self, current_version: int, expected_version: int) -> None:
         super().__init__(
-            f"Version conflict: current version is {current_version}, but {expected_version} was expected."
+            f"Version conflict: current version is {current_version}, "
+            f"but {expected_version} was expected."
         )
         self.current_version = current_version
         self.expected_version = expected_version
@@ -48,15 +49,13 @@ def create_or_update_annotation(
     session: Session | None = None,
 ) -> FindingAnnotation:
     """Create or update a finding annotation enforcing optimistic locking and permissions."""
-    s = session or db.session
+    s = session if session is not None else db.session()
     finding = s.scalar(select(Finding).where(Finding.id == finding_id))
     if finding is None:
         raise ValueError(f"Finding {finding_id} not found.")
 
     # Validate analyst / owner permission
-    assessment = s.scalar(
-        select(Assessment).where(Assessment.id == finding.assessment_id)
-    )
+    assessment = s.scalar(select(Assessment).where(Assessment.id == finding.assessment_id))
     if not check_permission(actor, assessment, ActionEnum.ADD_TECHNICAL_ANNOTATION, session=s):
         raise PermissionError("User not authorized to add technical annotations.")
 

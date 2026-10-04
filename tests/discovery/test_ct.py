@@ -102,11 +102,12 @@ class TestCTAdapterParsing:
 
     def test_fetch_page_with_mock_transport(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            if "domain=example.com" in str(request.url):
+            if request.url.path == "/v1/hosts/example.com":
                 return httpx.Response(
                     200,
                     json={
-                        "items": [{"name": "app.example.com"}],
+                        "hosts": [{"host": "app.example.com", "certs": 1}],
+                        "has_next": True,
                         "next_cursor": "page2",
                     },
                 )
@@ -163,9 +164,7 @@ class TestDiscoveryPageCommit:
         assert res_1.next_cursor == "cursor_page_2"
 
         # Check DB: only 1 concrete host was created
-        hosts = db_session.scalars(
-            select(Host).where(Host.assessment_id == assessment_id)
-        ).all()
+        hosts = db_session.scalars(select(Host).where(Host.assessment_id == assessment_id)).all()
         assert len(hosts) == 1
         assert hosts[0].name_ascii == "api.example.com"
 

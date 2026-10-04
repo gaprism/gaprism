@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import ipaddress
 import socket
 import ssl
 from dataclasses import dataclass, field
@@ -11,6 +12,8 @@ from typing import Any
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+
+from runner.dns import SSRFBlockedError, is_ip_public, resolve_and_screen
 
 
 @dataclass(frozen=True)
@@ -163,7 +166,19 @@ def probe_tls_endpoint(
     - NEVER falls back to verify=False as valid (INV-05, COL-02).
     """
     target_host = hostname.strip().lower()
-    connect_host = ip_override if ip_override else target_host
+    # Resolve exactly once and connect only to the screened numeric address.
+    if ip_override is not None:
+        try:
+            candidate = ipaddress.ip_address(ip_override)
+        except ValueError as exc:
+            raise SSRFBlockedError("TLS destination must be a numeric public IP.") from exc
+        if not is_ip_public(candidate):
+            raise SSRFBlockedError("TLS destination is not a public IP.")
+        connect_host = str(candidate)
+    else:
+        connect_host = str(resolve_and_screen(target_host)[0])
+    if not 1 <= port <= 65535 or not 0 < timeout <= 30:
+        raise ValueError("Invalid TLS port or timeout.")
 
     # 1. First attempt: Strict verification context
     verified_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
@@ -187,6 +202,8 @@ def probe_tls_endpoint(
 
     try:
         with socket.create_connection((connect_host, port), timeout=timeout) as sock:
+            if ipaddress.ip_address(sock.getpeername()[0]) != ipaddress.ip_address(connect_host):
+                raise SSRFBlockedError("TLS connection peer differs from screened IP.")
             peer_name = sock.getpeername()
             if isinstance(peer_name, tuple) and len(peer_name) >= 1:
                 connected_ip = str(peer_name[0])
@@ -248,6 +265,10 @@ def probe_tls_endpoint(
         try:
             unverified_context = ssl._create_unverified_context()
             with socket.create_connection((connect_host, port), timeout=timeout) as unverified_sock:
+                if ipaddress.ip_address(unverified_sock.getpeername()[0]) != ipaddress.ip_address(
+                    connect_host
+                ):
+                    raise SSRFBlockedError("TLS metadata connection peer differs from screened IP.")
                 peer_name = unverified_sock.getpeername()
                 if isinstance(peer_name, tuple) and len(peer_name) >= 1:
                     connected_ip = str(peer_name[0])

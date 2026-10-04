@@ -2,7 +2,7 @@
 
 **Epic Owner**: Core Platform Architecture  
 **Target Milestone**: M0 Foundation  
-**Status**: Ready for Implementation  
+**Status**: Implemented and verified (2026-10-02)  
 **Key Invariants Enforced**: INV-12 (No network work, scheduler, or migration starts as an import-time side effect)
 
 ---
@@ -16,6 +16,9 @@ The objective of Epic 00 is to construct the modular Flask application skeleton,
 ## 2. Stories Breakdown
 
 ### Story 0.1: Application Factory & Centralised Configuration
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: Configuration isolation and fail-safe startup need strong cross-file reasoning, but the contracts are explicit enough that Astra is not cost-effective as the default.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) only if framework lifecycle behaviour remains ambiguous after focused tests.
 - **Goal**: Implement `create_app()` factory, environment configuration profiles, and fail-fast startup configuration validation.
 - **Invariants Enforced**: INV-12
 - **Technical Contracts**:
@@ -30,14 +33,17 @@ The objective of Epic 00 is to construct the modular Flask application skeleton,
   - Importing `app` or any sub-module performs zero network calls, database queries, or worker spawns.
   - Running in production mode with a weak or default `SECRET_KEY` aborts startup immediately with a non-zero exit code.
 - **Definition of Done (DoD)**:
-  - [ ] `app/config.py` and `app/__init__.py` implemented.
-  - [ ] Unit tests in `tests/test_factory.py` asserting independent instances and configuration validation errors.
-  - [ ] Strict type checking passes (`mypy --strict app/`).
-  - [ ] Zero linter violations (`ruff check .`).
+  - [x] `app/config.py` and `app/__init__.py` implemented.
+  - [x] Unit tests in `tests/test_factory.py` asserting independent instances and configuration validation errors.
+  - [x] Strict type checking passes (`mypy --strict app/`).
+  - [x] Zero linter violations (`ruff check .`).
 
 ---
 
 ### Story 0.2: Extension Wiring & Database Fixtures
+- **Coding-agent model**: `gpt-6.1-sol` with reasoning effort `high`.
+- **Price/performance rationale**: PostgreSQL migrations, transactional fixtures, and extension lifecycle are coupled integration work where Sol offers the best quality/cost balance.
+- **Escalation rule**: Escalate to `gpt-6-astra` (`high`) if migration or connection-pool behaviour conflicts across environments.
 - **Goal**: Initialize SQLAlchemy, Flask-Migrate (Alembic), Flask-WTF, and Flask-Security-Too extensions, and establish a disposable PostgreSQL test harness.
 - **Invariants Enforced**: INV-12
 - **Technical Contracts**:
@@ -53,14 +59,17 @@ The objective of Epic 00 is to construct the modular Flask application skeleton,
   - Pytest fixtures start up clean test schemas and roll back transactions after each test run.
   - No database connection is initiated at module import time.
 - **Definition of Done (DoD)**:
-  - [ ] `app/extensions.py` and `tests/conftest.py` implemented.
-  - [ ] Migration baseline generated in `migrations/`.
-  - [ ] Migration rollback and upgrade tests passing in `tests/test_migrations.py`.
-  - [ ] Type checks pass (`mypy --strict app/ tests/`).
+  - [x] `app/extensions.py` and `tests/conftest.py` implemented.
+  - [x] Migration baseline generated in `migrations/`.
+  - [x] Migration rollback and upgrade tests passing in `tests/test_migrations.py`.
+  - [x] Type checks pass (`mypy --strict app/ tests/`).
 
 ---
 
 ### Story 0.3: Tooling, Linting & Type Checking Baseline
+- **Coding-agent model**: `gpt-6-luna` with reasoning effort `high`.
+- **Price/performance rationale**: Dependency locking and lint/type configuration are bounded, tool-verifiable changes; Luna is sufficient when given the exact commands and acceptance gates.
+- **Escalation rule**: Escalate to `gpt-6.1-sol` (`medium`) only for dependency-resolution or typing conflicts spanning several libraries.
 - **Goal**: Establish project dependency locking, linting, formatting, and strict type checking configurations in `pyproject.toml`.
 - **Invariants Enforced**: INV-12
 - **Technical Contracts**:
@@ -75,5 +84,16 @@ The objective of Epic 00 is to construct the modular Flask application skeleton,
   - Running `mypy --strict app` passes with 0 type errors.
   - Running `pytest` discovers and executes the test harness cleanly.
 - **Definition of Done (DoD)**:
-  - [ ] `pyproject.toml` configured and validated.
-  - [ ] All development tools run cleanly from local CLI.
+  - [x] `pyproject.toml` configured and validated.
+  - [x] All development tools run cleanly from local CLI.
+
+### Verification evidence
+
+Verified on 2026-10-02 against a generated disposable PostgreSQL database:
+
+- `pytest`: 165 tests passed, including empty-database upgrade, downgrade to `base`, and re-upgrade.
+- `mypy --strict app tests`: no issues in 63 source files.
+- `mypy --strict app runner`: no issues in 41 source files.
+- `ruff check --no-cache .`: no violations.
+- Factory tests cover independent configuration, invalid configuration, weak production secrets,
+  invalid storage paths, and a subprocess import-side-effect probe.

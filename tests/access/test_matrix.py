@@ -334,8 +334,7 @@ def test_acc01_approval_and_issuance_four_eyes(
 
     # Issuance: Only owner
     assert (
-        check_permission(actor_owner, rep_v1, ActionEnum.ISSUE_REPORT, session=db_session)
-        is True
+        check_permission(actor_owner, rep_v1, ActionEnum.ISSUE_REPORT, session=db_session) is True
     )
     assert (
         check_permission(actor_analyst, rep_v1, ActionEnum.ISSUE_REPORT, session=db_session)
@@ -388,8 +387,7 @@ def test_acc01_report_only_recipient_isolation(
         is False
     )
     assert (
-        check_permission(actor_ro, case1, ActionEnum.START_CANCEL_SCAN, session=db_session)
-        is False
+        check_permission(actor_ro, case1, ActionEnum.START_CANCEL_SCAN, session=db_session) is False
     )
 
 
@@ -411,9 +409,7 @@ def test_acc01_cross_case_isolation(
         )
 
 
-def test_acc01_expired_grant(
-    access_environment: dict[str, object], db_session: Session
-) -> None:
+def test_acc01_expired_grant(access_environment: dict[str, object], db_session: Session) -> None:
     """Verify expired grants immediately deny access even if row exists in DB (INV-09)."""
     case1 = access_environment["case1"]
     assert isinstance(case1, Assessment)
@@ -433,3 +429,17 @@ def test_acc01_expired_grant(
 
     # Access must be denied
     assert check_permission(actor_analyst, case1, ActionEnum.READ_CASE, session=db_session) is False
+
+
+def test_expired_report_denied_to_case_and_report_recipients(
+    access_environment: dict[str, object], db_session: Session
+) -> None:
+    report = access_environment["rep_v1"]
+    assert isinstance(report, ReportVersion)
+    report.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    db_session.flush()
+    for role in ("actor_owner", "actor_report_only"):
+        actor = access_environment[role]
+        assert isinstance(actor, ActorContext)
+        for action in (ActionEnum.READ_ISSUED_REPORTS, ActionEnum.DOWNLOAD_ISSUED_REPORT):
+            assert not check_permission(actor, report, action, session=db_session)

@@ -60,7 +60,8 @@ class FindingAnnotation(BaseUUIDModel, TimestampMixin):
 
     __table_args__ = (
         CheckConstraint(
-            "revised_severity IS NULL OR revised_severity IN ('informational', 'low', 'medium', 'high', 'critical')",
+            "revised_severity IS NULL OR revised_severity IN "
+            "('informational', 'low', 'medium', 'high', 'critical')",
             name="ck_annotation_revised_severity",
         ),
         CheckConstraint("version_id >= 1", name="ck_annotation_version_positive"),

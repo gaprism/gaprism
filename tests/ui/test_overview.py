@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from flask import Flask, g
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,7 @@ from app.models.grant import AssessmentGrant
 from app.models.job import Job
 from app.models.scan_run import ScanRun
 from app.service.access.context import ActorContext
+from tests.session_helpers import login_as
 
 
 def _setup_test_assessment(
@@ -177,12 +178,9 @@ class TestAssessmentOverview:
         db_session.commit()
 
         # Render overview
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         resp = client.get(
             f"/assessments/{assessment.id}",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
         )
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
@@ -242,12 +240,9 @@ class TestAssessmentOverview:
         db_session.add_all([job1, job2])
         db_session.commit()
 
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         resp = client.get(
             f"/assessments/{assessment.id}/progress",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
         )
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
@@ -256,7 +251,7 @@ class TestAssessmentOverview:
         assert "Running" in html
         assert 'hx-trigger="every 2s"' in html
         assert f'hx-get="/assessments/{assessment.id}/progress"' in html
-        assert 'Completed Jobs' in html
+        assert "Completed Jobs" in html
 
     def test_progress_htmx_terminal_state_halts_polling(
         self, app: Flask, client: FlaskClient, db_session: Session
@@ -278,12 +273,9 @@ class TestAssessmentOverview:
         db_session.add(run)
         db_session.commit()
 
+        login_as(client, db_session, actor.user_id, actor.workspace_id)
         resp = client.get(
             f"/assessments/{assessment.id}/progress",
-            headers={
-                "X-Test-Actor-Id": str(actor.user_id),
-                "X-Test-Workspace-Id": str(actor.workspace_id),
-            },
         )
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
@@ -295,7 +287,7 @@ class TestAssessmentOverview:
     def test_overview_unauthorized_access_denied(
         self, app: Flask, client: FlaskClient, db_session: Session
     ) -> None:
-        ws, user, assessment, actor = _setup_test_assessment(db_session)
+        ws, _user, assessment, _actor = _setup_test_assessment(db_session)
 
         # Create foreign user without grant
         foreign_user = User(
@@ -310,12 +302,9 @@ class TestAssessmentOverview:
         )
         db_session.commit()
 
+        login_as(client, db_session, foreign_user.id, ws.id)
         resp = client.get(
             f"/assessments/{assessment.id}",
-            headers={
-                "X-Test-Actor-Id": str(foreign_user.id),
-                "X-Test-Workspace-Id": str(ws.id),
-            },
         )
         # Foreign user with no grant must receive 404 or 403 (ACC-01)
         assert resp.status_code in (403, 404)
