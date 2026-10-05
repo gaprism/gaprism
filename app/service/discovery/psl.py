@@ -17,6 +17,22 @@ def _suffix_list() -> PublicSuffixList:
     return PublicSuffixList()
 
 
+@lru_cache(maxsize=1)
+def _icann_list() -> PublicSuffixList:
+    return PublicSuffixList(only_icann=True)
+
+
+def registrable_domain(domain_ascii: str) -> str | None:
+    """The name a registry knows: the domain plus one label above its ICANN public suffix.
+
+    ``shop.example.co.uk`` -> ``example.co.uk``; ``foo.blogspot.com`` -> ``blogspot.com`` (the
+    private ``blogspot.com`` suffix is not a registry). ``None`` for a suffix or a single label.
+    """
+    domain = domain_ascii.strip(".").lower()
+    result = _icann_list().privatesuffix(domain)
+    return str(result) if result else None
+
+
 def is_public_suffix(domain_ascii: str) -> bool:
     """True if the lower-case ASCII domain is a public suffix, a TLD or a single label.
 

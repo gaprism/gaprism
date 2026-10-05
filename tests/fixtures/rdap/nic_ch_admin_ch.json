@@ -1,0 +1,127 @@
+{
+ "rdapConformance": [
+  "rdap_level_0"
+ ],
+ "notices": [
+  {
+   "title": "Acceptable Use Policy (AUP)",
+   "description": [
+    "This information is subject to an Acceptable Use Policy."
+   ],
+   "links": [
+    {
+     "rel": "alternate",
+     "type": "text/html",
+     "href": "https://www.nic.ch/terms/aup/"
+    }
+   ]
+  }
+ ],
+ "objectClassName": "domain",
+ "ldhName": "admin.ch",
+ "switch_name": "admin.ch",
+ "handle": "admin.ch",
+ "entities": [
+  {
+   "objectClassName": "entity",
+   "roles": [
+    "registrar"
+   ],
+   "vcardArray": [
+    "vcard",
+    [
+     [
+      "version",
+      {},
+      "text",
+      "4.0"
+     ],
+     [
+      "org",
+      {},
+      "text",
+      "cyon AG"
+     ],
+     [
+      "adr",
+      {},
+      "text",
+      [
+       "",
+       "",
+       "Brunng\u00e4sslein 12",
+       "Basel",
+       "",
+       "4052",
+       "CH"
+      ]
+     ],
+     [
+      "kind",
+      {},
+      "text",
+      "group"
+     ]
+    ]
+   ],
+   "url": "https://www.cyon.ch"
+  }
+ ],
+ "status": [
+  "active"
+ ],
+ "events": [],
+ "secureDNS": {
+  "delegationSigned": false
+ },
+ "nameservers": [
+  {
+   "ldhName": "ins1.admin.ch",
+   "objectClassName": "nameserver",
+   "ipAddresses": {
+    "v4": [
+     "162.23.22.32"
+    ]
+   }
+  },
+  {
+   "ldhName": "ins2.admin.ch",
+   "objectClassName": "nameserver",
+   "ipAddresses": {
+    "v4": [
+     "162.23.23.32"
+    ]
+   }
+  },
+  {
+   "ldhName": "ins3.admin.ch",
+   "objectClassName": "nameserver",
+   "ipAddresses": {
+    "v4": [
+     "212.103.72.85"
+    ],
+    "v6": [
+     "2a00:c38:2:28:0:ffff:d467:4855"
+    ]
+   }
+  },
+  {
+   "ldhName": "ins4.admin.ch",
+   "objectClassName": "nameserver",
+   "ipAddresses": {
+    "v4": [
+     "162.23.22.34"
+    ]
+   }
+  },
+  {
+   "ldhName": "ins5.admin.ch",
+   "objectClassName": "nameserver",
+   "ipAddresses": {
+    "v4": [
+     "162.23.23.34"
+    ]
+   }
+  }
+ ]
+}

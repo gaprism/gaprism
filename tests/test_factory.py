@@ -8,6 +8,7 @@ import pytest
 
 from app import create_app
 from app.config import (
+    EXTERNAL_LOOKUP_KEYS,
     MAX_PORTS_CACHE_HOURS,
     PORTS_PROVIDERS,
     ConfigurationError,
@@ -226,6 +227,28 @@ def test_the_discovery_budget_can_be_set_from_the_environment(
     assert create_app("development").config["DISCOVERY_BUDGET_SECONDS"] == 12.5
     monkeypatch.setenv("DISCOVERY_BUDGET_SECONDS", "soon")
     with pytest.raises(ConfigurationError, match="DISCOVERY_BUDGET_SECONDS must be a number"):
+        create_app("development")
+
+
+def test_external_domain_lookups_must_be_known_names() -> None:
+    unknown = type("Unknown", (TestingConfig,), {"EXTERNAL_DOMAIN_LOOKUPS": ["rdap", "whois"]})
+    with pytest.raises(
+        ConfigurationError, match=r"EXTERNAL_DOMAIN_LOOKUPS may list.*unknown: whois"
+    ):
+        validate_config(unknown)
+    for chosen in ([], ["rdap"], list(EXTERNAL_LOOKUP_KEYS)):
+        validate_config(type("Chosen", (TestingConfig,), {"EXTERNAL_DOMAIN_LOOKUPS": chosen}))
+
+
+def test_external_domain_lookups_come_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", " RDAP , HIBP ")
+    assert create_app("development").config["EXTERNAL_DOMAIN_LOOKUPS"] == ["rdap", "hibp"]
+    monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "none")  # an empty line cannot say "none"
+    assert create_app("development").config["EXTERNAL_DOMAIN_LOOKUPS"] == []
+    monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "")  # an empty line keeps the default
+    assert create_app("development").config["EXTERNAL_DOMAIN_LOOKUPS"] == list(EXTERNAL_LOOKUP_KEYS)
+    monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "rdap,carrier-pigeon")
+    with pytest.raises(ConfigurationError, match="carrier-pigeon"):
         create_app("development")
 
 

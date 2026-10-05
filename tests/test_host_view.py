@@ -33,6 +33,8 @@ from tests.checks.test_ports_check import CLOUDFLARE, IP1, IP2, FakeProvider, fa
 from tests.checks.test_ports_check import dns as ports_dns
 from tests.checks.test_ports_check import ip_outcome as ports_ip_outcome
 from tests.checks.test_ports_check import run as run_ports
+from tests.checks.test_registration_check import Registry
+from tests.checks.test_registration_check import run as run_registration
 from tests.checks.test_tls_check import probe_result
 from tests.helpers import create_assessment, create_user, login_as
 from tests.test_engine import CONFIG
@@ -377,6 +379,55 @@ def entry(
             "medium",  # a redirect that could not be read: not known to be strict
             "SPF redirect · DMARC reject",
         ),
+        (
+            "registration",
+            "ok",
+            None,
+            {"days_to_expiry": 312, "registrar": {"name": "MarkMonitor Inc."}},
+            "ok",
+            "Expires in 312 days · MarkMonitor Inc.",
+        ),
+        ("registration", "ok", None, {"days_to_expiry": 31}, "ok", "Expires in 31 days"),
+        ("registration", "ok", None, {"days_to_expiry": 30}, "medium", "Expires in 30 days"),
+        ("registration", "ok", None, {"days_to_expiry": 1}, "medium", "Expires in 1 day"),
+        ("registration", "ok", None, {"days_to_expiry": 0}, "medium", "Expires in 0 days"),
+        ("registration", "ok", None, {"days_to_expiry": -1}, "high", "Expired 1 day ago"),
+        ("registration", "ok", None, {"days_to_expiry": -40}, "high", "Expired 40 days ago"),
+        (
+            "registration",
+            "ok",
+            None,
+            {"days_to_expiry": None, "registrar": {"name": "cyon AG"}},
+            "muted",
+            "No dates published · cyon AG",
+        ),
+        (
+            "registration",
+            "ok",
+            None,
+            {"days_to_expiry": None, "registrar": None},
+            "muted",
+            "No dates published",
+        ),
+        (
+            "registration",
+            "no_data",
+            "no_rdap_service",
+            {},
+            "muted",
+            "The registry offers no RDAP service",
+        ),
+        ("registration", "no_data", "not_found", {}, "muted", "The registry has no such domain"),
+        ("registration", "unavailable", "disabled", {}, "medium", "Switched off"),
+        ("registration", "unavailable", "rate_limited", {}, "medium", "Rate limited"),
+        (
+            "registration",
+            "error",
+            "bootstrap_failed",
+            {},
+            "high",
+            "IANA's list of RDAP servers could not be read",
+        ),
         ("email", "no_data", "nxdomain", {}, "muted", "Name does not exist"),
         ("email", "error", "timeout", {}, "high", "Timed out"),
         (
@@ -493,6 +544,14 @@ def test_the_email_summary_understands_what_the_real_check_produces() -> None:
     bare, _ = run_email({})
     cell = host_view.summarize("email", *_parts(bare))
     assert (cell.tone, cell.text) == ("muted", "No SPF · No DMARC")
+
+
+def test_the_registration_summary_understands_what_the_real_check_produces() -> None:
+    cell = host_view.summarize("registration", *_parts(run_registration("example.com", Registry())))
+    assert cell.tone == "ok" and cell.text.startswith("Expires in ")
+    assert cell.text.endswith("RESERVED-Internet Assigned Numbers Authority")
+    swiss = host_view.summarize("registration", *_parts(run_registration("admin.ch", Registry())))
+    assert (swiss.tone, swiss.text) == ("muted", "No dates published · cyon AG")
 
 
 def _parts(outcome: CheckOutcome) -> tuple[str, str | None, dict[str, Any]]:
@@ -1159,3 +1218,79 @@ def test_the_domain_rows_leave_out_discovery_and_the_hosts_checks(
     rows = host_view.domain_rows(db_session, scan.id)
     assert [row.key for row in rows] == ["email"]
     assert rows[0].title == "Email security"
+
+
+def registration_outcome(domain: str = "example.com", **web_changes: Any) -> CheckOutcome:
+    return run_registration(domain, Registry(**web_changes))
+
+
+def test_the_domain_page_shows_the_registration(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    add_domain_result(db_session, scan, "registration", registration_outcome())
+
+    panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "Domain registration" in panel and "Expires in " in panel
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert 'id="check-registration"' in body
+    assert "RESERVED-Internet Assigned Numbers Authority" in body and "IANA 376" in body
+    assert "1995-08-14" in body and "2027-08-13" in body
+    assert "client transfer prohibited" in body and "Locked" in body
+    assert "Signed" in body  # DNSSEC
+    assert (
+        "rdap.verisign.com" in body and "Registrant and contact details are not collected" in body
+    )
+    assert (
+        body.index('id="check-email"') < body.index('id="check-registration"')
+        if "check-email" in body
+        else True
+    )
+
+
+def test_a_registry_without_dates_says_so(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    add_domain_result(db_session, scan, "registration", registration_outcome("admin.ch"))
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "cyon AG" in body and "Not published" in body
+    assert "This registry does not publish registration or expiry dates" in body
+    assert "Not signed" in body
+
+
+def test_a_domain_about_to_expire_is_flagged(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    outcome = registration_outcome()
+    outcome.data["days_to_expiry"] = 12
+    add_domain_result(db_session, scan, "registration", outcome)
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "in 12 days" in body
+    panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "Expires in 12 days" in panel
+
+
+def test_why_a_registration_could_not_be_read_is_explained(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    add_domain_result(
+        db_session,
+        scan,
+        "registration",
+        CheckOutcome("no_data", "no_rdap_service", {"domain": "x.zz", "queried": "x.zz"}),
+    )
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "The registry offers no RDAP service" in body and "looked up by hand" in body
+
+
+def test_hostile_registry_text_is_escaped(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    outcome = registration_outcome()
+    outcome.data["registrar"]["name"] = SCRIPT
+    outcome.data["statuses"] = [SCRIPT]
+    outcome.data["nameservers"] = [SCRIPT]
+    outcome.data["server"] = SCRIPT
+    add_domain_result(db_session, scan, "registration", outcome)
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert SCRIPT not in body and body.count(ESCAPED) >= 4
+    panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert SCRIPT not in panel

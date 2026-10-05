@@ -1,0 +1,23 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set status_tones = {'active': 'ok', 'ok': 'ok', 'client hold': 'high', 'server hold': 'high', 'pending delete': 'high', 'redemption period': 'high', 'pending transfer': 'medium', 'inactive': 'medium'} %}
+<div class="mb-4">{{ notice(_('From the registry'), _('Registration data from the RDAP service of the registry (%(server)s). Registrant and contact details are not collected.', server=d.server), 'info') }}</div>
+{% if d.queried != d.domain %}<p class="mb-3 text-sm text-muted">{{ _('The registry knows this domain as %(name)s.', name=d.queried) }}</p>{% endif %}
+<dl class="grid gap-4 sm:grid-cols-2">
+  <div><dt>{{ _('Registrar') }}</dt><dd>{% if d.registrar and d.registrar.name %}{{ d.registrar.name }}{% if d.registrar.iana_id %} <span class="text-muted">· IANA {{ d.registrar.iana_id }}</span>{% endif %}{% else %}<span class="text-muted">{{ _('Not published') }}</span>{% endif %}</dd></div>
+  <div><dt>{{ _('Registered') }}</dt><dd>{% if d.created %}<time datetime="{{ d.created }}">{{ d.created[:10] }}</time>{% if d.age_days is not none %} <span class="text-muted">({{ ngettext('%(num)s year', '%(num)s years', (d.age_days / 365.25)|int) }})</span>{% endif %}{% else %}<span class="text-muted">{{ _('Not published') }}</span>{% endif %}</dd></div>
+  <div><dt>{{ _('Expires') }}</dt><dd>{% if d.expires %}<time datetime="{{ d.expires }}">{{ d.expires[:10] }}</time> {% if d.days_to_expiry is not none %}{% if d.days_to_expiry < 0 %}{{ badge(ngettext('expired %(num)s day ago', 'expired %(num)s days ago', -d.days_to_expiry), 'high') }}{% elif d.days_to_expiry <= 30 %}{{ badge(ngettext('in %(num)s day', 'in %(num)s days', d.days_to_expiry), 'medium') }}{% else %}<span class="text-muted">({{ ngettext('in %(num)s day', 'in %(num)s days', d.days_to_expiry) }})</span>{% endif %}{% endif %}{% else %}<span class="text-muted">{{ _('Not published') }}</span>{% endif %}</dd></div>
+  <div><dt>{{ _('Last changed') }}</dt><dd>{% if d.changed %}<time datetime="{{ d.changed }}">{{ d.changed[:10] }}</time>{% else %}<span class="text-muted">{{ _('Not published') }}</span>{% endif %}</dd></div>
+  <div><dt>DNSSEC</dt><dd>{% if d.dnssec is none %}<span class="text-muted">{{ _('Not stated') }}</span>{% elif d.dnssec %}{{ badge(_('Signed'), 'ok') }}{% else %}{{ badge(_('Not signed'), 'muted') }}{% endif %}</dd></div>
+  <div><dt>{{ _('Transfer lock') }}</dt><dd>{% if d.transfer_locked %}{{ badge(_('Locked'), 'ok') }}{% elif d.statuses %}{{ badge(_('Not locked'), 'medium') }}{% else %}<span class="text-muted">{{ _('No status published') }}</span>{% endif %}</dd></div>
+</dl>
+{% if d.statuses %}
+<h3 class="mt-5 text-sm">{{ _('Status flags') }}</h3>
+<p class="mt-1 flex flex-wrap gap-1">{% for status in d.statuses %}{{ badge(status, status_tones.get(status, 'muted')) }}{% endfor %}</p>
+{% endif %}
+<h3 class="mt-5 text-sm">{{ _('Name servers at the registry') }}</h3>
+{% if d.nameservers %}
+<ul class="mt-1 grid gap-1 text-sm">{% for name in d.nameservers %}<li><bdi class="font-mono">{{ name }}</bdi></li>{% endfor %}</ul>
+{% else %}<p class="mt-1 text-sm text-muted">{{ _('Not published') }}</p>{% endif %}
+{% if not d.dates_published %}<p class="mt-4 text-xs text-muted">{{ _('This registry does not publish registration or expiry dates.') }}</p>{% endif %}
+<p class="mt-3 text-xs text-muted">{% if d.cached %}{{ _('From the cache; fetched') }}{% else %}{{ _('Fetched') }}{% endif %} <time datetime="{{ d.fetched_at }}">{{ d.fetched_at[:16]|replace('T', ' ') }} UTC</time></p>

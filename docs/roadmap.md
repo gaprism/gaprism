@@ -138,6 +138,7 @@ Deferred (kept in the archive, not deleted): RLS and per-report grants (INV-01/0
 
 **S2.3b Domain registration** (S)
 - RDAP via the IANA bootstrap file (direct to the registry): registrar, created/expires, status flags, nameservers, DNSSEC.
+- *Built (2026-10-05):* all of it, plus a supplemental table for the ccTLDs IANA's file lacks (`.ch`, `.li`, `.de`, `.io`), the registrable-domain lookup, and `EXTERNAL_DOMAIN_LOOKUPS` to switch each third-party lookup of the domain off. `.ch` publishes no dates, so a Swiss domain's expiry cannot be read from RDAP at all (catalogue C21).
 
 **S2.3c Misc domain checks** (S)
 - security.txt (RFC 9116, expiry), HSTS preload status, CAA and NS diversity, public breach history (HIBP `breaches?domain=`).

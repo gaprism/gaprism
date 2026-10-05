@@ -25,7 +25,7 @@ from app.models import Assessment, CheckResult, Host, Scan
 
 CHECK_ORDER = ("dns", "ip", "ports", "tls", "http")
 # The checks of the domain itself (they run once per scan), in display order.
-DOMAIN_CHECK_ORDER = ("email",)
+DOMAIN_CHECK_ORDER = ("email", "registration")
 MAX_RAW_JSON_CHARS = 100_000
 
 
@@ -40,6 +40,7 @@ CHECK_TITLES = {
     "tls": N_("TLS certificate"),
     "http": N_("HTTP"),
     "email": N_("Email security"),
+    "registration": N_("Domain registration"),
 }
 
 REASONS = {
@@ -82,6 +83,11 @@ REASONS = {
     "not_asked": N_("Not asked after an earlier failure"),
     "invalid_response": N_("Unexpected response"),
     "budget_exceeded": N_("Took too long"),
+    "no_rdap_service": N_("The registry offers no RDAP service"),
+    "not_found": N_("The registry has no such domain"),
+    "bootstrap_failed": N_("IANA's list of RDAP servers could not be read"),
+    "not_registrable": N_("Not a registrable domain"),
+    "not_allowed": N_("The registry refused the request"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.
@@ -103,7 +109,14 @@ HELP = {
         "Shodan says this lookup needs a paid membership. Check the plan of your key, or set "
         "PORTS_PROVIDER=internetdb."
     ),
-    "disabled": N_("Ports and CVE lookups are switched off (PORTS_PROVIDER=off)."),
+    "disabled": N_(
+        "This lookup is switched off: ports and CVEs by PORTS_PROVIDER=off, lookups of the "
+        "domain at a third party by EXTERNAL_DOMAIN_LOOKUPS."
+    ),
+    "no_rdap_service": N_(
+        "IANA's list has no RDAP server for this top-level domain (many country registries only "
+        "run WHOIS). The registration details have to be looked up by hand."
+    ),
     "rate_limited": N_(
         "The provider's rate limit was reached. Lower SHODAN_RATE_PER_SECOND or "
         "INTERNETDB_RATE_PER_SECOND, or scan again later."
@@ -270,6 +283,22 @@ def _email_cell(data: Mapping[str, Any]) -> CheckCell:
     return CheckCell("ok", tone, " · ".join(parts))
 
 
+def _registration_cell(data: Mapping[str, Any]) -> CheckCell:
+    """When the domain expires and who registered it, in a few words."""
+    days = data.get("days_to_expiry")
+    registrar = (data.get("registrar") or {}).get("name")
+    if isinstance(days, int):
+        if days < 0:
+            text = ngettext("Expired %(num)s day ago", "Expired %(num)s days ago", -days)
+            tone = "high"
+        else:
+            text = ngettext("Expires in %(num)s day", "Expires in %(num)s days", days)
+            tone = "medium" if days <= 30 else "ok"
+    else:
+        text, tone = _("No dates published"), "muted"
+    return CheckCell("ok", tone, f"{text} · {registrar}" if registrar else text)
+
+
 def _tls_cell(data: Mapping[str, Any]) -> CheckCell:
     if not data.get("verified"):
         failures = list(data.get("failures", []))
@@ -307,6 +336,7 @@ _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "tls": _tls_cell,
     "http": _http_cell,
     "email": _email_cell,
+    "registration": _registration_cell,
 }
 
 

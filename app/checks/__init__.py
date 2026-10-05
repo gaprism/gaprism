@@ -12,6 +12,7 @@ from app.checks.base import (
     CheckOutcome,
     CheckScope,
     CheckStatus,
+    lookup_enabled,
     waits_for,
 )
 from app.checks.discovery import DiscoveryCheck
@@ -20,6 +21,7 @@ from app.checks.email import EmailCheck
 from app.checks.http import HttpCheck
 from app.checks.ip import IpCheck
 from app.checks.ports import PortsCheck
+from app.checks.registration import RegistrationCheck
 from app.checks.tls import TlsCheck
 
 REGISTRY: dict[str, Check] = {
@@ -32,6 +34,7 @@ REGISTRY: dict[str, Check] = {
         TlsCheck(),
         HttpCheck(),
         EmailCheck(),
+        RegistrationCheck(),
     )
 }
 
@@ -58,5 +61,6 @@ __all__ = [
     "CheckScope",
     "CheckStatus",
     "checks_with_scope",
+    "lookup_enabled",
     "waits_for",
 ]
