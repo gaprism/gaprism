@@ -17,6 +17,7 @@ from app.checks import DISCOVERY_KEY, Check, checks_with_scope
 from app.models import Assessment, CheckResult, Host, Scan, User
 from app.models.base import utc_now
 from app.service import findings as findings_service
+from app.service import summary as summary_service
 from app.service.host_view import CheckCell, DomainRow, domain_rows, host_cells
 
 log = logging.getLogger(__name__)
@@ -434,6 +435,7 @@ class ScanOverview:
     domain_rows: list[DomainRow]
     findings: findings_service.FindingsSummary
     host_findings: dict[Any, findings_service.HostSummary]
+    summary: summary_service.ScanSummary | None  # once the scan is over
 
     @property
     def is_active(self) -> bool:
@@ -466,8 +468,11 @@ def scan_overview(
     page: int = 1,
     per_page: int = 50,
     state: str = "all",
+    config: Mapping[str, Any] | None = None,
 ) -> ScanOverview:
-    """Gather progress, discovery notes and one page of hosts for the scan panel."""
+    """Gather progress, discovery notes and one page of hosts for the scan panel.
+
+    ``config`` supplies the allowed area of the summary (the default area when it is left out)."""
     discovery = get_discovery(session, scan)
     data: Mapping[str, Any] = discovery.data if discovery else {}
     counts: Mapping[str, Any] = data.get("counts", {})
@@ -500,6 +505,13 @@ def scan_overview(
         host_cells=host_cells(session, [host.id for host in hosts.rows]),
         domain_rows=domain_rows(session, scan.id),
         findings=findings,
+        summary=(
+            summary_service.build_summary(
+                session, scan, data, findings_service.allowed_countries(config or {})
+            )
+            if scan.is_terminal
+            else None
+        ),
         host_findings=(
             findings_service.host_summaries(session, scan.id, [host.id for host in hosts.rows])
             if findings.state == "ready"

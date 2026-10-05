@@ -1,0 +1,186 @@
+{% from 'components/ui.html' import badge %}
+{% from 'assessments/_findings.html' import state_note %}
+{# The summary of a finished scan: how much was looked at, then the three questions. What is shown
+   was observed from outside (addresses, DNS and mail records, rules); it is not a verdict. #}
+
+{% macro tile(label, value, detail='') -%}
+<div>
+  <dt>{{ label }}</dt>
+  <dd class="text-lg font-semibold">{{ value }}</dd>
+  {% if detail %}<dd class="text-xs text-muted">{{ detail }}</dd>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro coverage_panel(c) %}
+<section class="panel p-4" aria-labelledby="coverage-title">
+  <h3 id="coverage-title" class="eyebrow">{{ _('Coverage') }}</h3>
+  <dl class="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+    {{ tile(_('Names seen'), c.names_seen, _('in certificates')) }}
+    {{ tile(_('Hosts reviewed'), c.hosts, _('%(done)s fully checked', done=c.fully_checked) ~ (' · ' ~ _('%(gaps)s with gaps', gaps=c.incomplete) if c.incomplete else '')) }}
+    {{ tile(_('Answer on HTTPS'), c.https, _('%(n)s on plain HTTP only', n=c.http_only) if c.http_only else '') }}
+    {{ tile(_('Not reachable'), c.not_reachable, _('no public address: %(a)s · no web server: %(b)s', a=c.no_address, b=c.no_web_server)) }}
+    {{ tile(_('Not reviewed'), c.not_reviewed, _('outside the domain: %(a)s · wildcard patterns: %(b)s · over the limit: %(c)s', a=c.out_of_scope, b=c.wildcards, c=c.over_limit)) }}
+  </dl>
+  {% if c.undetermined %}
+  <p class="mt-3 text-sm text-muted">{{ ngettext('%(num)s host could not be classified: its web check failed or did not run.', '%(num)s hosts could not be classified: their web check failed or did not run.', c.undetermined) }}</p>
+  {% endif %}
+</section>
+{% endmacro %}
+
+{# One card: the question it answers, a body, and what it does not say. #}
+{% macro card(key, eyebrow, question, caveat) %}
+<article class="panel flex flex-col" aria-labelledby="{{ key }}-title">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <h3 id="{{ key }}-title">{{ question }}</h3>
+    </div>
+  </div>
+  <div class="grid flex-1 content-start gap-4 p-4">{{ caller() }}</div>
+  <p class="border-t border-line px-4 py-3 text-xs text-muted">{{ caveat }}</p>
+</article>
+{% endmacro %}
+
+{% macro where_card(w, assessment, findings_ready) %}
+{% call card('where', _('Where'), _('Where is the data?'), _('Shows where the addresses of the hosts are announced, not where data is stored or processed. Ask the vendor for that.')) %}
+  {% if w.outside or w.outside_edge_only %}
+  <div class="notice {{ 'border-high bg-high-bg' if w.outside else 'border-medium bg-medium-bg' }}" role="status">
+    <div>
+      <p class="font-semibold">{{ ngettext('%(num)s host has an address outside the allowed area', '%(num)s hosts have an address outside the allowed area', w.outside + w.outside_edge_only) }}</p>
+      {% if w.outside_edge_only %}<p class="mt-1 text-muted">{{ ngettext('%(num)s of them only through a CDN or anycast edge.', '%(num)s of them only through a CDN or anycast edge.', w.outside_edge_only) }}</p>{% endif %}
+      {% if findings_ready %}<p class="mt-1"><a class="link" href="{{ url_for('assessments.findings', assessment_id=assessment.id, rule=w.rule_id) }}">{{ _('Show the findings') }}</a></p>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% if w.countries %}
+  <ul class="grid gap-3" aria-label="{{ _('Countries') }}">
+    {% for country in w.countries %}
+    <li>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <span class="font-semibold"><bdi>{{ country.name }}</bdi> <span class="font-normal text-muted">({{ country.code }})</span></span>
+        <span class="flex items-center gap-2 text-sm">
+          {% if not country.allowed %}{{ badge(_('Outside the allowed area'), 'high') }}{% endif %}
+          <span>{{ ngettext('%(num)s host', '%(num)s hosts', country.hosts) }}</span>
+        </span>
+      </div>
+      {% if country.cities %}<p class="mt-1 text-sm text-muted">{% for city, count in country.cities %}<bdi>{{ city }}</bdi> ({{ count }}){% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if w.more_countries %}<p class="text-sm text-muted">{{ ngettext('and %(num)s more country', 'and %(num)s more countries', w.more_countries) }}</p>{% endif %}
+  <p class="text-xs text-muted">{{ ngettext('The allowed area has %(num)s country.', 'The allowed area has %(num)s countries.', w.allowed_count) }}</p>
+  {% elif not w.edge_hosts and not w.unlocated %}
+  <p class="text-sm text-muted">{{ _('No host could be placed in a country.') }}</p>
+  {% endif %}
+  {% if w.edge_hosts %}
+  <div>
+    <h4 class="text-sm font-semibold">{{ ngettext('%(num)s host sits behind a CDN or anycast network', '%(num)s hosts sit behind a CDN or anycast network', w.edge_hosts) }}</h4>
+    <p class="mt-1 text-sm text-muted">{% for name, count in w.edge_networks %}<bdi>{{ name }}</bdi> ({{ count }}){% if not loop.last %}, {% endif %}{% endfor %}. {{ _('The location of such an address is the edge, not the data centre, so these hosts are not placed in a country.') }}</p>
+  </div>
+  {% endif %}
+  {% if w.unlocated %}
+  <p class="text-sm text-muted">{{ ngettext('%(num)s host could not be located', '%(num)s hosts could not be located', w.unlocated) }}{% if w.unlocated_reason %}: {{ reason_label(w.unlocated_reason) }}{% endif %}.</p>
+  {% endif %}
+{% endcall %}
+{% endmacro %}
+
+{# A list of providers from one record set: what was found, that none was, or why it is not known. #}
+{% macro group(label, g, none_text) %}
+<div>
+  <h4 class="text-sm font-semibold">{{ label }}</h4>
+  {% if g.state == 'found' %}
+  <ul class="mt-1 text-sm">
+    {% for name, count in g.items %}<li><bdi>{{ name }}</bdi>{% if count %} <span class="text-muted">· {{ count }}</span>{% endif %}</li>{% endfor %}
+    {% if g.more %}<li class="text-muted">{{ ngettext('and %(num)s more', 'and %(num)s more', g.more) }}</li>{% endif %}
+  </ul>
+  {% elif g.state == 'none' %}
+  <p class="mt-1 text-sm text-muted">{{ none_text }}</p>
+  {% else %}
+  <p class="mt-1 text-sm text-muted">{{ _('Not determined') }}: {{ reason_label(g.reason) }}</p>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro who_card(w) %}
+{% set kinds = {'cdn': _('CDN'), 'cloud': _('Cloud'), 'hosting': _('Hosting')} %}
+{% call card('who', _('Who'), _('Who processes it?'), _('Providers seen from outside in addresses, DNS and mail records. This is not a list of the vendor’s legal processors or sub-processors.')) %}
+  <div>
+    <h4 class="text-sm font-semibold">{{ _('Hosting and networks') }}</h4>
+    {% if w.networks %}
+    <ul class="mt-1 text-sm">
+      {% for network in w.networks %}
+      <li>
+        <bdi>{{ network.name }}</bdi>
+        {% if network.kind %}{{ badge(kinds.get(network.kind, network.kind), 'info') }}{% endif %}
+        <span class="text-muted">· {{ ngettext('%(num)s host', '%(num)s hosts', network.hosts) }}{% if network.asns %} · {% for asn in network.asns %}AS{{ asn }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</span>
+      </li>
+      {% endfor %}
+      {% if w.more_networks %}<li class="text-muted">{{ ngettext('and %(num)s more', 'and %(num)s more', w.more_networks) }}</li>{% endif %}
+    </ul>
+    {% elif w.networks_reason %}
+    <p class="mt-1 text-sm text-muted">{{ _('Not determined') }}: {{ reason_label(w.networks_reason) }}</p>
+    {% elif w.addressed %}
+    <p class="mt-1 text-sm text-muted">{{ _('The databases know no network for these addresses.') }}</p>
+    {% else %}
+    <p class="mt-1 text-sm text-muted">{{ _('No host has a public address to look up.') }}</p>
+    {% endif %}
+  </div>
+  {{ group(_('DNS operators'), w.dns, _('No name servers found.')) }}
+  {{ group(_('Mail'), w.mail, _('The domain publishes no mail servers.')) }}
+  {{ group(_('Services allowed to send mail'), w.senders, _('The SPF record names no sending service.')) }}
+  {{ group(_('Registrar'), w.registrar, _('The registry does not publish it.')) }}
+{% endcall %}
+{% endmacro %}
+
+{% macro secure_card(s, assessment) %}
+{% call card('secure', _('Secure'), _('How secure is the external posture?'), _('A view from outside at the time of the scan. It is not a certification, an audit or a penetration test; a check that failed or found nothing proves nothing.')) %}
+  {% if s.state != 'ready' %}
+  <p class="text-sm text-muted">{{ state_note(s.state) }}</p>
+  {% else %}
+  <div>
+    <p class="text-2xl font-semibold">{{ s.open_total }}</p>
+    <p class="text-sm text-muted">{{ ngettext('open finding', 'open findings', s.open_total) }}</p>
+  </div>
+  {% if s.open_by_severity %}
+  <ul class="flex flex-wrap gap-2" aria-label="{{ _('Open findings by severity') }}">
+    {% for level, count in s.open_by_severity.items() %}<li><a href="{{ url_for('assessments.findings', assessment_id=assessment.id, severity=level) }}" class="no-underline">{{ badge(severity_label(level) ~ ' · ' ~ count, severity_tone(level)) }}</a></li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if s.accepted or s.false_positive %}
+  <p class="flex flex-wrap items-center gap-2 text-sm text-muted">
+    {% if s.accepted %}{{ badge(_('%(n)s accepted', n=s.accepted), 'ok') }}{% endif %}
+    {% if s.false_positive %}{{ badge(_('%(n)s false positives', n=s.false_positive), 'muted') }}{% endif %}
+    <span>{{ _('Decided by the team; not counted as open.') }}</span>
+  </p>
+  {% endif %}
+  {% if s.top_rules %}
+  <div>
+    <h4 class="text-sm font-semibold">{{ _('Most serious') }}</h4>
+    <ul class="mt-1 text-sm">
+      {% for rule in s.top_rules %}
+      <li><a class="link" href="{{ url_for('assessments.findings', assessment_id=assessment.id, rule=rule.rule_id) }}">{{ rule.title }}</a> <span class="text-muted">· {{ rule.count }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% elif s.open_total == 0 %}
+  <p class="text-sm">{{ _('No rule fired on what was collected.') }}</p>
+  {% endif %}
+  {% endif %}
+  <p class="text-sm">
+    {{ _('%(done)s of %(total)s hosts fully checked.', done=s.fully_checked, total=s.hosts) }}
+    {% if s.fully_checked < s.hosts %}<a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id, state='problems', _anchor='host-filter') }}">{{ _('Show hosts with failed checks') }}</a>{% endif %}
+  </p>
+{% endcall %}
+{% endmacro %}
+
+{% macro summary_cards(summary, assessment) %}
+<section class="mt-4" aria-labelledby="summary-title">
+  <h2 id="summary-title" class="sr-only">{{ _('Summary') }}</h2>
+  {{ coverage_panel(summary.coverage) }}
+  <div class="mt-4 grid gap-4 lg:grid-cols-3">
+    {{ where_card(summary.where, assessment, summary.secure.state == 'ready') }}
+    {{ who_card(summary.who) }}
+    {{ secure_card(summary.secure, assessment) }}
+  </div>
+</section>
+{% endmacro %}

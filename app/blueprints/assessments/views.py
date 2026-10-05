@@ -55,7 +55,9 @@ def _panel_context(assessment: Assessment) -> dict[str, Any]:
         state = "all"
     scan = scan_service.get_latest_scan(db.session(), assessment.id)
     overview = (
-        scan_service.scan_overview(db.session(), scan, query=query, page=page, state=state)
+        scan_service.scan_overview(
+            db.session(), scan, query=query, page=page, state=state, config=current_app.config
+        )
         if scan
         else None
     )

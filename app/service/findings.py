@@ -18,7 +18,7 @@ import uuid
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import and_, case, delete, func, select
@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from app.checks import DISCOVERY_KEY
 from app.config import DEFAULT_DATA_LOCATION_ALLOWED
 from app.i18n import gettext as _
-from app.models import Assessment, CheckResult, Finding, Host, Scan
+from app.models import Assessment, CheckResult, Finding, FindingDisposition, Host, Scan
 from app.models.base import utc_now
 from app.rules import (
     RULES,
@@ -62,14 +62,19 @@ def ruleset_digest() -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:12]
 
 
-def settings_for(domain: str, config: Mapping[str, Any], now: datetime) -> RuleSettings:
-    """The configurable parts of the rules; a missing area setting means the default area, never an
-    empty one (which would flag every location)."""
+def allowed_countries(config: Mapping[str, Any]) -> frozenset[str]:
+    """Where an address may be located. A missing setting means the default area, never an empty
+    one (which would flag every location)."""
     allowed = config.get("DATA_LOCATION_ALLOWED") or DEFAULT_DATA_LOCATION_ALLOWED
+    return frozenset(str(code).upper() for code in allowed)
+
+
+def settings_for(domain: str, config: Mapping[str, Any], now: datetime) -> RuleSettings:
+    """The configurable parts of the rules."""
     return RuleSettings(
         domain=domain,
         now=now,
-        allowed_countries=frozenset(str(code).upper() for code in allowed),
+        allowed_countries=allowed_countries(config),
         breach_recent_months=int(config.get("BREACH_RECENT_MONTHS", 24)),
     )
 
@@ -237,16 +242,8 @@ class RuleCount:
     count: int
 
 
-def counts_by_rule(session: Session, scan_id: uuid.UUID) -> list[RuleCount]:
-    """The rules that fired, most serious first, then the one with the most findings."""
-    rows = session.execute(
-        select(Finding.rule_id, Finding.severity, func.count())
-        .where(Finding.scan_id == scan_id)
-        .group_by(Finding.rule_id, Finding.severity)
-    ).all()
-    levels: dict[str, dict[str, int]] = {}
-    for rule_id, severity, count in rows:
-        levels.setdefault(rule_id, {})[severity] = int(count)
+def _rule_counts(levels: Mapping[str, Mapping[str, int]]) -> list[RuleCount]:
+    """``{rule: {severity: count}}`` as lines: most serious first, then the most findings."""
     counted = [
         RuleCount(
             rule_id=rule_id,
@@ -257,6 +254,97 @@ def counts_by_rule(session: Session, scan_id: uuid.UUID) -> list[RuleCount]:
         for rule_id, by_severity in levels.items()
     ]
     return sorted(counted, key=lambda r: (SEVERITIES.index(r.severity), -r.count, r.title))
+
+
+def counts_by_rule(session: Session, scan_id: uuid.UUID) -> list[RuleCount]:
+    """The rules that fired, most serious first, then the one with the most findings."""
+    rows = session.execute(
+        select(Finding.rule_id, Finding.severity, func.count())
+        .where(Finding.scan_id == scan_id)
+        .group_by(Finding.rule_id, Finding.severity)
+    ).all()
+    levels: dict[str, dict[str, int]] = {}
+    for rule_id, severity, count in rows:
+        levels.setdefault(rule_id, {})[severity] = int(count)
+    return _rule_counts(levels)
+
+
+# What a finding currently is. Decisions people made (S2.6) are keyed by assessment and
+# fingerprint, so they apply to every scan of the assessment.
+OPEN = "open"
+ACCEPTED = "accepted"
+FALSE_POSITIVE = "false_positive"
+
+
+def _current_status(today: date) -> Any:
+    """SQL: the status of a finding. An acceptance whose review date has passed no longer applies:
+    the finding is open again."""
+    lapsed = and_(
+        FindingDisposition.status == ACCEPTED,
+        FindingDisposition.review_by.is_not(None),
+        FindingDisposition.review_by < today,
+    )
+    return case(
+        (FindingDisposition.id.is_(None), OPEN),
+        (lapsed, OPEN),
+        else_=FindingDisposition.status,
+    )
+
+
+@dataclass(frozen=True)
+class Tally:
+    """The findings of a scan by what they currently are: the open ones in detail, the ones
+    somebody decided about as counts."""
+
+    open_by_severity: dict[str, int]  # only the severities that occur, most serious first
+    open_rules: list[RuleCount]  # most serious first
+    accepted: int
+    false_positive: int
+
+    @property
+    def open_total(self) -> int:
+        return sum(self.open_by_severity.values())
+
+
+def tally(session: Session, scan: Scan, *, today: date | None = None) -> Tally:
+    """Count the findings of a scan by status (one query)."""
+    current = (
+        select(
+            Finding.rule_id.label("rule_id"),
+            Finding.severity.label("severity"),
+            _current_status(today or utc_now().date()).label("status"),
+        )
+        .select_from(Finding)
+        .outerjoin(
+            FindingDisposition,
+            and_(
+                FindingDisposition.assessment_id == scan.assessment_id,
+                FindingDisposition.fingerprint == Finding.fingerprint,
+            ),
+        )
+        .where(Finding.scan_id == scan.id)
+        .subquery()
+    )
+    rows = session.execute(
+        select(current.c.rule_id, current.c.severity, current.c.status, func.count()).group_by(
+            current.c.rule_id, current.c.severity, current.c.status
+        )
+    ).all()
+    open_levels: dict[str, dict[str, int]] = {}
+    by_severity: Counter[str] = Counter()
+    decided: Counter[str] = Counter()
+    for rule_id, severity, status, count in rows:
+        if status == OPEN:
+            open_levels.setdefault(rule_id, {})[severity] = int(count)
+            by_severity[severity] += int(count)
+        else:
+            decided[status] += int(count)
+    return Tally(
+        open_by_severity={s: by_severity[s] for s in SEVERITIES if by_severity[s]},
+        open_rules=_rule_counts(open_levels),
+        accepted=decided[ACCEPTED],
+        false_positive=decided[FALSE_POSITIVE],
+    )
 
 
 def _rule_title(rule_id: str) -> str:

@@ -102,6 +102,9 @@ REASONS = {
     "no_security_txt": N_("No security.txt found"),
     "not_security_txt": N_("A page was served, but it is not a security.txt"),
     "no_breach_known": N_("No public breach known to Have I Been Pwned"),
+    "not_run": N_("This check did not run"),
+    "not_determined": N_("This part of the check could not be answered"),
+    "no_country": N_("The location database knows the network but not the country"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.

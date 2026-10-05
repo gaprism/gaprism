@@ -1,5 +1,6 @@
 {% from 'components/ui.html' import badge, notice %}
 {% from 'assessments/_findings.html' import findings_panel %}
+{% from 'assessments/_summary.html' import summary_cards %}
 {% set tones ={'queued': 'info', 'running': 'info', 'completed': 'ok', 'partial': 'medium', 'failed': 'critical', 'cancelled': 'muted'} %}
 {% set labels = {'queued': _('Queued'), 'running': _('Running'), 'completed': _('Completed'), 'partial': _('Completed with gaps'), 'failed': _('Failed'), 'cancelled': _('Cancelled')} %}
 {% set source_names = {'ctlogs': 'ctlogs.dev', 'certspotter': 'CertSpotter', 'crtsh': 'crt.sh'} %}
@@ -57,6 +58,8 @@
   {% if overview.dropped_by_cap %}
   <div class="mt-4">{{ notice(_('Some hosts were not reviewed'), _('%(count)s hosts exceeded the limit of %(limit)s per scan.', count=overview.dropped_by_cap, limit=scan.options.get('max_hosts')), 'warning') }}</div>
   {% endif %}
+
+  {% if overview.summary %}{{ summary_cards(overview.summary, assessment) }}{% endif %}
 
   {{ findings_panel(overview.findings, assessment, progress.checks_problem) }}
 

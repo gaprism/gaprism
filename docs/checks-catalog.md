@@ -134,6 +134,8 @@ Two owner-specified rules:
 - No location data (database missing, IP not in the database) gives the rule nothing to read: no finding, and the assessment page says that the data is missing. It is never "clean"; the coverage line (S2.5) reports it.
 - The finding can be accepted with a reason and a review date ([S2.6](roadmap.md)).
 
+**Summary cards (S2.5).** The cards of the assessment page read what the checks stored, so a check that says where or who should be wired in `app/service/summary.py`: *Where* ← `ip` (country, city, the CDN/edge flag); *Who* ← `ip` (network, AS number, kind), `domain_dns` (DNS operators), `email` (MX providers, SPF senders), `registration` (registrar); *Secure* ← the findings and `finding_disposition`; coverage ← the status of every check and the discovery counts. A check that did not answer is "not determined" in the card, never "none".
+
 ## 5. Licensing notes for the open-source release
 
 | Item | Licence | Consequence |
@@ -162,4 +164,4 @@ class Check(Protocol):
 # CheckOutcome(status="ok|no_data|unavailable|error|skipped", reason_code, data: dict, findings: list[FindingDraft])
 ```
 
-Checklist: module + unit test with fixtures (no network) + catalogue row + (if the result can be judged) a rule in `app/rules/` with a test in `tests/rules/` that feeds it the output of the real check, then `uv run python -m app.rules.docs` to regenerate [rules.md](rules.md).
+Checklist: module + unit test with fixtures (no network) + catalogue row + (if the result can be judged) a rule in `app/rules/` with a test in `tests/rules/` that feeds it the output of the real check, then `uv run python -m app.rules.docs` to regenerate [rules.md](rules.md). If the check says *where* or *who*, add it to the summary cards (`app/service/summary.py`).

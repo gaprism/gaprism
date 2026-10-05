@@ -147,6 +147,11 @@ def _service(name: str, table: tuple[tuple[str, str], ...]) -> str | None:
     return None
 
 
+def mail_provider(host: str) -> str | None:
+    """The mail platform an MX host belongs to (``None`` for a host we do not know)."""
+    return _service(host, MAIL_PROVIDERS)
+
+
 def is_spf(text: str) -> bool:
     return text.strip().lower().split(None, 1)[:1] == ["v=spf1"]
 
