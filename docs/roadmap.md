@@ -142,6 +142,7 @@ Deferred (kept in the archive, not deleted): RLS and per-report grants (INV-01/0
 
 **S2.3c Misc domain checks** (S)
 - security.txt (RFC 9116, expiry), HSTS preload status, CAA and NS diversity, public breach history (HIBP `breaches?domain=`).
+- *Built (2026-10-05):* four checks (`security_txt`, `hsts_preload`, `domain_dns` for CAA and name servers, `breaches`), each with its own summary line and section on the domain page. The roadmap's DNSSEC item is part of the registration check. Details, and what the live runs taught (lower-case `z` in expiry dates, one DNS operator is a note not a failure), are in the catalogue.
 
 **S2.4 Rules and findings** (M)
 - ~25 rules with stable IDs ([catalogue §4](checks-catalog.md#4-initial-rule-set)); severity and confidence are separate; findings deduplicate, carry a stable fingerprint and link to their evidence rows. `docs/rules.md` is generated from code.

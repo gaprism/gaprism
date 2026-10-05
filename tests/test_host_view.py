@@ -18,10 +18,19 @@ from app.service import host_view
 from app.service import scans as scan_service
 from app.service.geo import IpLocation
 from app.service.ports import PortFacts, PortService, PortsLookup, Vulnerability
+from tests.checks.test_breaches_check import ADOBE, LINKEDIN, FakeLimiters
+from tests.checks.test_breaches_check import answering as breaches_answer
+from tests.checks.test_breaches_check import run as run_breaches
 from tests.checks.test_dns_check import answer, rr
 from tests.checks.test_dns_check import run as run_dns
+from tests.checks.test_domain_dns_check import healthy as dns_setup
+from tests.checks.test_domain_dns_check import run as run_domain_dns
 from tests.checks.test_email_check import mail_domain, policy_site, txt
 from tests.checks.test_email_check import run as run_email
+from tests.checks.test_hsts_preload_check import EXAMPLE as HSTS_UNKNOWN
+from tests.checks.test_hsts_preload_check import GITHUB as HSTS_LISTED
+from tests.checks.test_hsts_preload_check import answering as hsts_answer
+from tests.checks.test_hsts_preload_check import run as run_hsts
 from tests.checks.test_http_check import HOST as WEB_HOST
 from tests.checks.test_http_check import Site, page, redirect
 from tests.checks.test_http_check import run as run_http
@@ -35,6 +44,10 @@ from tests.checks.test_ports_check import ip_outcome as ports_ip_outcome
 from tests.checks.test_ports_check import run as run_ports
 from tests.checks.test_registration_check import Registry
 from tests.checks.test_registration_check import run as run_registration
+from tests.checks.test_securitytxt_check import GITHUB as SECURITY_TXT
+from tests.checks.test_securitytxt_check import WELL_KNOWN, Web
+from tests.checks.test_securitytxt_check import run as run_security
+from tests.checks.test_securitytxt_check import text as security_text
 from tests.checks.test_tls_check import probe_result
 from tests.helpers import create_assessment, create_user, login_as
 from tests.test_engine import CONFIG
@@ -428,6 +441,144 @@ def entry(
             "high",
             "IANA's list of RDAP servers could not be read",
         ),
+        (
+            "security_txt",
+            "ok",
+            None,
+            {"problems": [], "days_to_expiry": 200},
+            "ok",
+            "Expires in 200 days",
+        ),
+        (
+            "security_txt",
+            "ok",
+            None,
+            {"problems": [], "days_to_expiry": 1},
+            "ok",
+            "Expires in 1 day",
+        ),
+        ("security_txt", "ok", None, {"problems": [], "days_to_expiry": None}, "ok", "Present"),
+        (
+            "security_txt",
+            "ok",
+            None,
+            {"problems": ["missing_contact"], "days_to_expiry": 100},
+            "medium",
+            "Expires in 100 days · 1 problem",
+        ),
+        (
+            "security_txt",
+            "ok",
+            None,
+            {"problems": ["offsite", "not_https"], "days_to_expiry": 5},
+            "medium",
+            "Expires in 5 days · 2 problems",
+        ),
+        (
+            "security_txt",
+            "ok",
+            None,
+            {"problems": ["expired"], "days_to_expiry": -3},
+            "high",
+            "Expired",
+        ),
+        (
+            "security_txt",
+            "ok",
+            None,
+            {"problems": ["expired", "offsite"], "days_to_expiry": -3},
+            "high",
+            "Expired",
+        ),
+        ("security_txt", "no_data", "no_security_txt", {}, "muted", "No security.txt found"),
+        ("security_txt", "error", "timeout", {}, "high", "Timed out"),
+        ("hsts_preload", "ok", None, {"status": "preloaded"}, "ok", "Preloaded"),
+        ("hsts_preload", "ok", None, {"status": "pending"}, "info", "Pending"),
+        ("hsts_preload", "ok", None, {"status": "rejected"}, "medium", "Rejected"),
+        ("hsts_preload", "ok", None, {"status": "removed"}, "medium", "Removed"),
+        ("hsts_preload", "ok", None, {"status": "unknown"}, "muted", "Not on the list"),
+        ("hsts_preload", "ok", None, {"status": "something-new"}, "muted", "Unknown"),
+        ("hsts_preload", "unavailable", "disabled", {}, "medium", "Switched off"),
+        ("hsts_preload", "error", "http_500", {}, "high", "HTTP error 500"),
+        (
+            "breaches",
+            "ok",
+            None,
+            {"total": 1, "latest_breach_date": "2013-10-04"},
+            "medium",
+            "1 public breach · 2013-10",
+        ),
+        (
+            "breaches",
+            "ok",
+            None,
+            {"total": 3, "latest_breach_date": None},
+            "medium",
+            "3 public breaches",
+        ),
+        (
+            "breaches",
+            "no_data",
+            "no_breach_known",
+            {},
+            "muted",
+            "No public breach known to Have I Been Pwned",
+        ),
+        ("breaches", "unavailable", "rate_limited", {}, "medium", "Rate limited"),
+        (
+            "domain_dns",
+            "ok",
+            None,
+            {
+                "ns": {"found": True, "count": 4, "operators": ["a", "b"], "problems": []},
+                "caa": {"found": True},
+            },
+            "ok",
+            "4 name servers · 2 operators · CAA",
+        ),
+        (
+            "domain_dns",
+            "ok",
+            None,
+            {
+                "ns": {"found": True, "count": 2, "operators": ["a"], "problems": []},
+                "caa": {"found": False},
+            },
+            "muted",
+            "2 name servers · 1 operator · no CAA",
+        ),
+        (
+            "domain_dns",
+            "ok",
+            None,
+            {
+                "ns": {
+                    "found": True,
+                    "count": 2,
+                    "operators": ["a", "b"],
+                    "problems": ["single_network"],
+                },
+                "caa": {"found": True},
+            },
+            "medium",
+            "2 name servers · 2 operators · CAA",
+        ),
+        (
+            "domain_dns",
+            "ok",
+            None,
+            {"ns": {"found": False}, "caa": {"found": True}},
+            "medium",
+            "No name servers found · CAA",
+        ),
+        (
+            "domain_dns",
+            "ok",
+            None,
+            {"ns": {"found": None, "error": "timeout"}, "caa": {"found": None, "error": "timeout"}},
+            "muted",
+            "Name servers unknown · CAA unknown",
+        ),
         ("email", "no_data", "nxdomain", {}, "muted", "Name does not exist"),
         ("email", "error", "timeout", {}, "high", "Timed out"),
         (
@@ -552,6 +703,34 @@ def test_the_registration_summary_understands_what_the_real_check_produces() -> 
     assert cell.text.endswith("RESERVED-Internet Assigned Numbers Authority")
     swiss = host_view.summarize("registration", *_parts(run_registration("admin.ch", Registry())))
     assert (swiss.tone, swiss.text) == ("muted", "No dates published · cyon AG")
+
+
+def test_the_new_domain_summaries_understand_what_the_real_checks_produce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("app.checks.breaches.LIMITERS", FakeLimiters())
+    # GitHub's own file, served from github.com: nothing is wrong with it
+    served = Web({("github.com", WELL_KNOWN): security_text(SECURITY_TXT)})
+    security = run_security(served, "github.com")
+    cell = host_view.summarize("security_txt", *_parts(security))
+    assert cell.tone == "ok" and cell.text.startswith("Expires in ")
+    assert host_view.summarize("security_txt", *_parts(run_security(Web()))).text == (
+        "No security.txt found"
+    )
+
+    listed = host_view.summarize("hsts_preload", *_parts(run_hsts(hsts_answer(HSTS_LISTED))))
+    unlisted = host_view.summarize("hsts_preload", *_parts(run_hsts(hsts_answer(HSTS_UNKNOWN))))
+    assert (listed.text, unlisted.text) == ("Preloaded", "Not on the list")
+
+    breached = run_breaches(breaches_answer(ADOBE))
+    assert host_view.summarize("breaches", *_parts(breached)).text == "1 public breach · 2013-10"
+    several = run_breaches(breaches_answer(LINKEDIN), "linkedin.com")
+    assert host_view.summarize("breaches", *_parts(several)).text == "3 public breaches · 2023-11"
+    none = run_breaches(breaches_answer([]))
+    assert host_view.summarize("breaches", *_parts(none)).tone == "muted"
+
+    setup = host_view.summarize("domain_dns", *_parts(run_domain_dns(dns_setup())[0]))
+    assert (setup.tone, setup.text) == ("ok", "4 name servers · 2 operators · CAA")
 
 
 def _parts(outcome: CheckOutcome) -> tuple[str, str | None, dict[str, Any]]:
@@ -1294,3 +1473,154 @@ def test_hostile_registry_text_is_escaped(signed_in: Any, db_session: Session) -
     assert SCRIPT not in body and body.count(ESCAPED) >= 4
     panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
     assert SCRIPT not in panel
+
+
+def all_domain_results(session: Session, scan: Scan) -> None:
+    """Every domain-level check of a scan with plausible results (the real checks over mocks)."""
+    add_domain_result(session, scan, "email", email_outcome())
+    add_domain_result(session, scan, "registration", registration_outcome())
+    add_domain_result(session, scan, "domain_dns", run_domain_dns(dns_setup())[0])
+    add_domain_result(
+        session,
+        scan,
+        "security_txt",
+        run_security(Web({("example.com", WELL_KNOWN): security_text(SECURITY_TXT)})),
+    )
+    add_domain_result(session, scan, "hsts_preload", run_hsts(hsts_answer(HSTS_LISTED)))
+    add_domain_result(session, scan, "breaches", run_breaches(breaches_answer(ADOBE)))
+
+
+@pytest.fixture
+def quick_hibp(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.checks.breaches.LIMITERS", FakeLimiters())
+
+
+def test_the_domain_panel_lists_the_checks_in_a_fixed_order(
+    signed_in: Any, db_session: Session, quick_hibp: None
+) -> None:
+    client, assessment, scan = signed_in
+    all_domain_results(db_session, scan)
+
+    panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    titles = [
+        "Email security",
+        "Domain registration",
+        "Name servers and CAA",
+        "security.txt",
+        "HSTS preload list",
+        "Public breach history",
+    ]
+    positions = [panel.index(title) for title in titles]
+    assert positions == sorted(positions)
+    for summary in (
+        "4 name servers · 2 operators · CAA",
+        "Preloaded",
+        "1 public breach · 2013-10",
+    ):
+        assert summary in panel
+
+
+def test_the_domain_page_shows_name_servers_caa_security_txt_hsts_and_breaches(
+    signed_in: Any, db_session: Session, quick_hibp: None
+) -> None:
+    client, assessment, scan = signed_in
+    all_domain_results(db_session, scan)
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    # name servers and CAA
+    assert "ns1.provider-a.net" in body and "provider-b.org" in body
+    assert "198.51.100.1" in body and "letsencrypt.org" in body and "May issue certificates" in body
+    # security.txt
+    assert "https://hackerone.com/github" in body and "Not signed" in body
+    assert "The addresses in the file are shown as text and are not followed" in body
+    # HSTS preload
+    assert "Browsers ship this domain on their HSTS preload list" in body
+    assert "the domain name was sent to hstspreload.org" in body
+    # breaches
+    assert "152,445,165" in body and "Passwords" in body and "Verified" in body
+    assert "Finding none does not prove that nothing happened" in body
+    assert (
+        "<a href" not in body.split('id="check-breaches"')[1].split("</section>")[0]
+    )  # no HIBP html
+    assert body.count("Raw data (JSON)") == 6
+
+
+def test_a_name_server_operator_alone_is_a_note_not_a_problem(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    from tests.checks.test_domain_dns_check import addresses, ns_records
+
+    script = {
+        ("example.com", "NS"): ns_records("example.com", "ns1.example.com", "ns2.example.com"),
+        **addresses("ns1.example.com", "198.51.100.1"),
+        **addresses("ns2.example.com", "203.0.113.1"),
+    }
+    add_domain_result(db_session, scan, "domain_dns", run_domain_dns(script)[0])
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "All name servers belong to one operator" in body and "Note" in body
+    assert "Without CAA records any certificate authority may issue" in body
+
+
+def test_security_txt_problems_are_spelled_out(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    broken = SECURITY_TXT.replace("Contact: https://hackerone.com/github\n", "")
+    outcome = run_security(Web({("example.com", WELL_KNOWN): security_text(broken, "text/html")}))
+    add_domain_result(db_session, scan, "security_txt", outcome)
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "No Contact field" in body and "Not served as text/plain" in body
+    assert "The file is not at any of its own Canonical addresses" in body
+
+
+def test_a_missing_security_txt_and_a_clean_breach_search_say_so(
+    signed_in: Any, db_session: Session, quick_hibp: None
+) -> None:
+    client, assessment, scan = signed_in
+    add_domain_result(db_session, scan, "security_txt", run_security(Web()))
+    add_domain_result(db_session, scan, "breaches", run_breaches(breaches_answer([])))
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "No security.txt found" in body
+    assert "No public breach known to Have I Been Pwned" in body
+    assert "clean" not in body.lower().replace("cleaned", "")  # absence is not "clean"
+
+
+def test_a_switched_off_third_party_lookup_explains_the_setting(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    add_domain_result(
+        db_session, scan, "hsts_preload", CheckOutcome("unavailable", "disabled", {"domain": "x"})
+    )
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "Switched off" in body and "EXTERNAL_DOMAIN_LOOKUPS" in body
+
+
+def test_hostile_text_in_the_new_domain_sections_is_escaped(
+    signed_in: Any, db_session: Session, quick_hibp: None
+) -> None:
+    client, assessment, scan = signed_in
+    dns = run_domain_dns(dns_setup())[0]
+    dns.data["ns"]["servers"][0]["host"] = SCRIPT
+    dns.data["ns"]["servers"][0]["operator"] = SCRIPT
+    dns.data["caa"]["records"][0]["value"] = SCRIPT
+    dns.data["caa"]["issuers"] = [SCRIPT]
+    add_domain_result(db_session, scan, "domain_dns", dns)
+
+    security = run_security(Web({("example.com", WELL_KNOWN): security_text(SECURITY_TXT)}))
+    security.data["fields"]["contact"] = [SCRIPT]
+    security.data["url"] = SCRIPT
+    add_domain_result(db_session, scan, "security_txt", security)
+
+    hsts = run_hsts(hsts_answer(HSTS_LISTED))
+    hsts.data["preloaded_domain"] = SCRIPT
+    add_domain_result(db_session, scan, "hsts_preload", hsts)
+
+    breaches = run_breaches(breaches_answer(ADOBE))
+    breach = breaches.data["breaches"][0]
+    breach.update(title=SCRIPT, name=SCRIPT, domain=SCRIPT, data_classes=[SCRIPT])
+    add_domain_result(db_session, scan, "breaches", breaches)
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert SCRIPT not in body and body.count(ESCAPED) >= 8
+    assert SCRIPT not in client.get(f"/assessments/{assessment.id}").get_data(as_text=True)

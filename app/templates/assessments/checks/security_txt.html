@@ -1,0 +1,21 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set f = d.fields %}
+{% macro values(items) -%}
+{%- for value in items %}<div><bdi class="font-mono break-all text-sm">{{ value }}</bdi></div>{% endfor -%}
+{%- endmacro %}
+<p class="text-sm">{{ _('Found at') }} <bdi class="font-mono break-all">{{ d.url }}</bdi>
+  {% if d.hops %}<span class="text-muted">· {{ ngettext('after %(num)s redirect', 'after %(num)s redirects', d.hops|length) }}</span>{% endif %}
+  {% if d.signed %}{{ badge(_('Signed'), 'ok') }}{% else %}{{ badge(_('Not signed'), 'muted') }}{% endif %}</p>
+{% if d.problems %}<ul class="mt-2 grid gap-1 text-sm">{% for code in d.problems %}<li>{{ badge(_('Problem'), 'high' if code in ['expired', 'missing_contact'] else 'medium') }} {{ problem_label(code) }}</li>{% endfor %}</ul>{% endif %}
+<dl class="mt-4 grid gap-4 sm:grid-cols-2">
+  <div><dt>{{ _('Expires') }}</dt><dd>{% if d.expires %}<time datetime="{{ d.expires }}">{{ d.expires[:10] }}</time> {% if d.days_to_expiry is not none %}<span class="text-muted">({% if d.days_to_expiry < 0 %}{{ ngettext('%(num)s day ago', '%(num)s days ago', -d.days_to_expiry) }}{% else %}{{ ngettext('in %(num)s day', 'in %(num)s days', d.days_to_expiry) }}{% endif %})</span>{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</dd></div>
+  <div><dt>{{ _('Contact') }}</dt><dd>{% if f.contact %}{{ values(f.contact) }}{% else %}<span class="text-muted">—</span>{% endif %}</dd></div>
+  {% if f.encryption %}<div><dt>{{ _('Encryption key') }}</dt><dd>{{ values(f.encryption) }}</dd></div>{% endif %}
+  {% if f.policy %}<div><dt>{{ _('Policy') }}</dt><dd>{{ values(f.policy) }}</dd></div>{% endif %}
+  {% if f.acknowledgments %}<div><dt>{{ _('Acknowledgments') }}</dt><dd>{{ values(f.acknowledgments) }}</dd></div>{% endif %}
+  {% if f.canonical %}<div><dt>{{ _('Canonical') }}</dt><dd>{{ values(f.canonical) }}</dd></div>{% endif %}
+  {% if f.hiring %}<div><dt>{{ _('Hiring') }}</dt><dd>{{ values(f.hiring) }}</dd></div>{% endif %}
+  {% if f['preferred-languages'] %}<div><dt>{{ _('Preferred languages') }}</dt><dd>{{ values(f['preferred-languages']) }}</dd></div>{% endif %}
+</dl>
+<p class="mt-3 text-xs text-muted">{{ _('The addresses in the file are shown as text and are not followed.') }}</p>

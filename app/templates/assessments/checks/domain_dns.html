@@ -1,0 +1,47 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set ns = d.ns %}
+{% set caa = d.caa %}
+{% macro missing(part) -%}
+{%- if part.found is none %}{{ badge(_('Could not be checked'), 'medium') }} <span class="text-sm text-muted">{{ reason_label(part.error) }}</span>
+{%- else %}{{ badge(_('Not found'), 'muted') }}{% endif -%}
+{%- endmacro %}
+
+<h3 class="text-sm">{{ _('Name servers of %(zone)s', zone=d.zone) }}</h3>
+{% if ns.found %}
+<p class="mt-1 text-sm">{{ ngettext('%(num)s name server', '%(num)s name servers', ns.count) }} ·
+  {{ ngettext('%(num)s operator', '%(num)s operators', ns.operators|length) }} ·
+  {{ ngettext('%(num)s network', '%(num)s networks', ns.networks|length) }}</p>
+{% if ns.problems or ns.single_operator %}<ul class="mt-2 grid gap-1 text-sm">
+  {% for code in ns.problems %}<li>{{ badge(_('Problem'), 'medium') }} {{ problem_label(code) }}</li>{% endfor %}
+  {% if ns.single_operator %}<li>{{ badge(_('Note'), 'info') }} {{ problem_label('single_operator') }} <span class="text-muted">({{ ns.operators[0] }})</span></li>{% endif %}
+</ul>{% endif %}
+<div class="table-scroll mt-2"><table class="data-table">
+  <thead><tr><th scope="col">{{ _('Name server') }}</th><th scope="col">{{ _('Operator') }}</th><th scope="col">{{ _('Addresses') }}</th></tr></thead>
+  <tbody>{% for server in ns.servers %}<tr>
+    <td><bdi class="font-mono break-all">{{ server.host }}</bdi></td>
+    <td><bdi class="font-mono break-all">{{ server.operator }}</bdi></td>
+    <td>{% for ip in server.addresses %}<div><bdi class="font-mono">{{ ip }}</bdi></div>{% else %}<span class="text-muted">—</span>{% endfor %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+<p class="mt-1 text-xs text-muted">{{ _('An operator is the registered domain of a name server\'s name; a network is an IPv4 /24 or IPv6 /48. Several servers of one operator or in one network fail together.') }}</p>
+{% else %}
+<p class="mt-1">{{ missing(ns) }}</p>
+{% endif %}
+
+<h3 class="mt-5 text-sm">CAA</h3>
+{% if caa.found %}
+<p class="mt-1 text-sm text-muted">{{ _('Found at %(name)s; the closest name that has any CAA record decides.', name=caa.at) }}</p>
+<div class="table-scroll mt-1"><table class="data-table">
+  <thead><tr><th scope="col">{{ _('Tag') }}</th><th scope="col">{{ _('Value') }}</th><th scope="col">{{ _('Flags') }}</th></tr></thead>
+  <tbody>{% for record in caa.records %}<tr><td><code>{{ record.tag }}</code></td><td><bdi class="font-mono break-all">{{ record.value }}</bdi></td><td>{{ record.flags }}</td></tr>{% endfor %}</tbody>
+</table></div>
+<p class="mt-2 text-sm">
+  {% if caa.forbids_issuance %}{{ badge(_('No certificate authority may issue'), 'info') }}
+  {% elif caa.issuers %}{{ _('May issue certificates:') }} {% for name in caa.issuers %}{{ badge(name, 'ok') }} {% endfor %}
+  {% else %}<span class="text-muted">{{ _('No issuer is restricted by an issue record.') }}</span>{% endif %}
+</p>
+{% else %}
+<p class="mt-1">{{ missing(caa) }}</p>
+{% if caa.found is sameas false %}<p class="mt-1 text-sm text-muted">{{ _('Without CAA records any certificate authority may issue certificates for this domain.') }}</p>{% endif %}
+{% endif %}

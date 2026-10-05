@@ -15,13 +15,17 @@ from app.checks.base import (
     lookup_enabled,
     waits_for,
 )
+from app.checks.breaches import BreachesCheck
 from app.checks.discovery import DiscoveryCheck
 from app.checks.dns import DnsCheck
+from app.checks.domain_dns import DomainDnsCheck
 from app.checks.email import EmailCheck
+from app.checks.hsts_preload import HstsPreloadCheck
 from app.checks.http import HttpCheck
 from app.checks.ip import IpCheck
 from app.checks.ports import PortsCheck
 from app.checks.registration import RegistrationCheck
+from app.checks.securitytxt import SecurityTxtCheck
 from app.checks.tls import TlsCheck
 
 REGISTRY: dict[str, Check] = {
@@ -35,6 +39,10 @@ REGISTRY: dict[str, Check] = {
         HttpCheck(),
         EmailCheck(),
         RegistrationCheck(),
+        DomainDnsCheck(),
+        SecurityTxtCheck(),
+        HstsPreloadCheck(),
+        BreachesCheck(),
     )
 }
 

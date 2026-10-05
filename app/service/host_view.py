@@ -25,7 +25,14 @@ from app.models import Assessment, CheckResult, Host, Scan
 
 CHECK_ORDER = ("dns", "ip", "ports", "tls", "http")
 # The checks of the domain itself (they run once per scan), in display order.
-DOMAIN_CHECK_ORDER = ("email", "registration")
+DOMAIN_CHECK_ORDER = (
+    "email",
+    "registration",
+    "domain_dns",
+    "security_txt",
+    "hsts_preload",
+    "breaches",
+)
 MAX_RAW_JSON_CHARS = 100_000
 
 
@@ -41,6 +48,10 @@ CHECK_TITLES = {
     "http": N_("HTTP"),
     "email": N_("Email security"),
     "registration": N_("Domain registration"),
+    "domain_dns": N_("Name servers and CAA"),
+    "security_txt": N_("security.txt"),
+    "hsts_preload": N_("HSTS preload list"),
+    "breaches": N_("Public breach history"),
 }
 
 REASONS = {
@@ -88,6 +99,9 @@ REASONS = {
     "bootstrap_failed": N_("IANA's list of RDAP servers could not be read"),
     "not_registrable": N_("Not a registrable domain"),
     "not_allowed": N_("The registry refused the request"),
+    "no_security_txt": N_("No security.txt found"),
+    "not_security_txt": N_("A page was served, but it is not a security.txt"),
+    "no_breach_known": N_("No public breach known to Have I Been Pwned"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.
@@ -134,6 +148,21 @@ PROBLEMS = {
     "invalid_policy": N_("The policy (p=) is missing or not valid"),
     "invalid_subdomain_policy": N_("The subdomain policy (sp=) is not valid"),
     "invalid_pct": N_("The percentage (pct=) is not a number from 0 to 100"),
+    # security.txt
+    "missing_contact": N_("No Contact field: nobody is named to report to"),
+    "missing_expires": N_("No Expires field, which the RFC requires"),
+    "multiple_expires": N_("More than one Expires field"),
+    "invalid_expires": N_("The Expires value is not a valid date-time"),
+    "expired": N_("The file has expired"),
+    "not_plain_text": N_("Not served as text/plain"),
+    "not_https": N_("Served without HTTPS"),
+    "offsite": N_("Served from another domain than the one assessed"),
+    "canonical_mismatch": N_("The file is not at any of its own Canonical addresses"),
+    # name servers
+    "too_few": N_("Fewer than two name servers"),
+    "single_operator": N_("All name servers belong to one operator"),  # a note, not a failure
+    "single_network": N_("All name server addresses are in one network"),
+    "unresolvable": N_("A name server has no address"),
 }
 
 TLS_FAILURES = {
@@ -299,6 +328,70 @@ def _registration_cell(data: Mapping[str, Any]) -> CheckCell:
     return CheckCell("ok", tone, f"{text} · {registrar}" if registrar else text)
 
 
+def _security_txt_cell(data: Mapping[str, Any]) -> CheckCell:
+    problems = [p for p in data.get("problems", []) if p != "expired"]
+    if "expired" in data.get("problems", []):
+        return CheckCell("ok", "high", _("Expired"))
+    days = data.get("days_to_expiry")
+    text = (
+        ngettext("Expires in %(num)s day", "Expires in %(num)s days", days)
+        if isinstance(days, int)
+        else _("Present")
+    )
+    if problems:
+        text += " · " + ngettext("%(num)s problem", "%(num)s problems", len(problems))
+        return CheckCell("ok", "medium", text)
+    return CheckCell("ok", "ok", text)  # a short, rolling expiry is normal; only expired is bad
+
+
+_HSTS_STATES = {
+    "preloaded": (N_("Preloaded"), "ok"),
+    "pending": (N_("Pending"), "info"),
+    "rejected": (N_("Rejected"), "medium"),
+    "removed": (N_("Removed"), "medium"),
+    "unknown": (N_("Not on the list"), "muted"),
+}
+
+
+def _hsts_preload_cell(data: Mapping[str, Any]) -> CheckCell:
+    label, tone = _HSTS_STATES.get(str(data.get("status")), (N_("Unknown"), "muted"))
+    return CheckCell("ok", tone, _(label))
+
+
+def _breaches_cell(data: Mapping[str, Any]) -> CheckCell:
+    total = int(data.get("total", 0))
+    text = ngettext("%(num)s public breach", "%(num)s public breaches", total)
+    latest = data.get("latest_breach_date")
+    return CheckCell("ok", "medium", f"{text} · {latest[:7]}" if latest else text)
+
+
+def _domain_dns_cell(data: Mapping[str, Any]) -> CheckCell:
+    ns = data.get("ns", {})
+    caa = data.get("caa", {})
+    parts: list[str] = []
+    weak = False
+    if ns.get("found"):
+        count = int(ns.get("count", 0))
+        parts.append(ngettext("%(num)s name server", "%(num)s name servers", count))
+        operators = len(ns.get("operators", []))
+        parts.append(ngettext("%(num)s operator", "%(num)s operators", operators))
+        weak = bool(ns.get("problems"))
+    elif ns.get("found") is False:
+        parts.append(_("No name servers found"))
+        weak = True
+    else:
+        parts.append(_("Name servers unknown"))
+    parts.append(
+        "CAA"
+        if caa.get("found")
+        else _("no CAA")
+        if caa.get("found") is False
+        else _("CAA unknown")
+    )
+    tone = "medium" if weak else "ok" if caa.get("found") else "muted"
+    return CheckCell("ok", tone, " · ".join(parts))
+
+
 def _tls_cell(data: Mapping[str, Any]) -> CheckCell:
     if not data.get("verified"):
         failures = list(data.get("failures", []))
@@ -337,6 +430,10 @@ _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "http": _http_cell,
     "email": _email_cell,
     "registration": _registration_cell,
+    "domain_dns": _domain_dns_cell,
+    "security_txt": _security_txt_cell,
+    "hsts_preload": _hsts_preload_cell,
+    "breaches": _breaches_cell,
 }
 
 

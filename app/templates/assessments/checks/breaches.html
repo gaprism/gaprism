@@ -1,0 +1,28 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+<div class="mb-4">{{ notice(_('What this is'), _('Have I Been Pwned lists documented breaches of services by their domain. Finding none does not prove that nothing happened, and a listed breach says nothing about the vendor\'s own security today. Scraped and spam-list entries are marked.'), 'info') }}</div>
+<div class="table-scroll"><table class="data-table">
+  <caption class="sr-only">{{ _('Public breaches of %(domain)s', domain=d.queried) }}</caption>
+  <thead><tr><th scope="col">{{ _('Breach') }}</th><th scope="col">{{ _('Happened') }}</th><th scope="col">{{ _('Accounts') }}</th><th scope="col">{{ _('Data') }}</th><th scope="col">{{ _('Notes') }}</th></tr></thead>
+  <tbody>
+    {% for b in d.breaches %}
+    <tr>
+      <td>{{ b.title or b.name }}{% if b.domain and b.domain != d.queried %}<div class="text-xs text-muted">{{ b.domain }}</div>{% endif %}</td>
+      <td>{% if b.breach_date %}<time datetime="{{ b.breach_date }}">{{ b.breach_date }}</time>{% else %}—{% endif %}</td>
+      <td>{% if b.pwn_count is not none %}{{ '{:,}'.format(b.pwn_count) }}{% else %}—{% endif %}</td>
+      <td>{% for c in b.data_classes %}{{ badge(c, 'muted') }} {% endfor %}</td>
+      <td><div class="flex flex-wrap gap-1">
+        {% if b.verified %}{{ badge(_('Verified'), 'info') }}{% else %}{{ badge(_('Unverified'), 'medium') }}{% endif %}
+        {% if b.fabricated %}{{ badge(_('Fabricated'), 'high') }}{% endif %}
+        {% if b.spam_list %}{{ badge(_('Spam list'), 'muted') }}{% endif %}
+        {% if b.malware %}{{ badge(_('Malware'), 'muted') }}{% endif %}
+        {% if b.stealer_log %}{{ badge(_('Stealer log'), 'muted') }}{% endif %}
+        {% if b.sensitive %}{{ badge(_('Sensitive'), 'muted') }}{% endif %}
+        {% if b.retired %}{{ badge(_('Retired'), 'muted') }}{% endif %}
+      </div></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{% if d.total > d.breaches|length %}<p class="mt-1 text-xs text-muted">{{ _('%(count)s more are in the raw data.', count=d.total - d.breaches|length) }}</p>{% endif %}
+<p class="mt-3 text-xs text-muted">{{ _('From') }} <a class="link" href="https://haveibeenpwned.com" rel="noopener noreferrer">haveibeenpwned.com</a> (CC BY 4.0) · {% if d.cached %}{{ _('from the cache; fetched') }}{% else %}{{ _('fetched') }}{% endif %} <time datetime="{{ d.fetched_at }}">{{ d.fetched_at[:16]|replace('T', ' ') }} UTC</time> · {{ _('the domain name was sent to Have I Been Pwned') }}</p>
