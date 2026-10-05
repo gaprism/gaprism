@@ -476,7 +476,6 @@ def scan_overview(
     discovery = get_discovery(session, scan)
     data: Mapping[str, Any] = discovery.data if discovery else {}
     counts: Mapping[str, Any] = data.get("counts", {})
-    planned: Mapping[str, Any] = data.get("planned", {})
     sources = [
         SourceLine(
             source=str(item.get("source", "")),
@@ -497,7 +496,7 @@ def scan_overview(
         wildcard_patterns=list(data.get("wildcard_patterns", [])),
         names_seen=int(counts.get("names_seen", 0)),
         out_of_scope=int(counts.get("out_of_scope", 0)),
-        dropped_by_cap=int(planned.get("dropped_by_cap", 0)),
+        dropped_by_cap=summary_service.hosts_over_limit(data),
         discovery_status=discovery.status if discovery else None,
         waiting_for_worker=scan.status == "queued"
         and utc_now() - scan.created_at > WAITING_FOR_WORKER_AFTER,

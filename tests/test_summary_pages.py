@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 
 import pytest
 from flask.testing import FlaskClient
@@ -29,13 +30,15 @@ DISCOVERY = {
 }
 
 
-def finish(session: Session, scan: Scan, status: str = "completed") -> None:
+def finish(
+    session: Session, scan: Scan, status: str = "completed", discovery: dict[str, Any] | None = None
+) -> None:
     row = session.scalars(
         select(CheckResult).where(
             CheckResult.scan_id == scan.id, CheckResult.check_key == "discovery"
         )
     ).one()
-    row.status, row.data = "ok", DISCOVERY
+    row.status, row.data = "ok", discovery or DISCOVERY
     scan.status, scan.finished_at = status, utc_now()
     session.commit()
 
@@ -127,6 +130,32 @@ def test_the_coverage_adds_up_what_was_seen_reviewed_and_left_out(finished: Fini
     assert "Not reviewed" in coverage
     assert "outside the domain: 1 · wildcard patterns: 1 · over the limit: 2" in coverage
     assert "1 host could not be classified" in coverage  # cdn.example.com has no web check
+
+
+def test_names_that_discovery_itself_cut_are_not_reviewed_either(
+    client: FlaskClient, db_session: Session
+) -> None:
+    """A big certificate footprint is capped while the sources are merged, before the scan is
+    planned (a live scan of badssl.com saw 9,977 names and reviewed 12): the page must not say
+    "over the limit: 0"."""
+    scan, _ = populated_scan(db_session)
+    scan.options = {**scan.options, "max_hosts": 12}
+    finish(
+        db_session,
+        scan,
+        discovery={
+            "hosts": [],
+            "sources": [],
+            "counts": {"names_seen": 9977, "out_of_scope": 0, "dropped_by_cap": 9964},
+            "wildcard_patterns": ["*.example.com"],
+            "planned": {"hosts": 12, "dropped_by_cap": 0},
+        },
+    )
+    sign_in(client, db_session, scan)
+    page = get(client, f"/assessments/{scan.assessment_id}")
+    coverage = summary_of(page).split('id="coverage-title"')[1].split("</section>")[0]
+    assert "outside the domain: 0 · wildcard patterns: 1 · over the limit: 9964" in coverage
+    assert "9964 hosts exceeded the limit of 12 per scan." in page  # and the notice says so
 
 
 # ------------------------------------------------------------------------------ where

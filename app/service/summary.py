@@ -123,7 +123,7 @@ class Coverage:
         return self.out_of_scope + self.wildcards + self.over_limit
 
 
-def _fully_checked(host: HostChecks) -> bool:
+def fully_checked(host: HostChecks) -> bool:
     """Every check of the host ended with an answer: it found something, found nothing, or was left
     out because it could not apply (no address, nothing to connect to). A check that failed, was
     unavailable, did not finish or was cancelled is a gap."""
@@ -155,18 +155,28 @@ def _count(value: Any) -> int:
     return int(value) if isinstance(value, int | float) else 0
 
 
+def hosts_over_limit(discovery: Mapping[str, Any]) -> int:
+    """How many hosts were left out because of the limit per scan: the names discovery dropped when
+    it merged its sources (the apex first, then the most recently seen), plus those the scan's plan
+    dropped because the domain and the hosts added by hand come first. The two never overlap."""
+    counts = discovery.get("counts")
+    planned = discovery.get("planned")
+    merged = _count(counts.get("dropped_by_cap")) if isinstance(counts, Mapping) else 0
+    planned_drop = _count(planned.get("dropped_by_cap")) if isinstance(planned, Mapping) else 0
+    return merged + planned_drop
+
+
 def coverage_of(
     hosts: Sequence[HostChecks], discovery: Mapping[str, Any], host_limit: int | None = None
 ) -> Coverage:
     """Count what was reviewed and what was not. ``discovery`` is the discovery check's data."""
     counts = discovery.get("counts")
-    planned = discovery.get("planned")
     wildcards = discovery.get("wildcard_patterns")
     states = Counter(_web_state(host) for host in hosts)
     return Coverage(
         names_seen=_count(counts.get("names_seen")) if isinstance(counts, Mapping) else 0,
         hosts=len(hosts),
-        fully_checked=sum(1 for host in hosts if _fully_checked(host)),
+        fully_checked=sum(1 for host in hosts if fully_checked(host)),
         https=states["https"],
         http_only=states["http_only"],
         no_web_server=states["no_web_server"],
@@ -174,7 +184,7 @@ def coverage_of(
         undetermined=states["undetermined"],
         out_of_scope=_count(counts.get("out_of_scope")) if isinstance(counts, Mapping) else 0,
         wildcards=len(wildcards) if isinstance(wildcards, list) else 0,
-        over_limit=_count(planned.get("dropped_by_cap")) if isinstance(planned, Mapping) else 0,
+        over_limit=hosts_over_limit(discovery),
         host_limit=host_limit,
     )
 

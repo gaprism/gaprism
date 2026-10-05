@@ -63,6 +63,21 @@
 
   {{ findings_panel(overview.findings, assessment, progress.checks_problem) }}
 
+  {% if scan.is_terminal %}
+  <section class="panel mt-4" aria-labelledby="export-title">
+    <div class="section-head"><h2 id="export-title">{{ _('Report and export') }}</h2></div>
+    <div class="p-4">
+      <p class="max-w-3xl text-sm text-muted">{{ _('Made from this scan as it is now, including what the team decided about the findings. The report is laid out for printing (your browser saves it as PDF); the JSON file holds everything that was collected; the CSV files open in a spreadsheet.') }}</p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="{{ url_for('assessments.report', assessment_id=assessment.id) }}" target="_blank" rel="noopener">{{ _('Open the report') }}</a>
+        <a class="btn btn-secondary" href="{{ url_for('assessments.export_json', assessment_id=assessment.id) }}">{{ _('JSON · everything') }}</a>
+        <a class="btn btn-secondary" href="{{ url_for('assessments.export_hosts_csv', assessment_id=assessment.id) }}">{{ _('CSV · hosts') }}</a>
+        <a class="btn btn-secondary" href="{{ url_for('assessments.export_findings_csv', assessment_id=assessment.id) }}">{{ _('CSV · findings') }}</a>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
   {% if overview.domain_rows %}
   <div class="panel mt-4">
     <div class="section-head">

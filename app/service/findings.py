@@ -41,6 +41,7 @@ from app.rules import (
     evaluate,
 )
 from app.rules.base import N_
+from app.rules.engine import MAX_FINDINGS
 from app.service.decisions import (
     ACCEPTED,
     FALSE_POSITIVE,
@@ -275,6 +276,15 @@ def list_findings(
     total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
     ordered = _in_order(query, current).limit(per_page).offset((page - 1) * per_page)
     return FindingPage(list(session.scalars(ordered)), total, page, per_page)
+
+
+def scan_findings(session: Session, scan: Scan, *, today: date | None = None) -> list[Finding]:
+    """Every finding of the scan, open ones first and then most serious first.
+
+    Bounded by the rule engine's cap per scan; the exports read the whole list."""
+    current = current_status(today or utc_now().date())
+    query = with_decisions(select(Finding), scan.assessment_id).where(Finding.scan_id == scan.id)
+    return list(session.scalars(_in_order(query, current).limit(MAX_FINDINGS)))
 
 
 @dataclass(frozen=True)

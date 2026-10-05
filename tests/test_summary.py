@@ -319,12 +319,29 @@ def test_what_discovery_saw_and_left_out() -> None:
     assert coverage.not_reviewed == 33
 
 
+def test_hosts_over_the_limit_are_those_dropped_in_discovery_and_those_dropped_in_the_plan() -> (
+    None
+):
+    """Discovery caps what its sources returned; the plan then puts the domain and the hosts added
+    by hand first and may drop more. Both are hosts nobody reviewed."""
+    discovery = {
+        "counts": {"names_seen": 9977, "out_of_scope": 0, "dropped_by_cap": 9964},
+        "wildcard_patterns": ["*.example.com"],
+        "planned": {"hosts": 12, "dropped_by_cap": 3},
+    }
+    assert summary.hosts_over_limit(discovery) == 9967
+    coverage = summary.coverage_of([], discovery, host_limit=12)
+    assert coverage.over_limit == 9967 and coverage.not_reviewed == 9968
+    assert summary.hosts_over_limit({"counts": {"dropped_by_cap": 5}}) == 5
+    assert summary.hosts_over_limit({"planned": {"dropped_by_cap": 4}}) == 4
+
+
 @pytest.mark.parametrize(
     "discovery",
     [
         {},
         {"counts": [], "planned": "x", "wildcard_patterns": 3},
-        {"counts": {"names_seen": "many"}},
+        {"counts": {"names_seen": "many", "dropped_by_cap": "lots"}},
     ],
 )
 def test_a_discovery_record_that_is_missing_or_malformed_counts_as_zero(

@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="{{ locale }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ _('Technical due diligence') }} · {{ report.data.domain_display }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+<script src="{{ url_for('static', filename='js/report.js') }}" defer></script>
+</head>
+<body class="report-body bg-canvas text-ink">
+{% from 'assessments/_findings.html' import state_note %}
+{% set data = report.data %}
+{% set summary = data.summary %}
+{% set secure = summary.secure %}
+{% set scan_labels = {'completed': _('Completed'), 'partial': _('Completed with gaps'), 'failed': _('Failed'), 'cancelled': _('Cancelled')} %}
+
+{# One finding, as the report states it: what, where, how sure, what to do, on what it rests, and what the team decided. #}
+{% macro finding_block(finding) %}
+<article class="report-finding report-finding-{{ finding.severity }}" id="f-{{ finding.id }}">
+  <h4>{{ severity_label(finding.severity) }} · {{ finding.title }}{% if finding.status == 'accepted' %} · {{ _('Accepted') }}{% elif finding.status == 'false_positive' %} · {{ _('False positive') }}{% elif finding.decision and finding.decision.lapsed %} · {{ _('Acceptance expired') }}{% endif %}</h4>
+  <p class="report-source">
+    {% if finding.scope == 'host' and finding.hostname %}{{ _('Host') }}: <bdi class="font-mono">{{ finding.hostname }}</bdi>
+    {% elif finding.scope == 'address' %}{{ _('Address') }}: <bdi class="font-mono">{{ finding.address or finding.subject }}</bdi>
+    {% else %}{{ _('The domain itself') }}{% endif %}
+    · {{ confidence_label(finding.confidence) }} · {{ attribution_label(finding.attribution) }}
+  </p>
+  {% if finding.message %}<p>{{ finding.message }}</p>{% endif %}
+  {% if finding.facts %}
+  <dl class="report-facts">
+    {% for label, value in finding.facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+  </dl>
+  {% endif %}
+  {% if finding.advice %}<p><strong>{{ _('What to do') }}:</strong> {{ finding.advice }}</p>{% endif %}
+  {% if finding.evidence %}
+  <p class="report-source">{{ _('Evidence') }}:
+    {% for ref in finding.evidence[:3] %}{{ check_title(ref.check) }}{% if ref.hostname %} · <bdi class="font-mono">{{ ref.hostname }}</bdi>{% endif %}{% if ref.collected_at %} · {{ ref.collected_at.strftime('%Y-%m-%d %H:%M') }} UTC{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}{% if finding.evidence|length > 3 %}; {{ _('and %(n)s more', n=finding.evidence|length - 3) }}{% endif %}
+  </p>
+  {% endif %}
+  {% if finding.decision %}
+  <div class="report-decision">
+    <p><strong>{% if finding.decision.lapsed %}{{ _('Accepted, but the review date has passed: the finding is open again.') }}{% elif finding.decision.status == 'accepted' %}{{ _('Accepted by the team') }}{% else %}{{ _('Marked as a false positive by the team') }}{% endif %}</strong></p>
+    <p class="whitespace-pre-line">{{ finding.decision.reason }}</p>
+    <p class="report-source">{{ _('by %(who)s on %(when)s', who=finding.decision.decided_by, when=finding.decision.decided_at.strftime('%Y-%m-%d')) }}{% if finding.decision.review_by %} · {{ _('review by %(date)s', date=finding.decision.review_by.isoformat()) }}{% endif %}</p>
+  </div>
+  {% endif %}
+</article>
+{% endmacro %}
+
+{# A list of providers from one record set: found, none, or not determined. #}
+{% macro providers(group, none_text) -%}
+{%- if group.state == 'found' -%}
+{%- for name, count in group.items %}<bdi>{{ name }}</bdi>{% if count %} ({{ count }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% if group.more %}, {{ _('and %(num)s more', num=group.more) }}{% endif %}
+{%- elif group.state == 'none' -%}{{ none_text }}
+{%- else -%}{{ _('Not determined') }}: {{ reason_label(group.reason) }}
+{%- endif -%}
+{%- endmacro %}
+
+<div class="report-toolbar screen-only">
+  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}">{{ _('Back to the assessment') }}</a>
+  <button type="button" class="btn btn-primary" data-print>{{ _('Print or save as PDF') }}</button>
+</div>
+
+<main id="report" class="report-paper">
+  <header class="report-heading">
+    <p class="eyebrow">{{ _('Technical due diligence · external view') }}</p>
+    <h1><bdi class="font-mono">{{ data.domain_display }}</bdi></h1>
+    {% if data.label %}<p>{{ data.label }}</p>{% endif %}
+    <dl class="report-meta">
+      <div><dt>{{ _('Assessed domain') }}</dt><dd><bdi class="font-mono">{{ data.domain }}</bdi></dd></div>
+      <div><dt>{{ _('Scan') }}</dt><dd><time datetime="{{ data.scan_created_at.isoformat() }}">{{ data.scan_created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time> · {{ scan_labels.get(data.scan_status, data.scan_status) }}</dd></div>
+      <div><dt>{{ _('Hosts reviewed') }}</dt><dd>{{ summary.coverage.hosts }}</dd></div>
+      <div><dt>{{ _('Report generated') }}</dt><dd><time datetime="{{ data.generated_at.isoformat() }}">{{ data.generated_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></dd></div>
+    </dl>
+    {% if data.scan_status != 'completed' %}
+    <p class="report-warning">{{ _('This scan did not finish everywhere (%(status)s). The coverage in the summary says what is missing; findings can only be as complete as what was collected.', status=scan_labels.get(data.scan_status, data.scan_status)) }}</p>
+    {% endif %}
+    <p class="report-warning">{{ _('This report states what could be observed from outside at the time of the scan. It is not a certification, an audit or a penetration test. A check that failed, or found nothing, proves nothing. A location is where an address is announced, not where data is stored or processed; the providers named are those seen in public records, not the vendor’s legal processors.') }}</p>
+  </header>
+
+  <section aria-labelledby="r-summary">
+    <h2 id="r-summary">{{ _('1. Summary') }}</h2>
+
+    <h3>{{ _('How secure is the external posture?') }}</h3>
+    {% if secure.state != 'ready' %}
+    <p>{{ state_note(secure.state) }}</p>
+    {% else %}
+    <p><strong>{{ ngettext('%(num)s open finding', '%(num)s open findings', secure.open_total) }}</strong>{% if secure.open_by_severity %}:
+      {% for level, count in secure.open_by_severity.items() %}{{ severity_label(level) }} {{ count }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}.
+      {% if secure.accepted or secure.false_positive %}{{ _('The team accepted %(a)s and marked %(f)s as false positives; they are listed in section 3 and not counted as open.', a=secure.accepted, f=secure.false_positive) }}{% endif %}
+    </p>
+    {% if secure.top_rules %}
+    <ul>{% for rule in secure.top_rules %}<li>{{ rule.title }} ({{ severity_label(rule.severity) }}, {{ rule.count }})</li>{% endfor %}</ul>
+    {% endif %}
+    {% endif %}
+
+    <h3>{{ _('Where is the data?') }}</h3>
+    {% set where = summary.where %}
+    {% if where.countries %}
+    <div class="table-scroll">
+    <table class="report-table">
+      <thead><tr><th scope="col">{{ _('Country') }}</th><th scope="col">{{ _('Hosts') }}</th><th scope="col">{{ _('Places') }}</th><th scope="col">{{ _('Allowed area') }}</th></tr></thead>
+      <tbody>
+        {% for country in where.countries %}
+        <tr>
+          <td><bdi>{{ country.name }}</bdi> ({{ country.code }})</td>
+          <td>{{ country.hosts }}</td>
+          <td>{% for city, count in country.cities %}<bdi>{{ city }}</bdi> ({{ count }}){% if not loop.last %}, {% endif %}{% endfor %}</td>
+          <td>{{ _('Inside') if country.allowed else _('Outside') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% if where.more_countries %}<p class="report-source">{{ ngettext('and %(num)s more country', 'and %(num)s more countries', where.more_countries) }}</p>{% endif %}
+    {% endif %}
+    <p>
+      {% if where.outside or where.outside_edge_only %}{{ ngettext('%(num)s host has an address outside the allowed area', '%(num)s hosts have an address outside the allowed area', where.outside + where.outside_edge_only) }}{% if where.outside_edge_only %} ({{ _('%(n)s of them only through a CDN or anycast edge', n=where.outside_edge_only) }}){% endif %}.
+      {% elif where.located %}{{ _('No host has an address outside the allowed area.') }}{% endif %}
+      {% if where.edge_hosts %}{{ ngettext('%(num)s host sits behind a CDN or anycast network (%(names)s): the location of such an address is the edge, not the data centre, so it is not placed in a country.', '%(num)s hosts sit behind a CDN or anycast network (%(names)s): the location of such an address is the edge, not the data centre, so they are not placed in a country.', where.edge_hosts, names=where.edge_networks|map(attribute=0)|join(', ')) }}{% endif %}
+      {% if where.unlocated %}{{ ngettext('%(num)s host could not be located', '%(num)s hosts could not be located', where.unlocated) }}{% if where.unlocated_reason %}: {{ reason_label(where.unlocated_reason) }}{% endif %}.{% endif %}
+      {% if not where.countries and not where.edge_hosts and not where.unlocated %}{{ _('No host could be placed in a country.') }}{% endif %}
+      {{ ngettext('The allowed area has %(num)s country.', 'The allowed area has %(num)s countries.', where.allowed_count) }}
+    </p>
+
+    <h3>{{ _('Who processes it?') }}</h3>
+    {% set who = summary.who %}
+    <dl class="report-facts">
+      <div><dt>{{ _('Hosting and networks') }}</dt><dd>
+        {% if who.networks %}{% for network in who.networks %}<bdi>{{ network.name }}</bdi> ({{ ngettext('%(num)s host', '%(num)s hosts', network.hosts) }}{% if network.asns %}, {% for asn in network.asns %}AS{{ asn }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}){% if not loop.last %}; {% endif %}{% endfor %}
+        {% elif who.networks_reason %}{{ _('Not determined') }}: {{ reason_label(who.networks_reason) }}
+        {% elif who.addressed %}{{ _('The databases know no network for these addresses.') }}
+        {% else %}{{ _('No host has a public address to look up.') }}{% endif %}
+      </dd></div>
+      <div><dt>{{ _('DNS operators') }}</dt><dd>{{ providers(who.dns, _('No name servers found.')) }}</dd></div>
+      <div><dt>{{ _('Mail') }}</dt><dd>{{ providers(who.mail, _('The domain publishes no mail servers.')) }}</dd></div>
+      <div><dt>{{ _('Services allowed to send mail') }}</dt><dd>{{ providers(who.senders, _('The SPF record names no sending service.')) }}</dd></div>
+      <div><dt>{{ _('Registrar') }}</dt><dd>{{ providers(who.registrar, _('The registry does not publish it.')) }}</dd></div>
+    </dl>
+
+    <h3>{{ _('Coverage') }}</h3>
+    {% set c = summary.coverage %}
+    <div class="table-scroll">
+    <table class="report-table">
+      <tbody>
+        <tr><th scope="row">{{ _('Certificate names seen') }}</th><td>{{ c.names_seen }}</td></tr>
+        <tr><th scope="row">{{ _('Hosts reviewed') }}</th><td>{{ c.hosts }} ({{ _('%(done)s fully checked', done=c.fully_checked) }}{% if c.incomplete %}, {{ _('%(gaps)s with gaps', gaps=c.incomplete) }}{% endif %})</td></tr>
+        <tr><th scope="row">{{ _('Answering on HTTPS') }}</th><td>{{ c.https }}</td></tr>
+        <tr><th scope="row">{{ _('Answering on plain HTTP only') }}</th><td>{{ c.http_only }}</td></tr>
+        <tr><th scope="row">{{ _('Not reachable') }}</th><td>{{ c.not_reachable }} ({{ _('no public address: %(a)s · no web server: %(b)s', a=c.no_address, b=c.no_web_server) }})</td></tr>
+        {% if c.undetermined %}<tr><th scope="row">{{ _('Web state not determined') }}</th><td>{{ c.undetermined }}</td></tr>{% endif %}
+        <tr><th scope="row">{{ _('Not reviewed') }}</th><td>{{ c.not_reviewed }} ({{ _('outside the domain: %(a)s · wildcard patterns: %(b)s · over the limit: %(c)s', a=c.out_of_scope, b=c.wildcards, c=c.over_limit) }})</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="r-open">
+    <h2 id="r-open">{{ _('2. Open findings') }}</h2>
+    {% if data.findings_state != 'ready' %}
+    <p>{{ state_note(data.findings_state) }}</p>
+    {% elif not report.open_groups %}
+    <p>{{ _('No open findings. That is not proof that nothing is wrong: the rules only judge what the checks could see.') }}</p>
+    {% else %}
+    {% for group in report.open_groups %}
+    <h3>{{ severity_label(group.severity) }} ({{ group.findings|length }})</h3>
+    {% for finding in group.findings %}{{ finding_block(finding) }}{% endfor %}
+    {% endfor %}
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="r-decided">
+    <h2 id="r-decided">{{ _('3. Findings the team decided about') }}</h2>
+    {% if report.decided %}
+    <p>{{ _('Accepted findings and false positives are not counted as open. Each carries its reason, who decided and when; an acceptance can carry a review date after which the finding is open again.') }}</p>
+    {% for finding in report.decided %}{{ finding_block(finding) }}{% endfor %}
+    {% else %}
+    <p>{{ _('Nobody has accepted a finding or marked one as a false positive.') }}</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="r-hosts">
+    <h2 id="r-hosts">{{ _('4. Hosts') }}</h2>
+    <div class="table-scroll">
+    <table class="report-table report-hosts">
+      <thead><tr><th scope="col">{{ _('Host') }}</th><th scope="col">{{ _('Addresses') }}</th><th scope="col">{{ _('Location') }}</th><th scope="col">{{ _('Ports') }}</th><th scope="col">{{ _('TLS') }}</th><th scope="col">{{ _('HTTP') }}</th><th scope="col">{{ _('Open') }}</th></tr></thead>
+      <tbody>
+        {% for host in report.hosts %}
+        <tr>
+          <td><bdi class="font-mono">{{ host.hostname }}</bdi>{% if host.has_gaps %}<br><span class="report-source">{{ _('checks incomplete') }}</span>{% endif %}</td>
+          <td>{{ host.cells.dns.text if host.cells.dns else _('Not checked') }}</td>
+          <td>{{ host.location }}</td>
+          {% for key in ['ports', 'tls', 'http'] %}<td>{{ host.cells[key].text if host.cells.get(key) else _('Not checked') }}</td>{% endfor %}
+          <td>{% if host.top_severity %}{{ severity_label(host.top_severity) }} · {{ host.open_findings }}{% else %}0{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">{{ _('This scan has no hosts.') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="r-domain">
+    <h2 id="r-domain">{{ _('5. The domain itself') }}</h2>
+    <div class="table-scroll">
+    <table class="report-table">
+      <tbody>
+        {% for row in report.domain %}<tr><th scope="row">{{ row.title }}</th><td>{{ row.cell.text }}</td></tr>
+        {% else %}<tr><td>{{ _('No domain checks were recorded for this scan.') }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="report-annex" aria-labelledby="r-method">
+    <h2 id="r-method">{{ _('6. Method and limits') }}</h2>
+    {% set m = report.method %}
+    <h3>{{ _('Discovery') }}</h3>
+    <p>{{ _('The host names come from Certificate Transparency logs, plus the domain itself and any hosts added by hand. Names that only appear in wildcard certificates, in certificates that were never logged, or on no certificate at all cannot be seen this way.') }}</p>
+    {% if m.discovery %}
+    <div class="table-scroll">
+    <table class="report-table">
+      <thead><tr><th scope="col">{{ _('Source') }}</th><th scope="col">{{ _('Result') }}</th><th scope="col">{{ _('Names') }}</th></tr></thead>
+      <tbody>
+        {% for source in m.discovery %}
+        <tr><td>{{ source.name }}</td><td>{% if source.status == 'ok' %}{{ _('Answered') }}{% if source.truncated %} ({{ _('partial') }}){% endif %}{% elif source.status == 'unavailable' %}{{ _('Unavailable') }}{% else %}{{ _('Failed') }}{% endif %}{% if source.reason %}: {{ reason_label(source.reason) }}{% endif %}</td><td>{{ source.names }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+    {% if m.host_limit %}<p>{{ _('At most %(limit)s hosts are reviewed per scan.', limit=m.host_limit) }}{% if m.dropped_by_limit %} {{ ngettext('%(num)s host beyond the limit was not reviewed.', '%(num)s hosts beyond the limit were not reviewed.', m.dropped_by_limit) }}{% endif %}</p>{% endif %}
+
+    <h3>{{ _('Checks') }}</h3>
+    <ul>
+      <li>{{ _('DNS: addresses, aliases and the records of the domain, asked of public resolvers.') }}{% if m.resolvers %} ({{ m.resolvers.replace(',', ', ') }}){% endif %}</li>
+      <li>{{ _('IP location and network: where an address is announced and which network it belongs to, from offline databases.') }}{% for kind, build in m.location_databases %}{% if loop.first %} ({% endif %}{{ kind }} {{ build }}{% if not loop.last %}, {% else %}){% endif %}{% endfor %}</li>
+      <li>{{ _('Open ports and CVE identifiers: what an internet-wide scanner last saw on the addresses; nothing is scanned from here.') }}{% if m.ports_providers %} ({{ m.ports_providers|join(', ') }}){% endif %}</li>
+      <li>{{ _('TLS certificate and HTTP: one handshake and two requests per host (HTTPS and plain HTTP), our own User-Agent, no credentials, ports 443 and 80 only.') }}</li>
+      <li>{{ _('Domain: email security (SPF, DMARC, DKIM, MTA-STS), registration (RDAP), name servers and CAA, security.txt, HSTS preload status and public breaches.') }}</li>
+    </ul>
+
+    <h3>{{ _('Rules') }}</h3>
+    <p>{{ _('Findings are drawn from the stored check results by %(n)s versioned rules (rule set %(set)s).', n=data.rules|length, set=data.ruleset) }}{% if m.evaluated_at %} {{ _('The rules ran on %(when)s.', when=m.evaluated_at[:16].replace('T', ' ') ~ ' UTC') }}{% endif %}</p>
+    {% if m.findings_errors %}<p class="report-warning">{{ _('These rules failed and produced no findings: %(rules)s.', rules=m.findings_errors|join(', ')) }}</p>{% endif %}
+
+    <h3>{{ _('Limits') }}</h3>
+    <ul>
+      <li>{{ _('This is the view from outside, at the time of the scan. Internal controls, processes and contracts are not covered.') }}</li>
+      <li>{{ _('A location is where an address is announced. CDN and anycast addresses show an edge, not a data centre, and data may be stored or processed elsewhere.') }}</li>
+      <li>{{ _('Ports and vulnerabilities are a scanner’s snapshot and can be out of date; a port that is not listed may still be open, and a listed CVE is a lead to verify, not a confirmed vulnerability.') }}</li>
+      <li>{{ _('No finding is not a clean bill of health: the rules only judge what the checks collected, and a check that failed or was unavailable is not judged at all.') }}</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="r-sources">
+    <h2 id="r-sources">{{ _('7. Data sources and attributions') }}</h2>
+    <ul class="report-sources">
+      {% for source in data.attributions %}
+      <li><strong>{% if source.url %}<a class="link" href="{{ source.url }}" rel="noopener noreferrer">{{ source.name }}</a>{% else %}{{ source.name }}{% endif %}</strong>: {{ source.used_for }}. {{ source.terms }}</li>
+      {% else %}
+      <li>{{ _('This scan recorded no sources.') }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <footer class="report-footer">
+    {{ _('Web Due Diligence · report of %(domain)s · scan of %(scan)s · generated %(when)s', domain=data.domain, scan=data.scan_created_at.strftime('%Y-%m-%d %H:%M') ~ ' UTC', when=data.generated_at.strftime('%Y-%m-%d %H:%M') ~ ' UTC') }}
+  </footer>
+</main>
+</body>
+</html>

@@ -5,19 +5,20 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any
 from urllib.parse import parse_qs
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
-from flask_security import current_user, login_required
+from flask_security import login_required
 from werkzeug.wrappers import Response
 
 from app.blueprints.assessments import assessments_bp
+from app.blueprints.assessments.access import current_user_object as _current_user
+from app.blueprints.assessments.access import get_accessible as _get_accessible
 from app.blueprints.assessments.forms import NewAssessmentForm
 from app.extensions import db
 from app.i18n import gettext as _
 from app.models.assessment import Assessment
-from app.models.auth import User
 from app.models.finding import Finding
 from app.service import assessments as assessment_service
 from app.service import decisions as decision_service
@@ -39,19 +40,8 @@ assessments_bp.add_app_template_global(findings_service.severity_tone, "severity
 assessments_bp.add_app_template_global(findings_service.confidence_label, "confidence_label")
 assessments_bp.add_app_template_global(findings_service.attribution_label, "attribution_label")
 assessments_bp.add_app_template_global(findings_service.status_label, "status_label")
+assessments_bp.add_app_template_global(host_view_service.check_title, "check_title")
 assessments_bp.add_app_template_global(decision_service.review_window, "review_window")
-
-
-def _current_user() -> User:
-    return cast(User, current_user._get_current_object())
-
-
-def _get_accessible(assessment_id: uuid.UUID) -> Assessment:
-    """Load an assessment the user may open; otherwise answer 404 (never confirm it exists)."""
-    assessment = db.session.get(Assessment, assessment_id)
-    if assessment is None or not assessment_service.can_access(_current_user(), assessment):
-        abort(404)
-    return assessment
 
 
 def _panel_context(assessment: Assessment) -> dict[str, Any]:
