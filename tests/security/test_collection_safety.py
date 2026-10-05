@@ -6,9 +6,8 @@ from unittest.mock import Mock
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-from app.service.checks.tls import evaluate_tls_check
 from runner.dns import SSRFBlockedError
-from runner.tls import TLSProbeResult, probe_tls_endpoint
+from runner.tls import probe_tls_endpoint
 
 
 @pytest.mark.parametrize("address", ["127.0.0.1", "169.254.169.254", "::1", "10.0.0.1"])
@@ -29,14 +28,3 @@ def test_tls_uses_numeric_screened_address(monkeypatch: MonkeyPatch) -> None:
     result = probe_tls_endpoint("example.com")
     assert not result.is_valid
     assert connect.call_args.args[0] == ("8.8.8.8", 443)
-
-
-@pytest.mark.parametrize("failure", ["TIMEOUT", "CONNECTION_REFUSED", "CONNECTION_FAILED: error"])
-def test_unreachable_endpoint_is_unknown_not_invalid_certificate(failure: str) -> None:
-    result = TLSProbeResult(
-        "example.com", 443, None, False, False, False, False, failure_reasons=[failure]
-    )
-    evaluated = evaluate_tls_check(result)
-    assert evaluated.verdict == "unknown"
-    assert evaluated.should_skip_http
-    assert [finding.rule_id for finding in evaluated.findings] == ["COLLECTION_INCOMPLETE"]

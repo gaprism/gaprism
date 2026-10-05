@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -15,7 +16,10 @@ from sqlalchemy.orm import Session
 from app.checks import DISCOVERY_KEY, Check, checks_with_scope
 from app.models import Assessment, CheckResult, Host, Scan, User
 from app.models.base import utc_now
+from app.service import findings as findings_service
 from app.service.host_view import CheckCell, DomainRow, domain_rows, host_cells
+
+log = logging.getLogger(__name__)
 
 OPEN_CHECK_STATUSES = ("queued", "running")
 PROBLEM_CHECK_STATUSES = ("error", "unavailable")
@@ -355,7 +359,9 @@ def cancel_active_scan(session: Session, assessment_id: Any) -> bool:
     return True
 
 
-def finalize_scan_if_done(session: Session, scan_id: Any) -> Scan | None:
+def finalize_scan_if_done(
+    session: Session, scan_id: Any, config: Mapping[str, Any] | None = None
+) -> Scan | None:
     """Mark the scan finished once no check is queued or running.
 
     The scan row is locked first: when the last two checks finish at the same moment, the one
@@ -379,7 +385,19 @@ def finalize_scan_if_done(session: Session, scan_id: Any) -> Scan | None:
     )
     scan.status = "partial" if problems else "completed"
     scan.finished_at = utc_now()
+    if config is not None:
+        _evaluate_rules(session, scan, config)
     return scan
+
+
+def _evaluate_rules(session: Session, scan: Scan, config: Mapping[str, Any]) -> None:
+    """Turn the finished scan's results into findings; a failure here never fails the scan."""
+    try:
+        with session.begin_nested():  # a savepoint: a database error loses the findings only
+            findings_service.evaluate_scan(session, scan, config)
+    except Exception:
+        log.exception("evaluating the rules of scan %s failed", scan.id)
+        scan.summary = {**(scan.summary or {}), "findings": {"error": "evaluation_failed"}}
 
 
 # --------------------------------------------------------------------------- overview for the UI
@@ -414,6 +432,8 @@ class ScanOverview:
     host_cells: dict[Any, dict[str, CheckCell]]
     ip_data_missing: bool  # the location databases are not installed (or unreadable)
     domain_rows: list[DomainRow]
+    findings: findings_service.FindingsSummary
+    host_findings: dict[Any, findings_service.HostSummary]
 
     @property
     def is_active(self) -> bool:
@@ -464,6 +484,7 @@ def scan_overview(
         for item in data.get("sources", [])
     ]
     hosts = list_hosts(session, scan.id, query=query, page=page, per_page=per_page, state=state)
+    findings = findings_service.findings_summary(session, scan)
     return ScanOverview(
         scan=scan,
         progress=scan_progress(session, scan),
@@ -478,6 +499,12 @@ def scan_overview(
         hosts=hosts,
         host_cells=host_cells(session, [host.id for host in hosts.rows]),
         domain_rows=domain_rows(session, scan.id),
+        findings=findings,
+        host_findings=(
+            findings_service.host_summaries(session, scan.id, [host.id for host in hosts.rows])
+            if findings.state == "ready"
+            else {}
+        ),
         ip_data_missing=session.scalar(
             select(CheckResult.id)
             .where(

@@ -65,7 +65,7 @@ def _rowcount(result: Result[Any]) -> int:
     return int(cast("CursorResult[Any]", result).rowcount or 0)
 
 
-def requeue_stale(session: Session, now: datetime) -> int:
+def requeue_stale(session: Session, now: datetime, config: Mapping[str, Any] | None = None) -> int:
     """Re-queue tasks whose worker disappeared; tasks that failed too often end as errors."""
     cutoff = now - STALE_LOCK
     exhausted = _rowcount(
@@ -101,7 +101,7 @@ def requeue_stale(session: Session, now: datetime) -> int:
             )
             .distinct()
         ):
-            scan_service.finalize_scan_if_done(session, scan_id)
+            scan_service.finalize_scan_if_done(session, scan_id, config)
     session.commit()
     return exhausted + requeued
 
@@ -256,8 +256,9 @@ def execute_task(
                 outcome,
                 int((time.monotonic() - started) * 1000),
                 registry,
+                config,
             )
-    return _store_outcome(session, task, worker_id, outcome, 0, registry)
+    return _store_outcome(session, task, worker_id, outcome, 0, registry, config)
 
 
 def _store_outcome(
@@ -267,6 +268,7 @@ def _store_outcome(
     outcome: CheckOutcome,
     duration_ms: int,
     registry: Mapping[str, Check],
+    config: Mapping[str, Any] | None = None,
 ) -> bool:
     """Persist an outcome if this worker still holds the task; expand discovery; finalise."""
     row = session.scalar(select(CheckResult).where(CheckResult.id == task.id).with_for_update())
@@ -287,7 +289,7 @@ def _store_outcome(
     # A scan cancelled while discovery ran keeps the discovery result but gets no host tasks.
     if scan is not None and row.check_key == DISCOVERY_KEY and scan.status != "cancelled":
         scan_service.apply_discovery(session, scan, row, registry)
-    scan_service.finalize_scan_if_done(session, row.scan_id)
+    scan_service.finalize_scan_if_done(session, row.scan_id, config)
     session.commit()
     return True
 
@@ -303,7 +305,7 @@ def process_one(
 ) -> bool:
     """Claim and run one task. Returns whether there was any work."""
     now = utc_now()
-    requeue_stale(session, now)
+    requeue_stale(session, now, config)
     task = claim_next(session, worker_id, now, registry=registry)
     if task is None:
         return False
@@ -401,11 +403,15 @@ class _Shared:
 
 
 def _claim(
-    session: Session, name: str, shared: _Shared, registry: Mapping[str, Check] | None
+    session: Session,
+    name: str,
+    shared: _Shared,
+    registry: Mapping[str, Check] | None,
+    config: Mapping[str, Any] | None = None,
 ) -> CheckResult | None:
     with shared.claim_lock:
         if shared.sweep.due():
-            requeue_stale(session, utc_now())
+            requeue_stale(session, utc_now(), config)
         task = claim_next(
             session,
             name,
@@ -438,11 +444,11 @@ def _work(
             try:
                 if shared.purge.due():
                     cache.purge(CACHE_RETENTION)
-                task = _claim(session, name, shared, registry)
+                task = _claim(session, name, shared, registry, app.config)
                 if task is None and once and shared.limiter.active == 0:
                     # Nothing runs anywhere in this process; a task that just finished may have
                     # queued more work (discovery does), so look once more before giving up.
-                    task = _claim(session, name, shared, registry)
+                    task = _claim(session, name, shared, registry, app.config)
                     if task is None:
                         break
                 if task is None:

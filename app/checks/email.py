@@ -328,7 +328,9 @@ class EmailCheck:
             "bimi": _tag_record(resolver, f"default._bimi.{domain}", "BIMI1", lifetime, budget),
         }
         if isinstance(data["dmarc"].get("record"), str):
+            earlier = list(data["dmarc"].get("problems", []))  # e.g. several records
             data["dmarc"].update(parse_dmarc(data["dmarc"]["record"]))
+            data["dmarc"]["problems"] = [*earlier, *data["dmarc"]["problems"]]
         if isinstance(data["bimi"].get("record"), str):
             tags = parse_tags(data["bimi"]["record"])
             data["bimi"].update(logo=tags.get("l", "")[:MAX_URI] or None)

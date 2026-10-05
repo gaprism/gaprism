@@ -368,6 +368,16 @@ def test_two_spf_records_are_a_problem() -> None:
     assert spf["record"] == "v=spf1 -all"  # the first is shown; evaluators would fail on both
 
 
+def test_two_dmarc_records_are_a_problem_and_the_parsers_findings_do_not_replace_it() -> None:
+    script = mail_domain()
+    script[(f"_dmarc.{DOMAIN}", "TXT")] = txt(
+        f"_dmarc.{DOMAIN}", "v=DMARC1; p=banana", "v=DMARC1; p=reject"
+    )
+    dmarc = run(script, policy_site)[0].data["dmarc"]
+    assert dmarc["count"] == 2
+    assert dmarc["problems"] == ["multiple_records", "invalid_policy"]  # both are kept
+
+
 def test_an_spf_record_without_all_or_redirect_is_flagged() -> None:
     script = mail_domain()
     script[(DOMAIN, "TXT")] = txt(DOMAIN, "v=spf1 ip4:192.0.2.1")

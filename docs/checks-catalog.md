@@ -103,40 +103,35 @@ Default `CT_MODE=union`: every enabled source runs (in parallel, within `DISCOVE
 | **CertSpotter** | `GET /v1/issuances?domain=…&include_subdomains=true&expand=dns_names` | none or token | Unauthenticated: "a limited number" per hour (header showed `x-ratelimit-limit: 10`); may change without notice | All issuances it has indexed | One row per certificate → deduplicate names; page with `after` |
 | **crt.sh** | `GET /?q=%25.domain&output=json` | none | None documented; frequently overloaded | All logs | 502 / timeout on 4 of 4 probes → retries with jittered backoff |
 
-## 4. Initial rule set
+## 4. Rule set
 
-Findings come from versioned rules. Severity and confidence are separate; provider data keeps its own severity next to ours.
+Findings come from versioned rules in `app/rules/`: one pure function per rule (stored check results in, findings out), so a rule can be refined and re-run over old scans (`flask findings evaluate`). Severity and confidence are separate; provider data keeps its own severity next to ours. **The full list (id, when it fires, what it says, what to do) is generated from the code: [rules.md](rules.md).**
+
+Built in S2.4: **34 rules** — 16 per host (TLS, HTTP headers and cookies, DNS, location), 2 per public address (risky ports, CVE leads) and 16 for the domain (email, registration, breach history, security.txt, CAA, name servers). What was decided while building them:
+
+- `TLS_INVALID`: expired, untrusted or not yet valid → High; a hostname mismatch alone → Medium. Weak keys (RSA < 2048, EC < 224, DSA) and weak signatures (SHA-1, MD5) are High; a certificate expiring within 30 days is Low, within 7 days Medium (an expired one is `TLS_INVALID`, not "expires soon").
+- Header rules judge the host's *own* response only (a redirect to another host says nothing about the site): `HSTS_*` on an HTTPS response; `CSP_MISSING`, `XCTO_MISSING` and `FRAME_PROTECTION_MISSING` on an HTML response with a status below 400, not on a JSON API or an error page. `frame-ancestors` in the CSP counts as clickjacking protection.
+- `COOKIE_INSECURE` needs a session-like name (`sid`, `session`, `PHPSESSID`, ...); CSRF cookies are exempt from `HttpOnly`; the `__Host-` and `__Secure-` prefixes imply `Secure`. Cookie values are never stored.
+- `NO_HTTPS` is not raised when HTTPS failed on the certificate or the TLS handshake: that is `TLS_INVALID`'s business. Confidence is high when the HTTPS port refused the connection, medium otherwise.
+- `RISKY_PORT_EXPOSED` and `CVE_OBSERVED` belong to the *address*: one finding per address (and port), listing the hosts of the scan that resolve to it. Shared infrastructure (CDN edges, multi-tenant hosting) is skipped. CVE ids from a banner are leads, not proof, so they are Informational with medium confidence at best.
+- `SPF_PERMISSIVE`: `+all` High; `?all` or no `all` term Medium. `DMARC_POLICY_NONE` is Low. One DNS operator is a note (`NS_NOT_REDUNDANT`, Low), fewer than two name servers Medium.
+- `DANGLING_CNAME` means the alias target does not exist (Medium, low confidence: whether it can be claimed is not tested). The takeover-fingerprint test and a High rating stay in R4.
+- Beyond the plan, because the checks already collect the facts: `SPF_INVALID`, `DMARC_INVALID`, `DOMAIN_NOT_LOCKED`, `SECURITY_TXT_INVALID`, `CAA_MISSING`, `NS_NOT_REDUNDANT`, `DNS_PRIVATE_ADDRESS`.
+- Not built: `TLS_LEGACY_PROTOCOL` and `KEV_LISTED_CVE` (R4, they need a protocol probe and the KEV feed). `COLLECTION_INCOMPLETE` is not a rule: coverage is a statement about the *scan* (S2.5's coverage line), not a finding about the vendor.
+
+Two owner-specified rules:
 
 | Rule | Trigger | Severity |
 |---|---|---|
-| `TLS_INVALID` | expired / untrusted chain → High; hostname mismatch → Medium | High/Med |
-| `TLS_EXPIRES_SOON` | < 30 days (< 7 days → Medium) | Low/Med |
-| `TLS_WEAK_KEY` / `TLS_WEAK_SIGNATURE` | RSA < 2048, SHA-1/MD5 | High |
-| `TLS_LEGACY_PROTOCOL` | TLS 1.0/1.1 accepted (R4) | Medium |
-| `NO_HTTPS` / `HTTP_NO_HTTPS_REDIRECT` | host serves only HTTP / no redirect | High / Medium |
-| `HSTS_MISSING` / `HSTS_WEAK` | header absent / max-age < 6 months | Low / Info |
-| `CSP_MISSING`, `XCTO_MISSING`, `FRAME_PROTECTION_MISSING` | header absent on an HTML response | Low |
-| `COOKIE_INSECURE` | session-like cookie without Secure/HttpOnly | Medium |
-| `SERVER_VERSION_DISCLOSED` | `Server`/`X-Powered-By` shows a version | Info |
-| `SPF_MISSING` / `SPF_PERMISSIVE` | no SPF / `+all` or `?all` | Medium / High |
-| `DMARC_MISSING` / `DMARC_POLICY_NONE` | no DMARC / `p=none` | Medium / Low |
-| `DNSSEC_NOT_ENABLED`, `MTA_STS_MISSING` | absent | Info |
-| `RISKY_PORT_EXPOSED` | 21, 22, 23, 445, 3389, 3306, 5432, 6379, 9200, 11211, 27017 observed | Medium/High |
-| `CVE_OBSERVED` | CVE IDs from InternetDB; `ip_only` on shared infrastructure | Info (R4: by KEV/EPSS/CVSS) |
-| `KEV_LISTED_CVE` | CVE in CISA KEV (R4) | High |
-| `DANGLING_CNAME` | takeover fingerprint matches (R4) | High |
-| `DOMAIN_EXPIRES_SOON` / `DOMAIN_RECENTLY_REGISTERED` | < 30 days / < 90 days old | Medium / Info |
 | `LOCATION_OUTSIDE_EU_CH` | a public IP of the host is located outside the allowed area (EU-27 + EEA + CH) | **High**; Medium with low confidence for CDN/anycast IPs (edge only) |
-| `PUBLIC_BREACH_HISTORY` | HIBP lists a breach of the vendor's own service (fabricated and spam-list entries ignored) | **Medium; High if the breach date is within 24 months** (`BREACH_RECENT_MONTHS`) |
-| `SECURITY_TXT_MISSING` | no RFC 9116 file | Info |
-| `COLLECTION_INCOMPLETE` | a source was `unavailable` / `error` | Coverage notice, not a severity |
+| `PUBLIC_BREACH_HISTORY` | HIBP lists a breach of the vendor's own service (fabricated, spam-list and retired entries ignored; one finding per breach) | **Medium; High if the breach date is within 24 months** (`BREACH_RECENT_MONTHS`) |
 
 **Data-location policy (rule `LOCATION_OUTSIDE_EU_CH`).**
 - Allowed area = EU-27 + EEA (IS, LI, NO) + CH, configurable (`DATA_LOCATION_ALLOWED`, ISO codes) so adequacy countries such as GB or JP can be added.
 - The rule uses the *country* from DB-IP; the city is context only (accuracy for server IPs is poor).
 - One finding per host. It fires if *any* resolved public IP is outside the area and lists the IPs and countries.
 - CDN/anycast IPs (ASN hint list) show the edge, not the data centre, so they raise Medium with low confidence instead of High — otherwise every Cloudflare- or CloudFront-fronted vendor would be a High finding.
-- No location data (database missing, IP not in the database) is a coverage notice, never "clean".
+- No location data (database missing, IP not in the database) gives the rule nothing to read: no finding, and the assessment page says that the data is missing. It is never "clean"; the coverage line (S2.5) reports it.
 - The finding can be accepted with a reason and a review date ([S2.6](roadmap.md)).
 
 ## 5. Licensing notes for the open-source release
@@ -167,4 +162,4 @@ class Check(Protocol):
 # CheckOutcome(status="ok|no_data|unavailable|error|skipped", reason_code, data: dict, findings: list[FindingDraft])
 ```
 
-Checklist: module + unit test with fixtures (no network) + catalogue row + (if it can fail noisily) a rule in `app/checks/rules/`.
+Checklist: module + unit test with fixtures (no network) + catalogue row + (if the result can be judged) a rule in `app/rules/` with a test in `tests/rules/` that feeds it the output of the real check, then `uv run python -m app.rules.docs` to regenerate [rules.md](rules.md).

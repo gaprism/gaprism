@@ -1,5 +1,6 @@
 {% from 'components/ui.html' import badge, notice %}
-{% set tones = {'queued': 'info', 'running': 'info', 'completed': 'ok', 'partial': 'medium', 'failed': 'critical', 'cancelled': 'muted'} %}
+{% from 'assessments/_findings.html' import findings_panel %}
+{% set tones ={'queued': 'info', 'running': 'info', 'completed': 'ok', 'partial': 'medium', 'failed': 'critical', 'cancelled': 'muted'} %}
 {% set labels = {'queued': _('Queued'), 'running': _('Running'), 'completed': _('Completed'), 'partial': _('Completed with gaps'), 'failed': _('Failed'), 'cancelled': _('Cancelled')} %}
 {% set source_names = {'ctlogs': 'ctlogs.dev', 'certspotter': 'CertSpotter', 'crtsh': 'crt.sh'} %}
 {% set reasons = {'rate_limited': _('Rate limited'), 'forbidden': _('Not allowed without a valid key'), 'invalid_key': _('API key rejected'), 'timeout': _('Timed out'), 'budget_exceeded': _('Took too long'), 'connection_failed': _('Connection failed'), 'invalid_response': _('Unexpected response'), 'response_too_large': _('Response too large'), 'pagination_stalled': _('Paging did not advance'), 'internal_error': _('Internal error')} %}
@@ -56,6 +57,8 @@
   {% if overview.dropped_by_cap %}
   <div class="mt-4">{{ notice(_('Some hosts were not reviewed'), _('%(count)s hosts exceeded the limit of %(limit)s per scan.', count=overview.dropped_by_cap, limit=scan.options.get('max_hosts')), 'warning') }}</div>
   {% endif %}
+
+  {{ findings_panel(overview.findings, assessment, progress.checks_problem) }}
 
   {% if overview.domain_rows %}
   <div class="panel mt-4">
@@ -128,7 +131,7 @@
     <div class="table-scroll">
       <table class="data-table">
         <caption class="sr-only">{{ _('Hosts of the latest scan') }}</caption>
-        <thead><tr><th scope="col">{{ _('Hostname') }}</th><th scope="col">{{ _('DNS') }}</th><th scope="col">{{ _('Location') }}</th><th scope="col">{{ _('Ports') }}</th><th scope="col">{{ _('TLS') }}</th><th scope="col">{{ _('HTTP') }}</th></tr></thead>
+        <thead><tr><th scope="col">{{ _('Hostname') }}</th><th scope="col">{{ _('DNS') }}</th><th scope="col">{{ _('Location') }}</th><th scope="col">{{ _('Ports') }}</th><th scope="col">{{ _('TLS') }}</th><th scope="col">{{ _('HTTP') }}</th><th scope="col">{{ _('Findings') }}</th></tr></thead>
         <tbody>
           {% for host in hosts.rows %}
           {% set cells = overview.host_cells.get(host.id, {}) %}
@@ -143,6 +146,12 @@
             {% for key in ['dns', 'ip', 'ports', 'tls', 'http'] %}
             <td>{% if cells.get(key) %}{{ badge(cells[key].text, cells[key].tone) }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             {% endfor %}
+            {% set summary = overview.host_findings.get(host.id) %}
+            <td>
+              {% if summary %}<a href="{{ url_for('assessments.host_detail', assessment_id=assessment.id, host_id=host.id, _anchor='host-findings-title') }}" class="no-underline">{{ badge(severity_label(summary.top) ~ ' · ' ~ summary.count, severity_tone(summary.top)) }}</a>
+              {% elif overview.findings.state == 'ready' %}<span class="text-muted">{{ _('None') }}</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

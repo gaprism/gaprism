@@ -1,0 +1,135 @@
+{% from 'components/ui.html' import badge, notice %}
+{# What the rules decided, in words. Everything shown here is escaped; nothing collected is trusted. #}
+
+{# Where the evidence of a finding is shown: a check section of a host, or of the domain. #}
+{% macro evidence_link(finding, assessment) -%}
+{%- if finding.evidence -%}
+<a class="link" aria-label="{{ _('Show the evidence for: %(title)s', title=finding.title) }}" href="{% if finding.evidence.host_id %}{{ url_for('assessments.host_detail', assessment_id=assessment.id, host_id=finding.evidence.host_id, _anchor='check-' ~ finding.evidence.check) }}{% else %}{{ url_for('assessments.domain_detail', assessment_id=assessment.id, _anchor='check-' ~ finding.evidence.check) }}{% endif %}">{{ _('Show the evidence') }}</a>
+{%- endif -%}
+{%- endmacro %}
+
+{# Severity chips: only the severities that occur. #}
+{% macro severity_chips(counts) -%}
+<ul class="flex flex-wrap gap-2" aria-label="{{ _('Findings by severity') }}">
+  {% for severity, count in counts.items() %}<li>{{ badge(severity_label(severity) ~ ' · ' ~ count, severity_tone(severity)) }}</li>{% endfor %}
+</ul>
+{%- endmacro %}
+
+{# Why there is nothing to list yet (or ever, for this scan). #}
+{% macro state_note(state) -%}
+{%- if state == 'pending' -%}{{ _('The rules run when the scan has finished.') }}
+{%- elif state == 'failed' -%}{{ _('The scan finished, but turning its results into findings failed. Scan again, or run `flask findings evaluate`; the log has the details.') }}
+{%- else -%}{{ _('This scan has no findings: scans that were cancelled, or that ran before the rules existed, are not evaluated. Start a new scan.') }}
+{%- endif -%}
+{%- endmacro %}
+
+{# One finding. show_where: name the host, address or domain it is about. #}
+{% macro finding_item(finding, assessment, show_where=true) %}
+<li class="p-4">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="flex min-w-0 flex-wrap items-center gap-2">
+      {{ badge(severity_label(finding.severity), severity_tone(finding.severity)) }}
+      <h3>{{ finding.title }}</h3>
+    </div>
+    <p class="text-xs text-muted">{{ confidence_label(finding.confidence) }} · {{ attribution_label(finding.attribution) }}</p>
+  </div>
+  {% if show_where %}
+  <p class="mt-1 text-sm text-muted">
+    {% if finding.scope == 'host' and finding.hostname %}{{ _('Host') }}: <a class="link" href="{{ url_for('assessments.host_detail', assessment_id=assessment.id, host_id=finding.host_id) }}"><bdi class="font-mono">{{ finding.hostname }}</bdi></a>
+    {% elif finding.scope == 'address' %}{{ _('Address') }}: <bdi class="font-mono">{{ finding.address or finding.subject }}</bdi>
+    {% else %}{{ _('The domain itself') }}{% endif %}
+  </p>
+  {% endif %}
+  {% if finding.message %}<p class="mt-2 text-sm">{{ finding.message }}</p>{% endif %}
+  {% if finding.facts %}
+  <dl class="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+    {% for label, value in finding.facts %}<div><dt>{{ label }}</dt><dd class="font-mono">{{ value }}</dd></div>{% endfor %}
+  </dl>
+  {% endif %}
+  {% if finding.advice %}
+  <details class="mt-2">
+    <summary class="text-sm font-semibold">{{ _('What to do') }}</summary>
+    <p class="mt-1 text-sm">{{ finding.advice }}</p>
+  </details>
+  {% endif %}
+  <p class="mt-2 text-sm">{{ evidence_link(finding, assessment) }}</p>
+</li>
+{% endmacro %}
+
+{# The panel on the assessment page: counts by severity and one row per rule that fired. #}
+{% macro findings_panel(findings, assessment, checks_problem, shown=8) %}
+<section class="panel mt-4" aria-labelledby="findings-title">
+  <div class="section-head">
+    <h2 id="findings-title">{{ _('Findings') }}{% if findings.state == 'ready' %} <span class="text-sm font-normal text-muted">({{ findings.total }})</span>{% endif %}</h2>
+    {% if findings.total %}<a class="link text-sm" href="{{ url_for('assessments.findings', assessment_id=assessment.id) }}">{{ _('All findings') }}</a>{% endif %}
+  </div>
+  {% if findings.state != 'ready' %}
+  <p class="p-4 text-sm text-muted">{{ state_note(findings.state) }}</p>
+  {% else %}
+  <div class="grid gap-3 p-4">
+    {% if findings.errors %}{{ notice(_('Some rules could not run'), _('%(rules)s failed and produced no findings; the log has the details.', rules=findings.errors|join(', ')), 'warning') }}{% endif %}
+    {% if findings.dropped %}{{ notice(_('Some findings are not kept'), _('%(count)s findings beyond the limit per scan were dropped, the least serious first.', count=findings.dropped), 'warning') }}{% endif %}
+    {% if findings.total %}
+    {{ severity_chips(findings.by_severity) }}
+    {% else %}
+    <p class="text-sm">{{ _('No rule fired on what was collected.') }}</p>
+    {% endif %}
+    {# Silence is not a clean bill of health: say what the rules could not see. #}
+    <p class="text-sm text-muted">
+      {{ _('The rules only judge what the checks collected.') }}
+      {% if checks_problem %}{{ _('%(count)s checks failed or were unavailable, so what they would have shown is not judged.', count=checks_problem) }}{% endif %}
+    </p>
+  </div>
+  {% if findings.rules %}
+  <div class="table-scroll border-t border-line">
+    <table class="data-table">
+      <caption class="sr-only">{{ _('The rules that fired') }}</caption>
+      <thead><tr><th scope="col">{{ _('Severity') }}</th><th scope="col">{{ _('Finding') }}</th><th scope="col" class="text-right">{{ _('Count') }}</th></tr></thead>
+      <tbody>
+        {% for rule in findings.rules[:shown] %}
+        <tr>
+          <td>{{ badge(severity_label(rule.severity), severity_tone(rule.severity)) }}</td>
+          <td><a class="link" href="{{ url_for('assessments.findings', assessment_id=assessment.id, rule=rule.rule_id) }}">{{ rule.title }}</a></td>
+          <td class="text-right">{{ rule.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if findings.rules|length > shown %}
+    <p class="border-t border-line px-4 py-3 text-sm text-muted">{{ _('%(count)s more rules fired, with lower severity.', count=findings.rules|length - shown) }} <a class="link" href="{{ url_for('assessments.findings', assessment_id=assessment.id) }}">{{ _('All findings') }}</a></p>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+{% endmacro %}
+
+{# The section on a host's page: its own findings, then those about its addresses. #}
+{% macro host_findings_panel(findings, assessment) %}
+<section class="panel mt-6" aria-labelledby="host-findings-title">
+  <div class="section-head">
+    <h2 id="host-findings-title">{{ _('Findings') }}</h2>
+    <a class="link text-sm" href="{{ url_for('assessments.findings', assessment_id=assessment.id) }}">{{ _('All findings') }}</a>
+  </div>
+  {% if findings.state != 'ready' %}
+  <p class="p-4 text-sm text-muted">{{ state_note(findings.state) }}</p>
+  {% elif not findings.own and not findings.on_addresses %}
+  <p class="p-4 text-sm text-muted">{{ _('No rule fired for this host. The rules only judge what the checks below collected; a check that failed or found nothing proves nothing.') }}</p>
+  {% else %}
+  {% if findings.own %}
+  <ul class="divide-y divide-line">
+    {% for finding in findings.own %}{{ finding_item(finding, assessment, show_where=false) }}{% endfor %}
+  </ul>
+  {% endif %}
+  {% if findings.on_addresses %}
+  <div class="{% if findings.own %}border-t {% endif %}border-line bg-canvas px-4 py-3">
+    <h3>{{ _('On the addresses of this host') }}</h3>
+    <p class="mt-1 text-sm text-muted">{{ _('Reported for the IP addresses this name resolves to. They can concern other services on the same address, not only this hostname.') }}</p>
+  </div>
+  <ul class="divide-y divide-line">
+    {% for finding in findings.on_addresses %}{{ finding_item(finding, assessment) }}{% endfor %}
+  </ul>
+  {% endif %}
+  {% endif %}
+</section>
+{% endmacro %}

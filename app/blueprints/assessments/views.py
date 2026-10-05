@@ -16,16 +16,22 @@ from app.i18n import gettext as _
 from app.models.assessment import Assessment
 from app.models.auth import User
 from app.service import assessments as assessment_service
+from app.service import findings as findings_service
 from app.service import host_view as host_view_service
 from app.service import scans as scan_service
 from app.service.discovery.scope import ScopeValidationError
 
 MAX_HOSTNAMES_INPUT = 20_000  # characters accepted in the "add hosts" box
+MAX_RULE_ID_INPUT = 64
 
 # Translated labels for reason codes, available in every template.
 assessments_bp.add_app_template_global(host_view_service.reason_label, "reason_label")
 assessments_bp.add_app_template_global(host_view_service.tls_failure_label, "tls_failure_label")
 assessments_bp.add_app_template_global(host_view_service.problem_label, "problem_label")
+assessments_bp.add_app_template_global(findings_service.severity_label, "severity_label")
+assessments_bp.add_app_template_global(findings_service.severity_tone, "severity_tone")
+assessments_bp.add_app_template_global(findings_service.confidence_label, "confidence_label")
+assessments_bp.add_app_template_global(findings_service.attribution_label, "attribution_label")
 
 
 def _current_user() -> User:
@@ -158,7 +164,38 @@ def host_detail(assessment_id: uuid.UUID, host_id: uuid.UUID) -> str:
     detail = host_view_service.get_host_detail(db.session(), host_id)
     if detail is None or detail.assessment.id != assessment.id:
         abort(404)  # also for a host of someone else's assessment: never confirm it exists
-    return render_template("assessments/host.html", assessment=assessment, detail=detail)
+    return render_template(
+        "assessments/host.html",
+        assessment=assessment,
+        detail=detail,
+        findings=findings_service.host_findings(db.session(), detail.scan, host_id),
+    )
+
+
+@assessments_bp.get("/<uuid:assessment_id>/findings")
+@login_required
+def findings(assessment_id: uuid.UUID) -> str:
+    """What the rules found in the latest scan, most serious first."""
+    assessment = _get_accessible(assessment_id)
+    scan = scan_service.get_latest_scan(db.session(), assessment.id)
+    severity = request.args.get("severity", "")
+    rule = request.args.get("rule", "")[:MAX_RULE_ID_INPUT]
+    page = max(1, request.args.get("page", 1, type=int) or 1)
+    listing = (
+        findings_service.findings_listing(
+            db.session(), scan, severity=severity, rule_id=rule, page=page
+        )
+        if scan
+        else None
+    )
+    return render_template(
+        "assessments/findings.html",
+        assessment=assessment,
+        scan=scan,
+        listing=listing,
+        severity=severity if severity in findings_service.SEVERITIES else "",
+        rule=rule,
+    )
 
 
 @assessments_bp.get("/<uuid:assessment_id>/domain")

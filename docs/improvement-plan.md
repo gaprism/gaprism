@@ -47,10 +47,10 @@ Keep the small, security-critical, well-tested core; rebuild the schema, executi
 | `app/service/discovery/scope.py` | 148 | **Keep** | Swap in the real PSL; drop the duplicated check |
 | `app/service/discovery/psl.py` | 225 | Replace | `publicsuffixlist` |
 | `app/service/discovery/ct.py` | 324 | **Port + extend** | Keep the ctlogs.dev adapter and its strict parser; drop the guessed schemas and the old-model persistence; add CertSpotter and crt.sh behind `DiscoverySource` (union mode) |
-| `app/service/checks/tls.py`, `rules.py` | 326 | Adapt | Keep the finding pattern; rules live beside each check |
+| `app/service/checks/tls.py`, `rules.py` | 326 | Adapt | **Done (S2.4):** the check is `app/checks/tls.py` (a typed outcome); the judgement is in `app/rules/`, one package instead of beside each check, so that rules can be re-run over old scans |
 | `app/service/checks/geoip.py` | 185 | Rewrite | `GeoIPProvider`: DB-IP City + ASN Lite offline (city, region, country), typed statuses; the ipwho.is call stays as the optional API fallback |
 | `app/service/checks/shodan.py` | 276 | **Keep + port** | Primary provider when `SHODAN_API_KEY` is set; re-verify the CVE parsing, redact the key from URLs and logs; add InternetDB as the keyless fallback |
-| `app/service/checks/webrisk.py` | 144 | Park (R4) | Optional keyed provider |
+| `app/service/checks/webrisk.py` | 144 | Park (R4) | Removed in S2.4 with the rest of `app/service/checks/`; it is in git history (commit `6c319ee`) and returns as a check plus a rule |
 | `app/service/jobs/*`, `models/job.py`, `models/quota.py` | 659 | Replace | Task rows in `check_result` + worker; no leases, fencing or quota ledger |
 | `app/service/assessment/run_manager.py`, `models/scan_run.py` | 229 | Replace | Simple scan lifecycle |
 | `app/service/access/*`, `models/grant.py` | 357 | Archive | Returns with S5.5 if needed |

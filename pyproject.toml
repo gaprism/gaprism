@@ -71,7 +71,7 @@ warn_redundant_casts = true
 
 # Strict where the security-relevant and business logic lives.
 [[tool.mypy.overrides]]
-module = ["runner.*", "app.checks.*", "app.service.*"]
+module = ["runner.*", "app.checks.*", "app.service.*", "app.rules.*"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 disallow_any_generics = true

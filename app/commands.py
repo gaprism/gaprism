@@ -5,9 +5,14 @@ from pathlib import Path
 import click
 import httpx
 from flask import Flask
+from sqlalchemy import select
 
 from app.extensions import db
+from app.models import Assessment
+from app.rules import RULES
+from app.service import findings as findings_service
 from app.service import geo as geo_service
+from app.service import scans as scan_service
 from app.service import users as user_service
 from app.service import worker as worker_service
 
@@ -78,6 +83,45 @@ def register_cli_commands(app: Flask) -> None:
         click.echo(_attribution())
         if failed:
             raise click.ClickException("At least one database could not be installed.")
+
+    @app.cli.group(name="findings")
+    def findings_group() -> None:
+        """Findings: the rules applied to what the checks collected."""
+
+    @findings_group.command(name="rules")
+    def findings_rules() -> None:
+        """List the rules (the full catalogue is docs/rules.md)."""
+        for rule in sorted(RULES.values(), key=lambda r: (r.scope, r.id)):
+            severities = "/".join(rule.severities)
+            click.echo(f"{rule.id:28} {rule.scope:7} v{rule.version}  {severities}")
+        click.echo(f"{len(RULES)} rules, set {findings_service.ruleset_digest()}")
+
+    @findings_group.command(name="evaluate")
+    @click.option("--domain", default=None, help="Only the latest scan of this assessment.")
+    def findings_evaluate(domain: str | None) -> None:
+        """Run the rules again over the latest finished scan of every assessment.
+
+        A scan evaluates its own findings when it finishes; use this after the rules changed, or
+        for scans that finished before findings existed. Decisions about findings are kept.
+        """
+        session = db.session()
+        query = select(Assessment)
+        if domain:
+            query = query.where(Assessment.domain == domain.strip().lower())
+        done = 0
+        for assessment in session.scalars(query):
+            scan = scan_service.get_latest_scan(session, assessment.id)
+            if scan is None or not scan.is_terminal or scan.status == "cancelled":
+                continue
+            summary = findings_service.evaluate_scan(session, scan, app.config)
+            session.commit()
+            done += 1
+            counts = ", ".join(f"{n} {name}" for name, n in summary.by_severity.items())
+            click.echo(f"{assessment.domain}: {summary.total} findings ({counts or 'none'})")
+            if summary.errors:
+                click.echo(f"  rules that failed: {', '.join(summary.errors)}")
+        if not done:
+            click.echo("No finished scan to evaluate.")
 
     @app.cli.group(name="users")
     def users_group() -> None:

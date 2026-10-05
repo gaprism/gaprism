@@ -15,7 +15,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from app.service.checks.tls import evaluate_tls_check
 from runner.tls import (
     _match_hostname_pattern,
     probe_tls_endpoint,
@@ -320,14 +319,6 @@ class TestTLSProberLive:
             assert res.subject_cn == "valid.example.com"
             assert "sub.valid.example.com" in res.sans
             assert res.days_until_expiration is not None and res.days_until_expiration > 30
-
-            # Rule evaluation
-            eval_res = evaluate_tls_check(res)
-            assert eval_res.status == "succeeded"
-            assert eval_res.verdict == "valid"
-            assert eval_res.should_skip_http is False
-            assert eval_res.skip_reason is None
-            assert len(eval_res.findings) == 0
         finally:
             server.close()
 
@@ -358,18 +349,6 @@ class TestTLSProberLive:
             # Must strictly fail validation (COL-02)
             assert res.is_valid is False
             assert "CERTIFICATE_EXPIRED" in res.failure_reasons
-
-            # Evaluation must emit TLS_VALIDATION_FAILED and halt HTTP checks
-            eval_res = evaluate_tls_check(res)
-            assert eval_res.status == "failed"
-            assert eval_res.verdict == "invalid"
-            assert eval_res.should_skip_http is True
-            assert eval_res.skip_reason == "skipped_due_to_tls_failure"
-
-            finding = next(f for f in eval_res.findings if f.rule_id == "TLS_VALIDATION_FAILED")
-            assert finding.severity == "medium"
-            assert finding.confidence == "high"
-            assert finding.attribution == "hostname_supported"
         finally:
             server.close()
 
@@ -385,9 +364,6 @@ class TestTLSProberLive:
             assert res.is_valid is False
             assert "HOSTNAME_MISMATCH" in res.failure_reasons
 
-            eval_res = evaluate_tls_check(res)
-            assert eval_res.status == "failed"
-            assert eval_res.should_skip_http is True
         finally:
             server.close()
 
@@ -407,9 +383,6 @@ class TestTLSProberLive:
                 for r in res.failure_reasons
             )
 
-            eval_res = evaluate_tls_check(res)
-            assert eval_res.status == "failed"
-            assert eval_res.should_skip_http is True
         finally:
             server.close()
 
@@ -424,18 +397,6 @@ class TestTLSProberLive:
             )
             assert res.is_valid is True
             assert res.days_until_expiration is not None and res.days_until_expiration <= 30
-
-            eval_res = evaluate_tls_check(res, expiry_warning_days=30)
-            assert eval_res.status == "succeeded"
-            assert eval_res.verdict == "valid"
-            assert eval_res.should_skip_http is False
-            assert eval_res.skip_reason is None
-
-            finding = next(f for f in eval_res.findings if f.rule_id == "TLS_EXPIRING_SOON")
-            assert finding.severity == "low"
-            assert finding.confidence == "high"
-            assert finding.attribution == "hostname_supported"
-            assert finding.message_parameters["days_remaining"] == res.days_until_expiration
         finally:
             server.close()
 
@@ -452,7 +413,3 @@ class TestTLSProberLive:
             "CONNECTION_REFUSED" in r or "CONNECTION_FAILED" in r or "TIMEOUT" in r
             for r in res.failure_reasons
         )
-
-        eval_res = evaluate_tls_check(res)
-        assert eval_res.status == "failed"
-        assert eval_res.should_skip_http is True

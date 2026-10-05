@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from 'components/ui.html' import badge %}
+{% from 'assessments/_findings.html' import host_findings_panel %}
 {% block title %}{{ detail.host.hostname }}{% endblock %}
 {% block content %}
 {% set host = detail.host %}
@@ -20,6 +21,8 @@
   {% if host.last_seen %} · {{ _('last seen in certificates') }} <time datetime="{{ host.last_seen.isoformat() }}">{{ host.last_seen.strftime('%Y-%m-%d') }}</time>{% endif %}
   · {{ _('scan of') }} <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
 </p>
+
+{{ host_findings_panel(findings, assessment) }}
 
 {% for section in detail.sections %}
   {% include 'assessments/_host_check.html' %}

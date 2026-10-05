@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from 'assessments/_findings.html' import finding_item, severity_chips, state_note %}
+{% block title %}{{ _('Findings') }} · {{ assessment.domain_display }}{% endblock %}
+{% block content %}
+<nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
+  <a class="link" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
+  <span class="text-muted" aria-hidden="true">/</span>
+  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}"><bdi class="font-mono">{{ assessment.domain_display }}</bdi></a>
+</nav>
+<div class="mt-2 flex flex-wrap items-center gap-3">
+  <h1>{{ _('Findings') }}</h1>
+</div>
+{% if not listing %}
+<div class="panel mt-6 p-5 text-sm text-muted">{{ _('No scan has run yet. Start one to see findings.') }}</div>
+{% else %}
+<p class="mt-1 text-sm text-muted">
+  {{ _('What the rules decided about the latest scan, most serious first. Each finding points at the evidence it rests on.') }}
+  · {{ _('scan of') }} <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+</p>
+{% if listing.summary.state != 'ready' %}
+<div class="panel mt-6 p-5 text-sm text-muted">{{ state_note(listing.summary.state) }}</div>
+{% else %}
+<div class="mt-4">{{ severity_chips(listing.summary.by_severity) }}</div>
+<div class="panel mt-4">
+  <div class="section-head">
+    <h2>{{ _('Results') }} <span class="text-sm font-normal text-muted">({{ listing.page.total }})</span></h2>
+    <form method="get" class="flex w-full flex-wrap gap-2 sm:w-auto" role="search">
+      <label class="sr-only" for="finding-severity">{{ _('Severity') }}</label>
+      <select id="finding-severity" name="severity" class="max-w-full">
+        <option value="">{{ _('All severities') }}</option>
+        {% for level, count in listing.summary.by_severity.items() %}<option value="{{ level }}"{% if level == severity %} selected{% endif %}>{{ severity_label(level) }} ({{ count }})</option>{% endfor %}
+      </select>
+      <label class="sr-only" for="finding-rule">{{ _('Rule') }}</label>
+      <select id="finding-rule" name="rule" class="max-w-full">
+        <option value="">{{ _('All rules') }}</option>
+        {% for fired in listing.summary.rules %}<option value="{{ fired.rule_id }}"{% if fired.rule_id == rule %} selected{% endif %}>{{ fired.title }} ({{ fired.count }})</option>{% endfor %}
+      </select>
+      <button class="btn btn-secondary" type="submit">{{ _('Filter') }}</button>
+    </form>
+  </div>
+  {% if listing.items %}
+  <ul class="divide-y divide-line">
+    {% for finding in listing.items %}{{ finding_item(finding, assessment) }}{% endfor %}
+  </ul>
+  {% if listing.page.pages > 1 %}
+  <nav class="flex items-center justify-between gap-3 border-t border-line px-4 py-3 text-sm" aria-label="{{ _('Pages') }}">
+    <span class="text-muted">{{ _('Page %(page)s of %(pages)s', page=listing.page.page, pages=listing.page.pages) }}</span>
+    <span class="flex gap-2">
+      {% if listing.page.page > 1 %}<a class="btn btn-secondary" href="{{ url_for('assessments.findings', assessment_id=assessment.id, severity=severity or none, rule=rule or none, page=listing.page.page - 1 if listing.page.page > 2 else none) }}">{{ _('Previous') }}</a>{% endif %}
+      {% if listing.page.page < listing.page.pages %}<a class="btn btn-secondary" href="{{ url_for('assessments.findings', assessment_id=assessment.id, severity=severity or none, rule=rule or none, page=listing.page.page + 1) }}">{{ _('Next') }}</a>{% endif %}
+    </span>
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="p-5 text-sm text-muted">{% if severity or rule %}{{ _('No finding matches this filter.') }}{% else %}{{ _('No rule fired on what was collected. That is not proof that nothing is wrong: the rules only judge what the checks could see.') }}{% endif %}</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

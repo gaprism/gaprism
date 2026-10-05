@@ -24,6 +24,16 @@ CT_SOURCE_KEYS = ("ctlogs", "certspotter", "crtsh")
 # Have I Been Pwned. Each can be switched off in EXTERNAL_DOMAIN_LOOKUPS (`none` switches all off).
 EXTERNAL_LOOKUP_KEYS = ("rdap", "hsts_preload", "hibp")
 
+# Where the assessed hosts may be located (ISO 3166-1 alpha-2, upper case): the EU-27, the EEA
+# (IS, LI, NO) and CH. Hosts outside this area raise LOCATION_OUTSIDE_EU_CH (see docs/rules.md).
+DEFAULT_DATA_LOCATION_ALLOWED = (
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT",
+    "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",  # EU-27
+    "IS", "LI", "NO",  # EEA
+    "CH",
+)  # fmt: skip
+_COUNTRY_CODE = re.compile(r"[A-Z]{2}")
+
 # Values of PORTS_PROVIDER: `auto` is the Shodan host API when a key is set, else InternetDB.
 PORTS_PROVIDERS = ("auto", "shodan", "internetdb", "off")
 MAX_PORTS_CACHE_HOURS = 30 * 24  # the worker deletes cache entries after 30 days
@@ -116,6 +126,11 @@ class BaseConfig:
 
     # Offline IP location data (DB-IP Lite, installed by `flask datasets update`)
     DATASETS_DIR: str = str(Path(__file__).resolve().parents[1] / "var" / "datasets")
+
+    # Rules (docs/rules.md): the countries a host may be located in, and how recent a public breach
+    # must be (in months) to count as recent (PUBLIC_BREACH_HISTORY is High, otherwise Medium).
+    DATA_LOCATION_ALLOWED: ClassVar[list[str]] = list(DEFAULT_DATA_LOCATION_ALLOWED)
+    BREACH_RECENT_MONTHS: int = 24
 
     # Third-party lookups of the assessed domain (see EXTERNAL_LOOKUP_KEYS); the checks behind a
     # name that is left out report "unavailable: disabled" instead of asking.
@@ -231,6 +246,14 @@ def validate_config(config_obj: Any) -> None:
         )
     if getattr(config_obj, "CT_MODE", "") not in ("union", "first"):
         raise ConfigurationError("CT_MODE must be 'union' or 'first'.")
+    allowed = list(getattr(config_obj, "DATA_LOCATION_ALLOWED", []))
+    if not allowed or any(not _COUNTRY_CODE.fullmatch(str(code)) for code in allowed):
+        raise ConfigurationError(
+            "DATA_LOCATION_ALLOWED must list two-letter country codes in capitals, e.g. CH,DE."
+        )
+    months = getattr(config_obj, "BREACH_RECENT_MONTHS", 0)
+    if not isinstance(months, int) or isinstance(months, bool) or not 1 <= months <= 240:
+        raise ConfigurationError("BREACH_RECENT_MONTHS must be an integer from 1 to 240.")
     unknown_lookups = sorted(
         set(getattr(config_obj, "EXTERNAL_DOMAIN_LOOKUPS", [])) - set(EXTERNAL_LOOKUP_KEYS)
     )
@@ -341,6 +364,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "PROVIDER_TIMEOUT_SECONDS": "PROVIDER_TIMEOUT_SECONDS",
             "DISCOVERY_BUDGET_SECONDS": "DISCOVERY_BUDGET_SECONDS",
             "DATASETS_DIR": "DATASETS_DIR",
+            "DATA_LOCATION_ALLOWED": "DATA_LOCATION_ALLOWED",
+            "BREACH_RECENT_MONTHS": "BREACH_RECENT_MONTHS",
             "EXTERNAL_DOMAIN_LOOKUPS": "EXTERNAL_DOMAIN_LOOKUPS",
             "PORTS_PROVIDER": "PORTS_PROVIDER",
             "SHODAN_API_KEY": "SHODAN_API_KEY",
@@ -381,6 +406,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
                 values[key] = raw
         if values["EGRESS_DNS_RESOLVERS"] == ["system"]:
             values["EGRESS_DNS_RESOLVERS"] = []  # an empty line cannot say "no resolver list"
+        values["DATA_LOCATION_ALLOWED"] = [c.upper() for c in values["DATA_LOCATION_ALLOWED"]]
         if values["EXTERNAL_DOMAIN_LOOKUPS"] == ["none"]:
             values["EXTERNAL_DOMAIN_LOOKUPS"] = []  # an empty line cannot say "none"
         values["PORTS_PROVIDER"] = str(values["PORTS_PROVIDER"]).strip().lower()
