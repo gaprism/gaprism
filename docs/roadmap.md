@@ -134,6 +134,7 @@ Deferred (kept in the archive, not deleted): RLS and per-report grants (INV-01/0
 
 **S2.3a Email security** (M) — domain level
 - MX, SPF (qualifier, lookup count), DMARC (policy, pct, rua), DKIM (common selectors), MTA-STS, TLS-RPT, BIMI.
+- *Built (2026-10-05):* all of it, plus the domain-level plumbing the later checks reuse: a "Domain checks" panel on the assessment page (one line per check) and a domain page with the facts of each (same section layout as the host page; a check's detail template is optional). Details and the live findings are in the catalogue (C20).
 
 **S2.3b Domain registration** (S)
 - RDAP via the IANA bootstrap file (direct to the registry): registrar, created/expires, status flags, nameservers, DNSSEC.

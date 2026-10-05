@@ -18,11 +18,14 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.checks import DISCOVERY_KEY
 from app.i18n import gettext as _
 from app.i18n import ngettext
 from app.models import Assessment, CheckResult, Host, Scan
 
 CHECK_ORDER = ("dns", "ip", "ports", "tls", "http")
+# The checks of the domain itself (they run once per scan), in display order.
+DOMAIN_CHECK_ORDER = ("email",)
 MAX_RAW_JSON_CHARS = 100_000
 
 
@@ -36,6 +39,7 @@ CHECK_TITLES = {
     "ports": N_("Open ports and CVEs"),
     "tls": N_("TLS certificate"),
     "http": N_("HTTP"),
+    "email": N_("Email security"),
 }
 
 REASONS = {
@@ -77,6 +81,7 @@ REASONS = {
     "disabled": N_("Switched off"),
     "not_asked": N_("Not asked after an earlier failure"),
     "invalid_response": N_("Unexpected response"),
+    "budget_exceeded": N_("Took too long"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.
@@ -105,6 +110,19 @@ HELP = {
     ),
 }
 
+# What is wrong with a mail record, for the problem codes the email check reports.
+PROBLEMS = {
+    "multiple_records": N_("More than one record: receivers treat this as an error"),
+    "no_all": N_("Neither an 'all' term nor a redirect: the default result is neutral"),
+    "too_many_lookups": N_("More than 10 DNS lookups: receivers may reject the record"),
+    "ptr_used": N_("Uses 'ptr', which is deprecated"),
+    "unknown_term": N_("Contains a term that is not valid SPF"),
+    "unknown_modifier": N_("Contains a modifier that is not defined in SPF"),
+    "invalid_policy": N_("The policy (p=) is missing or not valid"),
+    "invalid_subdomain_policy": N_("The subdomain policy (sp=) is not valid"),
+    "invalid_pct": N_("The percentage (pct=) is not a number from 0 to 100"),
+}
+
 TLS_FAILURES = {
     "expired": N_("Expired"),
     "not_yet_valid": N_("Not yet valid"),
@@ -127,6 +145,10 @@ def reason_label(code: str | None) -> str | None:
         return _("HTTP error %(code)s", code=code[5:])
     # A TLS check that read no certificate reports why verification failed as its reason.
     return _(TLS_FAILURES[code]) if code in TLS_FAILURES else code
+
+
+def problem_label(code: str) -> str:
+    return _(PROBLEMS[code]) if code in PROBLEMS else code
 
 
 def tls_failure_label(code: str) -> str:
@@ -206,6 +228,48 @@ def _ports_cell(data: Mapping[str, Any]) -> CheckCell:
     return CheckCell("ok", tone, text)
 
 
+_SPF_ALL = {"fail": "-all", "softfail": "~all", "neutral": "?all", "pass": "+all"}
+
+
+def _email_cell(data: Mapping[str, Any]) -> CheckCell:
+    """SPF and DMARC in a few words; the tone says whether the domain can be spoofed."""
+    mx = data.get("mx", {})
+    spf = data.get("spf", {})
+    dmarc = data.get("dmarc", {})
+    mail = bool(mx.get("found"))
+    parts: list[str] = []
+    weak = False
+    if spf.get("found"):
+        qualifier = spf.get("qualifier")
+        without = _("redirect") if spf.get("redirect") else _("without all")
+        parts.append("SPF " + _SPF_ALL.get(qualifier, without))
+        weak = weak or qualifier not in ("fail", "softfail") or bool(spf.get("problems"))
+    elif spf.get("found") is False:
+        parts.append(_("No SPF"))
+        weak = True
+    else:
+        parts.append(_("SPF unknown"))
+    if dmarc.get("found"):
+        policy = dmarc.get("policy")
+        parts.append("DMARC " + (policy or _("invalid")))
+        weak = weak or policy not in ("quarantine", "reject")
+    elif dmarc.get("found") is False:
+        parts.append(_("No DMARC"))
+        weak = True
+    else:
+        parts.append(_("DMARC unknown"))
+    if spf.get("qualifier") == "pass":
+        tone = "high"  # "+all": anyone may send in this domain's name
+    elif data.get("errors"):
+        tone = "medium"
+        parts.append(_("incomplete"))
+    elif weak:
+        tone = "medium" if mail else "muted"  # a domain that receives no mail matters less
+    else:
+        tone = "ok"
+    return CheckCell("ok", tone, " · ".join(parts))
+
+
 def _tls_cell(data: Mapping[str, Any]) -> CheckCell:
     if not data.get("verified"):
         failures = list(data.get("failures", []))
@@ -242,6 +306,7 @@ _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "ports": _ports_cell,
     "tls": _tls_cell,
     "http": _http_cell,
+    "email": _email_cell,
 }
 
 
@@ -272,6 +337,39 @@ def check_title(check_key: str) -> str:
 
 def _order(check_key: str) -> tuple[int, str]:
     return (CHECK_ORDER.index(check_key), "") if check_key in CHECK_ORDER else (99, check_key)
+
+
+def _domain_order(check_key: str) -> tuple[int, str]:
+    if check_key in DOMAIN_CHECK_ORDER:
+        return (DOMAIN_CHECK_ORDER.index(check_key), "")
+    return (99, check_key)
+
+
+@dataclass(frozen=True)
+class DomainRow:
+    """A domain-level check in one line, for the assessment page."""
+
+    key: str
+    title: str
+    cell: CheckCell
+
+
+def domain_rows(session: Session, scan_id: uuid.UUID) -> list[DomainRow]:
+    """One line per domain-level check of a scan (discovery has its own panel)."""
+    rows = session.execute(
+        select(
+            CheckResult.check_key, CheckResult.status, CheckResult.reason_code, CheckResult.data
+        ).where(
+            CheckResult.scan_id == scan_id,
+            CheckResult.host_id.is_(None),
+            CheckResult.check_key != DISCOVERY_KEY,
+        )
+    ).all()
+    found = [
+        DomainRow(key, check_title(key), summarize(key, status, reason_code, data))
+        for key, status, reason_code, data in rows
+    ]
+    return sorted(found, key=lambda row: _domain_order(row.key))
 
 
 def host_cells(session: Session, host_ids: Sequence[uuid.UUID]) -> dict[Any, dict[str, CheckCell]]:
@@ -334,21 +432,44 @@ def get_host_detail(session: Session, host_id: uuid.UUID) -> HostDetail | None:
     if host is None or scan is None or assessment is None:
         return None
     results = session.scalars(select(CheckResult).where(CheckResult.host_id == host.id)).all()
-    sections = []
-    for result in sorted(results, key=lambda row: _order(row.check_key)):
-        text, truncated = raw_json(result.data)
-        sections.append(
-            CheckSection(
-                key=result.check_key,
-                title=check_title(result.check_key),
-                cell=summarize(result.check_key, result.status, result.reason_code, result.data),
-                reason=reason_label(result.reason_code),
-                help=reason_help(result.reason_code),
-                data=dict(result.data),
-                collected_at=result.collected_at,
-                duration_ms=result.duration_ms,
-                raw_json=text,
-                raw_truncated=truncated,
-            )
-        )
+    sections = [_section(result) for result in sorted(results, key=lambda r: _order(r.check_key))]
     return HostDetail(host=host, scan=scan, assessment=assessment, sections=sections)
+
+
+def _section(result: CheckResult) -> CheckSection:
+    text, truncated = raw_json(result.data)
+    return CheckSection(
+        key=result.check_key,
+        title=check_title(result.check_key),
+        cell=summarize(result.check_key, result.status, result.reason_code, result.data),
+        reason=reason_label(result.reason_code),
+        help=reason_help(result.reason_code),
+        data=dict(result.data),
+        collected_at=result.collected_at,
+        duration_ms=result.duration_ms,
+        raw_json=text,
+        raw_truncated=truncated,
+    )
+
+
+@dataclass(frozen=True)
+class DomainDetail:
+    scan: Scan
+    assessment: Assessment
+    sections: list[CheckSection]
+
+
+def get_domain_detail(session: Session, scan: Scan) -> DomainDetail | None:
+    """The domain-level checks of a scan, check by check (``None``: the assessment is gone)."""
+    assessment = session.get(Assessment, scan.assessment_id)
+    if assessment is None:
+        return None
+    results = session.scalars(
+        select(CheckResult).where(
+            CheckResult.scan_id == scan.id,
+            CheckResult.host_id.is_(None),
+            CheckResult.check_key != DISCOVERY_KEY,
+        )
+    ).all()
+    sections = [_section(r) for r in sorted(results, key=lambda r: _domain_order(r.check_key))]
+    return DomainDetail(scan=scan, assessment=assessment, sections=sections)

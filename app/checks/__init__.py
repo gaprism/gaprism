@@ -16,6 +16,7 @@ from app.checks.base import (
 )
 from app.checks.discovery import DiscoveryCheck
 from app.checks.dns import DnsCheck
+from app.checks.email import EmailCheck
 from app.checks.http import HttpCheck
 from app.checks.ip import IpCheck
 from app.checks.ports import PortsCheck
@@ -23,7 +24,15 @@ from app.checks.tls import TlsCheck
 
 REGISTRY: dict[str, Check] = {
     check.key: check
-    for check in (DiscoveryCheck(), DnsCheck(), IpCheck(), PortsCheck(), TlsCheck(), HttpCheck())
+    for check in (
+        DiscoveryCheck(),
+        DnsCheck(),
+        IpCheck(),
+        PortsCheck(),
+        TlsCheck(),
+        HttpCheck(),
+        EmailCheck(),
+    )
 }
 
 # Discovery is the engine's first stage: it creates the hosts the other checks run for.

@@ -44,7 +44,7 @@ class ResolverLike(Protocol):
 
 
 @dataclass
-class _Lookup:
+class Lookup:
     """The answer to one question: records, or a typed reason why there are none."""
 
     records: list[dict[str, Any]] = field(default_factory=list)
@@ -86,33 +86,34 @@ def _describe(rdata: Any) -> dict[str, Any] | None:
     return None
 
 
-def _lookup(resolver: ResolverLike, name: str, rdtype: str, lifetime: float) -> _Lookup:
+def lookup_records(resolver: ResolverLike, name: str, rdtype: str, lifetime: float) -> Lookup:
+    """Ask for ``rdtype`` records of ``name``: the records, or a typed reason why there are none."""
     try:
         answer = resolver.resolve(name, rdtype, lifetime=lifetime)
     except dns.resolver.NXDOMAIN:
-        return _Lookup(nxdomain=True)
+        return Lookup(nxdomain=True)
     except dns.resolver.NoAnswer:
-        return _Lookup()  # the name exists, it just has no record of this type
+        return Lookup()  # the name exists, it just has no record of this type
     except dns.resolver.NoNameservers:
-        return _Lookup(error="servfail")
+        return Lookup(error="servfail")
     except dns.exception.Timeout:
-        return _Lookup(error="timeout")
+        return Lookup(error="timeout")
     except dns.exception.DNSException:
-        return _Lookup(error="dns_error")
+        return Lookup(error="dns_error")
     except OSError:
-        return _Lookup(error="network_error")
+        return Lookup(error="network_error")
     rrset = answer.rrset
     if rrset is None:
-        return _Lookup()
+        return Lookup()
     records: list[dict[str, Any]] = []
     for rdata in rrset:
         described = _describe(rdata)
         if described is not None:
             records.append({**described, "ttl": int(rrset.ttl)})
-    return _Lookup(records=records[:MAX_RECORDS], truncated=len(records) > MAX_RECORDS)
+    return Lookup(records=records[:MAX_RECORDS], truncated=len(records) > MAX_RECORDS)
 
 
-def _follow_cnames(resolver: ResolverLike, host: str, first: _Lookup, lifetime: float) -> _Chain:
+def _follow_cnames(resolver: ResolverLike, host: str, first: Lookup, lifetime: float) -> _Chain:
     """Walk the explicit CNAME records starting at ``host`` (``first`` is its CNAME lookup)."""
     chain = _Chain(canonical=host)
     seen = {host}
@@ -133,7 +134,7 @@ def _follow_cnames(resolver: ResolverLike, host: str, first: _Lookup, lifetime: 
             chain.problem = "cname_loop"
             return chain
         seen.add(target)
-        step = _lookup(resolver, target, "CNAME", lifetime)
+        step = lookup_records(resolver, target, "CNAME", lifetime)
     chain.problem = "cname_chain_too_long"
     return chain
 
@@ -152,7 +153,7 @@ def _build_resolver(config: Mapping[str, Any]) -> ResolverLike:
 def reverse_names(resolver: ResolverLike, ip: str, lifetime: float) -> tuple[list[str], str | None]:
     """The PTR names of ``ip`` and, if the lookup failed, a code saying why (never a guess)."""
     name = dns.reversename.from_address(ip).to_text()
-    result = _lookup(resolver, name, "PTR", lifetime)
+    result = lookup_records(resolver, name, "PTR", lifetime)
     return [str(record["host"]) for record in result.records], result.error
 
 
@@ -190,7 +191,7 @@ def lookup_addresses(resolver: ResolverLike, name: str, lifetime: float) -> list
     """
     found: list[str] = []
     for rdtype in ("A", "AAAA"):
-        for record in _lookup(resolver, name, rdtype, lifetime).records:
+        for record in lookup_records(resolver, name, rdtype, lifetime).records:
             ip = str(record["ip"])
             if ip not in found:
                 found.append(ip)
@@ -218,21 +219,21 @@ class DnsCheck:
         servers = [str(server) for server in ctx.config.get("EGRESS_DNS_RESOLVERS", [])]
         source = ("dns:" + (",".join(servers) if servers else "system"))[:64]
 
-        first = _lookup(resolver, host, "CNAME", lifetime)
+        first = lookup_records(resolver, host, "CNAME", lifetime)
         if first.nxdomain:
             return CheckOutcome(
                 "no_data", "nxdomain", {"nxdomain": True, "resolvers": servers}, source
             )
         chain = _follow_cnames(resolver, host, first, lifetime)
 
-        lookups: dict[str, _Lookup] = {"A": _lookup(resolver, host, "A", lifetime)}
+        lookups: dict[str, Lookup] = {"A": lookup_records(resolver, host, "A", lifetime)}
         if first.error and lookups["A"].error:
             # Two failures in a row: the resolver is unreachable. Do not spend a timeout on every
             # remaining record type of every host.
             return CheckOutcome("error", first.error, {"resolvers": servers}, source)
         dangling = chain.dangling or (bool(chain.steps) and lookups["A"].nxdomain)
         for rdtype in ("AAAA", *OTHER_TYPES):
-            lookups[rdtype] = _lookup(resolver, host, rdtype, lifetime)
+            lookups[rdtype] = lookup_records(resolver, host, rdtype, lifetime)
 
         addresses: list[str] = []
         blocked: list[dict[str, str]] = []

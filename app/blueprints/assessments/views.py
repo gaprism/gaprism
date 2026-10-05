@@ -25,6 +25,7 @@ MAX_HOSTNAMES_INPUT = 20_000  # characters accepted in the "add hosts" box
 # Translated labels for reason codes, available in every template.
 assessments_bp.add_app_template_global(host_view_service.reason_label, "reason_label")
 assessments_bp.add_app_template_global(host_view_service.tls_failure_label, "tls_failure_label")
+assessments_bp.add_app_template_global(host_view_service.problem_label, "problem_label")
 
 
 def _current_user() -> User:
@@ -158,6 +159,16 @@ def host_detail(assessment_id: uuid.UUID, host_id: uuid.UUID) -> str:
     if detail is None or detail.assessment.id != assessment.id:
         abort(404)  # also for a host of someone else's assessment: never confirm it exists
     return render_template("assessments/host.html", assessment=assessment, detail=detail)
+
+
+@assessments_bp.get("/<uuid:assessment_id>/domain")
+@login_required
+def domain_detail(assessment_id: uuid.UUID) -> str:
+    """What the latest scan collected about the domain itself (email security, ...)."""
+    assessment = _get_accessible(assessment_id)
+    scan = scan_service.get_latest_scan(db.session(), assessment.id)
+    detail = host_view_service.get_domain_detail(db.session(), scan) if scan else None
+    return render_template("assessments/domain.html", assessment=assessment, detail=detail)
 
 
 @assessments_bp.post("/<uuid:assessment_id>/hosts")

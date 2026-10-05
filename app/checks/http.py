@@ -50,7 +50,7 @@ NameResolver = Callable[[Mapping[str, Any], str], list[str]]
 
 
 @functools.lru_cache(maxsize=1)
-def _trust_store() -> ssl.SSLContext:
+def trust_store() -> ssl.SSLContext:
     """The operating system's CA store, the same one the TLS prober uses."""
     return ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
 
@@ -68,7 +68,7 @@ def _default_client(
         max_response_bytes=MAX_BODY_BYTES,
         max_duration=read + connect,
         truncate_body=True,
-        verify=_trust_store(),
+        verify=trust_store(),
     )
 
 

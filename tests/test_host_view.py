@@ -20,6 +20,8 @@ from app.service.geo import IpLocation
 from app.service.ports import PortFacts, PortService, PortsLookup, Vulnerability
 from tests.checks.test_dns_check import answer, rr
 from tests.checks.test_dns_check import run as run_dns
+from tests.checks.test_email_check import mail_domain, policy_site, txt
+from tests.checks.test_email_check import run as run_email
 from tests.checks.test_http_check import HOST as WEB_HOST
 from tests.checks.test_http_check import Site, page, redirect
 from tests.checks.test_http_check import run as run_http
@@ -262,6 +264,122 @@ def entry(
         ("ports", "error", "timeout", {}, "high", "Timed out"),
         ("ports", "skipped", "needs:dns", {}, "muted", "Skipped: dns did not succeed"),
         (
+            "email",
+            "ok",
+            None,
+            {
+                "mx": {"found": True},
+                "spf": {"found": True, "qualifier": "fail", "problems": []},
+                "dmarc": {"found": True, "policy": "reject"},
+                "errors": {},
+            },
+            "ok",
+            "SPF -all · DMARC reject",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {
+                "mx": {"found": True},
+                "spf": {"found": True, "qualifier": "softfail", "problems": []},
+                "dmarc": {"found": True, "policy": "quarantine"},
+            },
+            "ok",
+            "SPF ~all · DMARC quarantine",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {
+                "mx": {"found": True},
+                "spf": {"found": True, "qualifier": "fail", "problems": []},
+                "dmarc": {"found": True, "policy": "none"},
+            },
+            "medium",
+            "SPF -all · DMARC none",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {"mx": {"found": True}, "spf": {"found": False}, "dmarc": {"found": False}},
+            "medium",
+            "No SPF · No DMARC",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {"mx": {"found": False}, "spf": {"found": False}, "dmarc": {"found": False}},
+            "muted",  # a domain without mail matters less
+            "No SPF · No DMARC",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {
+                "mx": {"found": True},
+                "spf": {"found": True, "qualifier": "pass", "problems": []},
+                "dmarc": {"found": True, "policy": "reject"},
+            },
+            "high",  # +all: anyone may send as this domain
+            "SPF +all · DMARC reject",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {
+                "mx": {"found": True},
+                "spf": {"found": True, "qualifier": None, "problems": ["no_all"]},
+                "dmarc": {"found": True, "policy": None, "problems": ["invalid_policy"]},
+            },
+            "medium",
+            "SPF without all · DMARC invalid",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {
+                "mx": {"found": True},
+                "spf": {"found": True, "qualifier": "fail", "problems": ["multiple_records"]},
+                "dmarc": {"found": True, "policy": "reject"},
+            },
+            "medium",  # two SPF records: receivers treat that as an error
+            "SPF -all · DMARC reject",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {
+                "mx": {"found": True},
+                "spf": {"found": True, "qualifier": "fail", "problems": []},
+                "dmarc": {"found": None, "error": "timeout"},
+                "errors": {"dmarc": "timeout"},
+            },
+            "medium",
+            "SPF -all · DMARC unknown · incomplete",
+        ),
+        (
+            "email",
+            "ok",
+            None,
+            {
+                "mx": {"found": True},
+                "spf": {"found": True, "qualifier": None, "redirect": "spf.example.net"},
+                "dmarc": {"found": True, "policy": "reject"},
+            },
+            "medium",  # a redirect that could not be read: not known to be strict
+            "SPF redirect · DMARC reject",
+        ),
+        ("email", "no_data", "nxdomain", {}, "muted", "Name does not exist"),
+        ("email", "error", "timeout", {}, "high", "Timed out"),
+        (
             "tls",
             "ok",
             None,
@@ -359,6 +477,22 @@ def test_the_ports_summary_understands_what_the_real_check_produces() -> None:
         {"dns": ports_dns(IP1, IP2)},
     )
     assert host_view.summarize("ports", *_parts(partial)).text == "1 port · incomplete"
+
+
+def test_the_email_summary_understands_what_the_real_check_produces() -> None:
+    outcome, _ = run_email(mail_domain(), policy_site)
+    assert host_view.summarize("email", *_parts(outcome)).text == "SPF -all · DMARC reject"
+    assert host_view.summarize("email", *_parts(outcome)).tone == "ok"
+
+    script = mail_domain()
+    del script[("_dmarc.example.com", "TXT")]
+    weak, _ = run_email(script, policy_site)
+    cell = host_view.summarize("email", *_parts(weak))
+    assert (cell.tone, cell.text) == ("medium", "SPF -all · No DMARC")
+
+    bare, _ = run_email({})
+    cell = host_view.summarize("email", *_parts(bare))
+    assert (cell.tone, cell.text) == ("muted", "No SPF · No DMARC")
 
 
 def _parts(outcome: CheckOutcome) -> tuple[str, str | None, dict[str, Any]]:
@@ -828,3 +962,200 @@ def test_the_db_ip_attribution_is_on_every_page_of_the_app(signed_in: Any) -> No
         body = client.get(path).get_data(as_text=True)
         assert 'href="https://db-ip.com"' in body and "IP geolocation by DB-IP.com" in body
         assert "CC BY 4.0" in body
+
+
+# ------------------------------------------------------------------------------ domain checks
+
+
+def add_domain_result(
+    session: Session, scan: Scan, key: str, outcome: CheckOutcome, status: str | None = None
+) -> None:
+    session.add(
+        CheckResult(
+            scan_id=scan.id,
+            host_id=None,
+            check_key=key,
+            status=status or outcome.status,
+            reason_code=outcome.reason_code,
+            data=outcome.data,
+            source=outcome.source,
+            collected_at=utc_now(),
+            duration_ms=40,
+        )
+    )
+    session.commit()
+
+
+def email_outcome(script: dict[tuple[str, str], Any] | None = None) -> CheckOutcome:
+    outcome, _ = run_email(mail_domain() if script is None else script, policy_site)
+    return outcome
+
+
+def test_the_assessment_page_lists_the_domain_checks_with_a_link_to_the_details(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    add_domain_result(db_session, scan, "email", email_outcome())
+
+    body = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "Domain checks" in body and "Email security" in body
+    assert "SPF -all · DMARC reject" in body
+    assert f"/assessments/{assessment.id}/domain#check-email" in body
+
+
+def test_the_domain_page_shows_every_part_of_the_email_check(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    add_domain_result(db_session, scan, "email", email_outcome())
+
+    response = client.get(f"/assessments/{assessment.id}/domain")
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200 and 'id="check-email"' in body
+    # MX and who handles the mail
+    assert "aspmx.l.google.com" in body and "Google Workspace" in body
+    # SPF
+    assert "v=spf1 include:_spf.google.com -all" in body and "Hard fail (-all)" in body
+    assert "2 of 10 allowed" in body
+    # DMARC
+    assert "dmarc@example.com" in body and "Aggregate reports" in body
+    # DKIM
+    assert "google" in body and "2048 bits" in body and "Selectors cannot be listed" in body
+    # MTA-STS, TLS-RPT, BIMI
+    assert "enforce" in body and "20260901T000000" in body
+    assert "tls@example.com" in body and "https://example.com/logo.svg" in body
+    assert body.count("Raw data (JSON)") == 1
+
+
+def test_what_is_absent_and_what_could_not_be_asked_look_different(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    script = mail_domain()
+    del script[("_smtp._tls.example.com", "TXT")]  # absent
+    script[("_dmarc.example.com", "TXT")] = dns_timeout()  # could not be asked
+    add_domain_result(db_session, scan, "email", email_outcome(script))
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "Not found" in body  # TLS-RPT
+    assert "Could not be checked" in body and "Timed out" in body  # DMARC
+
+
+def dns_timeout() -> Any:
+    from tests.checks.test_dns_check import TIMEOUT
+
+    return TIMEOUT
+
+
+def test_a_redirecting_spf_and_revoked_selectors_are_explained(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    script = mail_domain()
+    script[("example.com", "TXT")] = txt("example.com", "v=spf1 redirect=spf.example.net")
+    script[("spf.example.net", "TXT")] = txt("spf.example.net", "v=spf1 ip4:192.0.2.1 -all")
+    script[("k1._domainkey.example.com", "TXT")] = txt("k1._domainkey.example.com", "v=DKIM1; p=")
+    add_domain_result(db_session, scan, "email", email_outcome(script))
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "decided by the redirect to spf.example.net" in body and "Hard fail (-all)" in body
+    assert "Revoked selectors (empty key): k1" in body
+    panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "SPF -all · DMARC reject" in panel
+
+
+def test_a_short_dkim_key_and_a_weak_spf_are_visible(signed_in: Any, db_session: Session) -> None:
+    from tests.checks.test_email_check import RSA_1024, public_key_record
+
+    client, assessment, scan = signed_in
+    script = mail_domain()
+    script[("google._domainkey.example.com", "TXT")] = txt(
+        "google._domainkey.example.com", f"v=DKIM1; k=rsa; p={public_key_record(RSA_1024)}"
+    )
+    script[("example.com", "TXT")] = txt("example.com", "v=spf1 +all", "v=spf1 -all")
+    add_domain_result(db_session, scan, "email", email_outcome(script))
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "1024 bits" in body and "short" in body
+    assert "Allows everyone (+all)" in body
+    assert "More than one record" in body  # the problem is spelled out, not just coded
+
+
+def test_a_domain_without_a_scan_or_results_says_so(
+    client: FlaskClient, db_session: Session
+) -> None:
+    user = create_user(db_session)
+    assessment = create_assessment(db_session, user, "quiet.example")
+    login_as(client, user)
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "No scan has run yet" in body
+
+    scan_service.start_scan(db_session, assessment, user, CONFIG)
+    db_session.commit()
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "No domain checks have been recorded" in body  # discovery is not a domain check here
+
+
+def test_the_domain_page_is_as_private_as_its_assessment(
+    client: FlaskClient, db_session: Session
+) -> None:
+    owner = create_user(db_session)
+    mine = create_assessment(db_session, owner, "mine.example", "private")
+    scan = scan_service.start_scan(db_session, mine, owner, CONFIG)
+    db_session.commit()
+    add_domain_result(db_session, scan, "email", email_outcome())
+
+    login_as(client, create_user(db_session))
+    assert client.get(f"/assessments/{mine.id}/domain").status_code == 404
+    login_as(client, owner)
+    assert client.get(f"/assessments/{mine.id}/domain").status_code == 200
+    assert client.get(f"/assessments/{uuid.uuid4()}/domain").status_code == 404
+
+
+def test_hostile_mail_records_are_escaped(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    script = mail_domain()
+    script[("example.com", "TXT")] = txt(
+        "example.com", f"v=spf1 include:{SCRIPT.replace(' ', '')} -all"
+    )
+    hostile = ESCAPED
+    script[("_dmarc.example.com", "TXT")] = txt(
+        "_dmarc.example.com", f"v=DMARC1; p=reject; rua=mailto:{hostile.replace(' ', '')}"
+    )
+    outcome = email_outcome(script)
+    # what the page shows is what DNS said, so build the worst case directly as well
+    outcome.data["mx"]["records"][0]["host"] = SCRIPT
+    outcome.data["dmarc"]["record"] = SCRIPT
+    add_domain_result(db_session, scan, "email", outcome)
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert SCRIPT not in body and body.count(ESCAPED) >= 2
+    panel = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert SCRIPT not in panel
+
+
+def test_a_domain_check_without_a_template_still_renders_and_unknown_ones_come_last(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    add_domain_result(db_session, scan, "zzz_future", CheckOutcome("ok", data={"x": 1}))
+    add_domain_result(db_session, scan, "email", email_outcome())
+
+    response = client.get(f"/assessments/{assessment.id}/domain")
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert body.index('id="check-email"') < body.index('id="check-zzz_future"')
+    detail = host_view.get_domain_detail(db_session, scan)
+    assert detail is not None and [s.key for s in detail.sections] == ["email", "zzz_future"]
+
+
+def test_the_domain_rows_leave_out_discovery_and_the_hosts_checks(
+    signed_in: Any, db_session: Session
+) -> None:
+    _, _, scan = signed_in  # starting a scan queued its discovery, a domain-level row too
+    add_domain_result(db_session, scan, "email", email_outcome())
+    add_host(db_session, scan, WEB_HOST, {"dns": dns_outcome()})
+
+    rows = host_view.domain_rows(db_session, scan.id)
+    assert [row.key for row in rows] == ["email"]
+    assert rows[0].title == "Email security"

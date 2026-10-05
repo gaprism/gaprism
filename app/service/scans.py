@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.checks import DISCOVERY_KEY, Check, checks_with_scope
 from app.models import Assessment, CheckResult, Host, Scan, User
 from app.models.base import utc_now
-from app.service.host_view import CheckCell, host_cells
+from app.service.host_view import CheckCell, DomainRow, domain_rows, host_cells
 
 OPEN_CHECK_STATUSES = ("queued", "running")
 PROBLEM_CHECK_STATUSES = ("error", "unavailable")
@@ -413,6 +413,7 @@ class ScanOverview:
     hosts: HostPage
     host_cells: dict[Any, dict[str, CheckCell]]
     ip_data_missing: bool  # the location databases are not installed (or unreadable)
+    domain_rows: list[DomainRow]
 
     @property
     def is_active(self) -> bool:
@@ -476,6 +477,7 @@ def scan_overview(
         and utc_now() - scan.created_at > WAITING_FOR_WORKER_AFTER,
         hosts=hosts,
         host_cells=host_cells(session, [host.id for host in hosts.rows]),
+        domain_rows=domain_rows(session, scan.id),
         ip_data_missing=session.scalar(
             select(CheckResult.id)
             .where(

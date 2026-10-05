@@ -57,6 +57,29 @@
   <div class="mt-4">{{ notice(_('Some hosts were not reviewed'), _('%(count)s hosts exceeded the limit of %(limit)s per scan.', count=overview.dropped_by_cap, limit=scan.options.get('max_hosts')), 'warning') }}</div>
   {% endif %}
 
+  {% if overview.domain_rows %}
+  <div class="panel mt-4">
+    <div class="section-head">
+      <h2>{{ _('Domain checks') }}</h2>
+      <a class="link text-sm" href="{{ url_for('assessments.domain_detail', assessment_id=assessment.id) }}">{{ _('Details') }}</a>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <caption class="sr-only">{{ _('Checks of the domain itself') }}</caption>
+        <thead><tr><th scope="col">{{ _('Check') }}</th><th scope="col">{{ _('Result') }}</th></tr></thead>
+        <tbody>
+          {% for row in overview.domain_rows %}
+          <tr>
+            <td><a class="link" href="{{ url_for('assessments.domain_detail', assessment_id=assessment.id, _anchor='check-' ~ row.key) }}">{{ row.title }}</a></td>
+            <td>{{ badge(row.cell.text, row.cell.tone) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
   {% if overview.sources %}
   <div class="panel mt-4">
     <div class="section-head"><h2>{{ _('Discovery sources') }}</h2>

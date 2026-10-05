@@ -1,0 +1,114 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set mx = d.mx %}
+{% set spf = d.spf %}
+{% set dmarc = d.dmarc %}
+{% set dkim = d.dkim %}
+{% set sts = d.mta_sts %}
+{% set spf_labels = {'fail': _('Hard fail (-all)'), 'softfail': _('Soft fail (~all)'), 'neutral': _('Neutral (?all)'), 'pass': _('Allows everyone (+all)')} %}
+{% set spf_tones = {'fail': 'ok', 'softfail': 'ok', 'neutral': 'medium', 'pass': 'high'} %}
+{% set policy_tones = {'reject': 'ok', 'quarantine': 'ok', 'none': 'medium'} %}
+{% set alignment = {'r': _('relaxed'), 's': _('strict')} %}
+{# A part that is not there, or that could not be asked: never the same thing. #}
+{% macro missing(part) -%}
+{%- if part.found is none %}{{ badge(_('Could not be checked'), 'medium') }} <span class="text-sm text-muted">{{ reason_label(part.error) }}</span>
+{%- else %}{{ badge(_('Not found'), 'muted') }}{% endif -%}
+{%- endmacro %}
+{% macro problems(part) -%}
+{%- if part.problems %}<ul class="mt-2 grid gap-1 text-sm">{% for code in part.problems %}<li>{{ badge(_('Problem'), 'medium') }} {{ problem_label(code) }}</li>{% endfor %}</ul>{% endif -%}
+{%- endmacro %}
+{% macro uris(values) -%}
+{%- for value in values %}<div><bdi class="font-mono break-all text-sm">{{ value }}</bdi></div>{% endfor -%}
+{%- endmacro %}
+
+<div class="mb-4">{{ notice(_('What is checked'), _('The mail-related DNS records of %(domain)s and, if it publishes MTA-STS, its policy file. Nothing is sent to a mail server. A part that could not be asked says so; it is never shown as absent.', domain=d.domain), 'info') }}</div>
+
+<h3 class="text-sm">{{ _('Mail servers (MX)') }}</h3>
+{% if mx.null_mx %}
+<p class="mt-1 text-sm">{{ badge(_('Does not receive mail'), 'info') }} <span class="text-muted">{{ _('The domain publishes a null MX record (RFC 7505).') }}</span></p>
+{% elif mx.found %}
+<div class="table-scroll mt-1"><table class="data-table">
+  <thead><tr><th scope="col">{{ _('Priority') }}</th><th scope="col">{{ _('Host') }}</th></tr></thead>
+  <tbody>{% for record in mx.records %}<tr><td>{{ record.preference }}</td><td><bdi class="font-mono break-all">{{ record.host }}</bdi></td></tr>{% endfor %}</tbody>
+</table></div>
+{% if mx.providers %}<p class="mt-2 text-sm">{{ _('Mail is handled by') }} {% for name in mx.providers %}{{ badge(name, 'info') }} {% endfor %}</p>{% endif %}
+{% else %}
+<p class="mt-1">{{ missing(mx) }}</p>
+{% endif %}
+
+<h3 class="mt-5 text-sm">SPF</h3>
+{% if spf.found %}
+<p class="mt-1"><code class="break-all text-xs">{{ spf.record }}</code></p>
+<dl class="mt-2 grid gap-3 text-sm sm:grid-cols-2">
+  <div><dt>{{ _('Everything else') }}</dt><dd>{% if spf.qualifier %}{{ badge(spf_labels[spf.qualifier], spf_tones[spf.qualifier]) }}{% if spf.qualifier_via == 'redirect' %} <span class="text-muted">{{ _('decided by the redirect to %(domain)s', domain=spf.redirect) }}</span>{% endif %}{% elif spf.redirect %}<span class="text-muted">{{ _('decided by the redirect to %(domain)s, which could not be read', domain=spf.redirect) }}</span>{% else %}{{ badge(_('Not stated'), 'medium') }}{% endif %}</dd></div>
+  <div><dt>{{ _('DNS lookups') }}</dt><dd>{{ spf.lookups }} {{ _('of 10 allowed') }}{% if not spf.lookups_complete %} <span class="text-muted">({{ _('at least; not every include could be followed') }})</span>{% endif %}</dd></div>
+  {% if spf.senders %}<div><dt>{{ _('Services allowed to send') }}</dt><dd class="flex flex-wrap gap-1">{% for name in spf.senders %}{{ badge(name, 'info') }}{% endfor %}</dd></div>{% endif %}
+  {% if spf.includes %}<div><dt>{{ _('Includes') }}</dt><dd>{{ uris(spf.includes) }}</dd></div>{% endif %}
+</dl>
+{{ problems(spf) }}
+{% else %}
+<p class="mt-1">{{ missing(spf) }}</p>
+{% endif %}
+
+<h3 class="mt-5 text-sm">DMARC</h3>
+{% if dmarc.found %}
+<p class="mt-1"><code class="break-all text-xs">{{ dmarc.record }}</code></p>
+<dl class="mt-2 grid gap-3 text-sm sm:grid-cols-2">
+  <div><dt>{{ _('Policy') }}</dt><dd>{% if dmarc.policy %}{{ badge(dmarc.policy, policy_tones.get(dmarc.policy, 'muted')) }}{% else %}{{ badge(_('Not valid'), 'high') }}{% endif %}</dd></div>
+  {% if dmarc.subdomain_policy %}<div><dt>{{ _('Policy for subdomains') }}</dt><dd>{{ dmarc.subdomain_policy }}</dd></div>{% endif %}
+  <div><dt>{{ _('Applied to') }}</dt><dd>{% if dmarc.pct is not none %}{{ dmarc.pct }} %{% else %}—{% endif %}</dd></div>
+  <div><dt>{{ _('Alignment') }}</dt><dd>DKIM {{ alignment.get(dmarc.adkim, dmarc.adkim) }} · SPF {{ alignment.get(dmarc.aspf, dmarc.aspf) }}</dd></div>
+  <div><dt>{{ _('Aggregate reports (rua)') }}</dt><dd>{% if dmarc.rua %}{{ uris(dmarc.rua) }}{% else %}<span class="text-muted">—</span>{% endif %}</dd></div>
+  {% if dmarc.ruf %}<div><dt>{{ _('Failure reports (ruf)') }}</dt><dd>{{ uris(dmarc.ruf) }}</dd></div>{% endif %}
+</dl>
+{{ problems(dmarc) }}
+{% else %}
+<p class="mt-1">{{ missing(dmarc) }}</p>
+{% endif %}
+
+<h3 class="mt-5 text-sm">DKIM</h3>
+{% if dkim.found %}
+<div class="table-scroll mt-1"><table class="data-table">
+  <thead><tr><th scope="col">{{ _('Selector') }}</th><th scope="col">{{ _('Key') }}</th><th scope="col">{{ _('Notes') }}</th></tr></thead>
+  <tbody>{% for key in dkim.found %}<tr>
+    <td><bdi class="font-mono">{{ key.selector }}</bdi></td>
+    <td>{{ key.key_type }}{% if key.bits %} · {{ key.bits }} {{ _('bits') }}{% if key.key_type == 'rsa' and key.bits < 1024 %} {{ badge(_('weak'), 'high') }}{% elif key.key_type == 'rsa' and key.bits < 2048 %} {{ badge(_('short'), 'medium') }}{% endif %}{% endif %}</td>
+    <td>{% if key.revoked %}{{ badge(_('Revoked'), 'muted') }}{% endif %}{% if key.testing %}{{ badge(_('Test mode'), 'medium') }}{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% elif dkim.error %}
+<p class="mt-1">{{ badge(_('Could not be checked'), 'medium') }} <span class="text-sm text-muted">{{ reason_label(dkim.error) }}</span></p>
+{% else %}
+<p class="mt-1">{{ badge(_('No selector found'), 'muted') }}</p>
+{% endif %}
+{% if dkim.revoked %}<p class="mt-1 text-sm text-muted">{{ _('Revoked selectors (empty key): %(names)s', names=dkim.revoked[:8]|join(', ')) }}{% if dkim.revoked|length > 8 %} {{ _('and %(count)s more', count=dkim.revoked|length - 8) }}{% endif %}</p>{% endif %}
+<p class="mt-1 text-xs text-muted">{{ ngettext('%(num)s common selector name was tried.', '%(num)s common selector names were tried.', dkim.selectors_checked|length) }} {{ _('Selectors cannot be listed, so a domain may use DKIM with a name that is not tried here.') }}{% if dkim.incomplete and not dkim.error %} {{ _('Some lookups failed, so the list may be incomplete.') }}{% endif %}</p>
+
+<h3 class="mt-5 text-sm">MTA-STS</h3>
+{% if sts.found %}
+{% set policy = sts.policy %}
+<dl class="mt-1 grid gap-3 text-sm sm:grid-cols-2">
+  <div><dt>{{ _('DNS record') }}</dt><dd><code class="break-all text-xs">{{ sts.record }}</code></dd></div>
+  <div><dt>{{ _('Policy file') }}</dt><dd>
+    {% if policy and policy.fetched %}
+      {% if policy.valid %}{{ badge(policy.mode, 'ok' if policy.mode == 'enforce' else 'medium' if policy.mode == 'testing' else 'muted') }}{% else %}{{ badge(_('Not valid'), 'high') }}{% endif %}
+      {% if policy.max_age is not none %}<span class="text-muted">· max_age {{ policy.max_age }} s</span>{% endif %}
+      {% if policy.mx %}<div class="mt-1">{{ uris(policy.mx) }}</div>{% endif %}
+    {% else %}
+      {{ badge(_('Could not be fetched'), 'medium') }} <span class="text-muted">{{ reason_label(policy.error) if policy and policy.error else '—' }}</span>
+    {% endif %}
+  </dd></div>
+</dl>
+{% else %}
+<p class="mt-1">{{ missing(sts) }}</p>
+{% endif %}
+
+<h3 class="mt-5 text-sm">TLS-RPT</h3>
+{% if d.tls_rpt.found %}
+<p class="mt-1"><code class="break-all text-xs">{{ d.tls_rpt.record }}</code></p>
+{% else %}<p class="mt-1">{{ missing(d.tls_rpt) }}</p>{% endif %}
+
+<h3 class="mt-5 text-sm">BIMI</h3>
+{% if d.bimi.found %}
+<p class="mt-1"><code class="break-all text-xs">{{ d.bimi.record }}</code></p>
+{% else %}<p class="mt-1">{{ missing(d.bimi) }}</p>{% endif %}
