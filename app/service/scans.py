@@ -513,7 +513,7 @@ def scan_overview(
             else None
         ),
         host_findings=(
-            findings_service.host_summaries(session, scan.id, [host.id for host in hosts.rows])
+            findings_service.host_summaries(session, scan, [host.id for host in hosts.rows])
             if findings.state == "ready"
             else {}
         ),

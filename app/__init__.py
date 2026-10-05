@@ -5,6 +5,7 @@ import os
 from flask import Flask
 from flask_security.datastore import SQLAlchemyUserDatastore
 
+from app.audit import init_audit_log
 from app.blueprints.assessments import assessments_bp
 from app.blueprints.core import core_bp
 from app.commands import register_cli_commands
@@ -60,6 +61,7 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
     validate_config(config_class)
 
     install_log_redaction()  # provider keys travel in URLs: keep them out of every log line
+    init_audit_log()
 
     app = Flask(
         __name__,

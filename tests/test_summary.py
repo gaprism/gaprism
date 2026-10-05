@@ -371,7 +371,7 @@ def test_with_no_decisions_every_finding_is_open(db_session: Session) -> None:
     scan, rows = evaluated(db_session)
     tally = findings_service.tally(db_session, scan)
     assert tally.open_total == len(rows) and (tally.accepted, tally.false_positive) == (0, 0)
-    assert tally.open_by_severity == findings_service.counts_by_severity(db_session, scan.id)
+    assert tally.open_by_severity == findings_service.breakdown(db_session, scan).by_severity("all")
     assert sum(rule.count for rule in tally.open_rules) == len(rows)
 
 

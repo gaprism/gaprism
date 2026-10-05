@@ -12,7 +12,7 @@
   h3 { @apply text-base font-semibold; overflow-wrap: anywhere; }
   input, select { @apply min-h-10 rounded-md border border-control bg-panel px-3 text-base; }
   input { min-width: 0; }
-  input[type=checkbox] { @apply min-h-0 size-5 accent-action; }
+  input[type=checkbox], input[type=radio] { @apply min-h-0 size-5 shrink-0 accent-action; }
   dt { @apply text-sm text-muted; }
   dd { @apply mt-1 text-sm; overflow-wrap: anywhere; }
   code, bdi { overflow-wrap: anywhere; }

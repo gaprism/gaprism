@@ -270,7 +270,7 @@ def test_decisions_take_findings_out_of_the_open_count_and_show_as_chips(
         'id="secure-title"'
     )[1]
     secure = secure.split("</article>")[0]
-    assert "1 accepted" in secure and "1 false positives" in secure
+    assert "1 accepted" in secure and "1 false positive" in secure
     assert "Decided by the team; not counted as open." in secure
 
 

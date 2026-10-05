@@ -257,7 +257,8 @@ def test_the_findings_page_is_paged(evaluated: Evaluated, db_session: Session) -
     second = get(client, f"{base}?page=2")
     assert "Page 2 of " in second and ">Previous</a>" in second
     assert "?page=" not in second.split(">Previous</a>")[0].rsplit("href=", 1)[-1]  # back to 1
-    assert get(client, f"{base}?page=zzz") == first  # nonsense is page one
+    nonsense = get(client, f"{base}?page=zzz")  # nonsense is page one
+    assert "Page 1 of " in nonsense and ">Previous</a>" not in nonsense
 
 
 def test_the_findings_page_without_a_scan(client: FlaskClient, db_session: Session) -> None:

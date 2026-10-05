@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import re
 import uuid
+from collections.abc import Mapping
 from typing import Any, cast
+from urllib.parse import parse_qs
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_security import current_user, login_required
@@ -15,14 +18,17 @@ from app.extensions import db
 from app.i18n import gettext as _
 from app.models.assessment import Assessment
 from app.models.auth import User
+from app.models.finding import Finding
 from app.service import assessments as assessment_service
+from app.service import decisions as decision_service
 from app.service import findings as findings_service
 from app.service import host_view as host_view_service
 from app.service import scans as scan_service
 from app.service.discovery.scope import ScopeValidationError
 
 MAX_HOSTNAMES_INPUT = 20_000  # characters accepted in the "add hosts" box
-MAX_RULE_ID_INPUT = 64
+MAX_QUERY_INPUT = 500  # characters of the findings page's own query that a decision form returns
+RULE_ID = re.compile(r"[A-Za-z0-9_]{1,64}")
 
 # Translated labels for reason codes, available in every template.
 assessments_bp.add_app_template_global(host_view_service.reason_label, "reason_label")
@@ -32,6 +38,8 @@ assessments_bp.add_app_template_global(findings_service.severity_label, "severit
 assessments_bp.add_app_template_global(findings_service.severity_tone, "severity_tone")
 assessments_bp.add_app_template_global(findings_service.confidence_label, "confidence_label")
 assessments_bp.add_app_template_global(findings_service.attribution_label, "attribution_label")
+assessments_bp.add_app_template_global(findings_service.status_label, "status_label")
+assessments_bp.add_app_template_global(decision_service.review_window, "review_window")
 
 
 def _current_user() -> User:
@@ -174,30 +182,119 @@ def host_detail(assessment_id: uuid.UUID, host_id: uuid.UUID) -> str:
     )
 
 
+def _uuid_or_none(value: str) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        return None
+
+
+def _findings_filters(values: Mapping[str, str]) -> dict[str, Any]:
+    """The filters of the findings page out of a query (the page's own, or the one a decision form
+    sends back), each checked: nothing else is passed on."""
+    filters: dict[str, Any] = {}
+    if values.get("severity", "") in findings_service.SEVERITIES:
+        filters["severity"] = values["severity"]
+    if RULE_ID.fullmatch(values.get("rule", "")):
+        filters["rule"] = values["rule"]
+    if values.get("status", "") in decision_service.STATUS_FILTERS:
+        filters["status"] = values["status"]
+    host = _uuid_or_none(values.get("host", ""))
+    if host is not None:
+        filters["host"] = host
+    if values.get("page", "").isdecimal() and int(values["page"]) > 1:
+        filters["page"] = int(values["page"])
+    return filters
+
+
 @assessments_bp.get("/<uuid:assessment_id>/findings")
 @login_required
 def findings(assessment_id: uuid.UUID) -> str:
-    """What the rules found in the latest scan, most serious first."""
+    """What the rules found in the latest scan: open findings by default, most serious first."""
     assessment = _get_accessible(assessment_id)
     scan = scan_service.get_latest_scan(db.session(), assessment.id)
-    severity = request.args.get("severity", "")
-    rule = request.args.get("rule", "")[:MAX_RULE_ID_INPUT]
-    page = max(1, request.args.get("page", 1, type=int) or 1)
+    filters = _findings_filters(request.args)
+    status = filters.get("status", decision_service.OPEN)
     listing = (
         findings_service.findings_listing(
-            db.session(), scan, severity=severity, rule_id=rule, page=page
+            db.session(),
+            scan,
+            severity=filters.get("severity"),
+            rule_id=filters.get("rule"),
+            host_id=filters.get("host"),
+            status=status,
+            page=filters.get("page", 1),
         )
         if scan
         else None
     )
+    query = request.query_string.decode("ascii", "ignore")[:MAX_QUERY_INPUT]
     return render_template(
         "assessments/findings.html",
         assessment=assessment,
         scan=scan,
         listing=listing,
-        severity=severity if severity in findings_service.SEVERITIES else "",
-        rule=rule,
+        filters=filters,
+        status=status,
+        back={"back": "findings", "q": query},
     )
+
+
+def _after_decision(assessment: Assessment, finding: Finding) -> str:
+    """Where a decision form goes back to: the page it was made on. The target is built from checked
+    values, never taken from the request as a URL."""
+    anchor = f"finding-{finding.id}"
+    if request.form.get("back") == "host":
+        host_id = _uuid_or_none(request.form.get("host", ""))
+        if host_id is not None:  # the host page answers 404 for a host of another assessment
+            return url_for(
+                "assessments.host_detail",
+                assessment_id=assessment.id,
+                host_id=host_id,
+                _anchor=anchor,
+            )
+    raw = parse_qs(request.form.get("q", "")[:MAX_QUERY_INPUT])
+    filters = _findings_filters({key: values[0] for key, values in raw.items() if values})
+    return url_for("assessments.findings", assessment_id=assessment.id, _anchor=anchor, **filters)
+
+
+@assessments_bp.post("/<uuid:assessment_id>/findings/<uuid:finding_id>/decision")
+@login_required
+def decide_finding(assessment_id: uuid.UUID, finding_id: uuid.UUID) -> Response:
+    """Accept a finding, mark it as a false positive, or reopen it."""
+    assessment = _get_accessible(assessment_id)
+    finding = decision_service.get_finding(db.session(), assessment.id, finding_id)
+    if finding is None:
+        abort(404)  # also for a finding of another assessment: never confirm it exists
+    form = request.form
+    try:
+        if form.get("action") == "reopen":
+            reopened = decision_service.reopen(
+                db.session(), assessment.id, finding, _current_user()
+            )
+            message = _("Finding reopened.") if reopened else _("This finding was already open.")
+        else:
+            decision = decision_service.decide(
+                db.session(),
+                assessment.id,
+                finding,
+                _current_user(),
+                status=form.get("status", ""),
+                reason=form.get("reason", "")[: decision_service.MAX_REASON + 1],
+                review_by=form.get("review_by", "")[:40],
+            )
+            message = (
+                _("Finding accepted.")
+                if decision.status == decision_service.ACCEPTED
+                else _("Finding marked as a false positive.")
+            )
+    except decision_service.DecisionError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+    else:
+        db.session.commit()
+        flash(message, "info")
+    return redirect(_after_decision(assessment, finding))
 
 
 @assessments_bp.get("/<uuid:assessment_id>/domain")

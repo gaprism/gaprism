@@ -373,17 +373,15 @@ def test_findings_are_listed_most_serious_first_and_can_be_filtered(db_session: 
     findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
     db_session.commit()
 
-    everything = findings_service.list_findings(db_session, scan.id, per_page=200)
+    everything = findings_service.list_findings(db_session, scan, per_page=200)
     ranks = [findings_service.SEVERITIES.index(r.severity) for r in everything.rows]
     assert ranks == sorted(ranks) and everything.total == len(everything.rows) > 10
 
-    high = findings_service.list_findings(db_session, scan.id, severity="high", per_page=200)
+    high = findings_service.list_findings(db_session, scan, severity="high", per_page=200)
     assert high.rows and {r.severity for r in high.rows} == {"high"}
-    one_rule = findings_service.list_findings(db_session, scan.id, rule_id="SPF_MISSING")
+    one_rule = findings_service.list_findings(db_session, scan, rule_id="SPF_MISSING")
     assert [r.rule_id for r in one_rule.rows] == ["SPF_MISSING"]
-    junk = findings_service.list_findings(
-        db_session, scan.id, severity="catastrophic", per_page=200
-    )
+    junk = findings_service.list_findings(db_session, scan, severity="catastrophic", per_page=200)
     assert junk.total == everything.total  # an unknown severity is not a filter
 
 
@@ -391,27 +389,30 @@ def test_listing_is_paged_in_sql(db_session: Session) -> None:
     scan, _ = populated_scan(db_session)
     findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
     db_session.commit()
-    first = findings_service.list_findings(db_session, scan.id, per_page=5)
-    second = findings_service.list_findings(db_session, scan.id, per_page=5, page=2)
+    first = findings_service.list_findings(db_session, scan, per_page=5)
+    second = findings_service.list_findings(db_session, scan, per_page=5, page=2)
     assert len(first.rows) == 5 and first.pages == -(-first.total // 5)
     assert not {r.id for r in first.rows} & {r.id for r in second.rows}
-    assert findings_service.list_findings(db_session, scan.id, per_page=1000).per_page == 200
+    assert findings_service.list_findings(db_session, scan, per_page=1000).per_page == 200
 
 
-def test_counts_by_severity(db_session: Session) -> None:
+def test_the_breakdown_counts_by_status_and_severity(db_session: Session) -> None:
     scan, _ = populated_scan(db_session)
     summary = findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
     db_session.commit()
-    assert findings_service.counts_by_severity(db_session, scan.id) == summary.by_severity
+    counted = findings_service.breakdown(db_session, scan)
+    assert counted.by_severity("all") == summary.by_severity and counted.total() == summary.total
+    assert counted.by_severity("open") == summary.by_severity  # nothing was decided
+    assert counted.by_severity("accepted") == {} and counted.total("false_positive") == 0
     empty = new_scan(db_session, "empty.example")
-    assert findings_service.counts_by_severity(db_session, empty.id) == {}
+    assert findings_service.breakdown(db_session, empty).total() == 0
 
 
 def test_the_rules_that_fired_are_counted_most_serious_first(db_session: Session) -> None:
     scan, _ = populated_scan(db_session)
     summary = findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
     db_session.commit()
-    rules = findings_service.counts_by_rule(db_session, scan.id)
+    rules = findings_service.breakdown(db_session, scan).rules()
 
     assert sum(rule.count for rule in rules) == summary.total
     order = [findings_service.SEVERITIES.index(rule.severity) for rule in rules]
@@ -420,7 +421,7 @@ def test_the_rules_that_fired_are_counted_most_serious_first(db_session: Session
     assert (spf.title, spf.count) == ("No SPF record", 1)
     tls = next(rule for rule in rules if rule.rule_id == "TLS_INVALID")
     assert tls.severity == "high" and tls.count == 1  # the severity of its most serious finding
-    assert findings_service.counts_by_rule(db_session, new_scan(db_session, "e.example").id) == []
+    assert findings_service.breakdown(db_session, new_scan(db_session, "e.example")).rules() == []
 
 
 def test_a_rule_with_findings_of_several_severities_counts_once_at_its_highest(
@@ -439,7 +440,7 @@ def test_a_rule_with_findings_of_several_severities_counts_once_at_its_highest(
     db_session.commit()
     line = next(
         rule
-        for rule in findings_service.counts_by_rule(db_session, scan.id)
+        for rule in findings_service.breakdown(db_session, scan).rules()
         if rule.rule_id == "TLS_INVALID"
     )
     assert (line.severity, line.count) == ("high", len(rows) + 1)
@@ -487,7 +488,7 @@ def test_an_address_finding_reaches_every_host_that_resolves_to_it(db_session: S
     for host in twelve:
         found = findings_service.host_findings(db_session, scan, host.id)
         assert "RISKY_PORT_EXPOSED" in {v.rule_id for v in found.on_addresses}
-    cells = findings_service.host_summaries(db_session, scan.id, [h.id for h in twelve])
+    cells = findings_service.host_summaries(db_session, scan, [h.id for h in twelve])
     assert set(cells) == {h.id for h in twelve}
 
 
@@ -510,7 +511,7 @@ def test_the_hosts_table_shows_the_count_and_the_worst_severity(db_session: Sess
     findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
     db_session.commit()
     everyone = [h.id for h in hosts.values()]
-    cells = findings_service.host_summaries(db_session, scan.id, everyone)
+    cells = findings_service.host_summaries(db_session, scan, everyone)
 
     bad = cells[hosts["bad-tls.example.com"].id]
     own = findings_service.host_findings
@@ -518,9 +519,9 @@ def test_the_hosts_table_shows_the_count_and_the_worst_severity(db_session: Sess
     shown = own(db_session, scan, hosts["bad-tls.example.com"].id)
     assert bad.count == len(shown.own) + len(shown.on_addresses) and bad.top == "high"
     assert cells[hosts["soon.example.com"].id].top == "medium"  # a certificate that expires soon
-    assert findings_service.host_summaries(db_session, scan.id, []) == {}
+    assert findings_service.host_summaries(db_session, scan, []) == {}
     assert (
-        findings_service.host_summaries(db_session, new_scan(db_session, "x.example").id, everyone)
+        findings_service.host_summaries(db_session, new_scan(db_session, "x.example"), everyone)
         == {}
     )
 
@@ -607,7 +608,10 @@ def test_the_evidence_of_each_kind_of_finding_is_found_where_it_is_shown(
     findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
     db_session.commit()
     views = {
-        v.rule_id: v for v in findings_service.describe_all(db_session, stored(db_session, scan))
+        v.rule_id: v
+        for v in findings_service.describe_all(
+            db_session, stored(db_session, scan), scan.assessment_id
+        )
     }
 
     spf = views["SPF_MISSING"]

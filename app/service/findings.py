@@ -21,13 +21,13 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import and_, case, delete, func, select
+from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.checks import DISCOVERY_KEY
 from app.config import DEFAULT_DATA_LOCATION_ALLOWED
 from app.i18n import gettext as _
-from app.models import Assessment, CheckResult, Finding, FindingDisposition, Host, Scan
+from app.models import Assessment, CheckResult, Finding, Host, Scan
 from app.models.base import utc_now
 from app.rules import (
     RULES,
@@ -41,6 +41,15 @@ from app.rules import (
     evaluate,
 )
 from app.rules.base import N_
+from app.service.decisions import (
+    ACCEPTED,
+    FALSE_POSITIVE,
+    OPEN,
+    Decision,
+    current_status,
+    load_decisions,
+    with_decisions,
+)
 from app.service.host_view import problem_label, tls_failure_label
 
 log = logging.getLogger(__name__)
@@ -191,45 +200,81 @@ def _severity_order() -> Any:
     )
 
 
-def _in_order(query: Any) -> Any:
-    """Most serious first; ties in a stable order so that paging never repeats or skips a row."""
-    return query.order_by(
-        _severity_order().desc(), Finding.rule_id, Finding.subject, Finding.fingerprint
+def _in_order(query: Any, status: Any = None) -> Any:
+    """Most serious first (open ones before decided ones when ``status`` is given); ties in a
+    stable order so that paging never repeats or skips a row."""
+    keys = [_severity_order().desc(), Finding.rule_id, Finding.subject, Finding.fingerprint]
+    if status is not None:
+        keys.insert(0, status != OPEN)  # false sorts before true
+    return query.order_by(*keys)
+
+
+def _addresses_by_host(
+    session: Session, scan_id: uuid.UUID, host_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, set[str]]:
+    """The public addresses each host resolved to (from its DNS result)."""
+    rows = session.execute(
+        select(CheckResult.host_id, CheckResult.data["addresses"]).where(
+            CheckResult.scan_id == scan_id,
+            CheckResult.check_key == "dns",
+            CheckResult.host_id.in_(host_ids),
+        )
     )
+    return {
+        host_id: {str(address) for address in addresses if isinstance(address, str)}
+        for host_id, addresses in rows
+        if isinstance(addresses, list)
+    }
+
+
+def _on_addresses(scan_id: uuid.UUID, addresses: Sequence[str]) -> Any:
+    """SQL condition: address-level findings of the scan about one of these addresses."""
+    return and_(
+        Finding.scan_id == scan_id,
+        Finding.host_id.is_(None),
+        Finding.attribution != "domain",
+        Finding.params["ip"].astext.in_(list(addresses)),
+    )
+
+
+def _about_host(session: Session, scan: Scan, host_id: uuid.UUID) -> Any:
+    """SQL condition: the findings about a host: its own, and those about the addresses it
+    resolves to."""
+    addresses = sorted(_addresses_by_host(session, scan.id, [host_id]).get(host_id, set()))
+    own = Finding.host_id == host_id
+    return or_(own, _on_addresses(scan.id, addresses)) if addresses else own
 
 
 def list_findings(
     session: Session,
-    scan_id: uuid.UUID,
+    scan: Scan,
     *,
     severity: str | None = None,
     rule_id: str | None = None,
+    host_id: uuid.UUID | None = None,
+    status: str = "all",
     page: int = 1,
     per_page: int = 50,
+    today: date | None = None,
 ) -> FindingPage:
-    """Findings of a scan, most serious first, filtered and paged in SQL."""
+    """Findings of a scan, filtered and paged in SQL, most serious first.
+
+    ``status`` is ``open``, ``accepted``, ``false_positive`` or ``all`` (open ones first)."""
     page = max(1, page)
     per_page = max(1, min(per_page, 200))
-    query = select(Finding).where(Finding.scan_id == scan_id)
+    current = current_status(today or utc_now().date())
+    query = with_decisions(select(Finding), scan.assessment_id).where(Finding.scan_id == scan.id)
+    if status in (OPEN, ACCEPTED, FALSE_POSITIVE):
+        query = query.where(current == status)
     if severity in SEVERITY_RANK:
         query = query.where(Finding.severity == severity)
     if rule_id:
         query = query.where(Finding.rule_id == rule_id)
+    if host_id is not None:
+        query = query.where(_about_host(session, scan, host_id))
     total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = list(session.scalars(_in_order(query).limit(per_page).offset((page - 1) * per_page)))
-    return FindingPage(rows, total, page, per_page)
-
-
-def counts_by_severity(session: Session, scan_id: uuid.UUID) -> dict[str, int]:
-    """Number of findings per severity (only severities that occur), most serious first."""
-    counted = dict(
-        session.execute(
-            select(Finding.severity, func.count())
-            .where(Finding.scan_id == scan_id)
-            .group_by(Finding.severity)
-        ).all()
-    )
-    return {s: int(counted[s]) for s in SEVERITIES if s in counted}
+    ordered = _in_order(query, current).limit(per_page).offset((page - 1) * per_page)
+    return FindingPage(list(session.scalars(ordered)), total, page, per_page)
 
 
 @dataclass(frozen=True)
@@ -256,39 +301,59 @@ def _rule_counts(levels: Mapping[str, Mapping[str, int]]) -> list[RuleCount]:
     return sorted(counted, key=lambda r: (SEVERITIES.index(r.severity), -r.count, r.title))
 
 
-def counts_by_rule(session: Session, scan_id: uuid.UUID) -> list[RuleCount]:
-    """The rules that fired, most serious first, then the one with the most findings."""
+@dataclass(frozen=True)
+class Breakdown:
+    """The findings of a scan counted by status, rule and severity."""
+
+    cells: Mapping[str, Mapping[str, Mapping[str, int]]]  # status -> rule -> severity -> count
+
+    def _merged(self, status: str) -> dict[str, dict[str, int]]:
+        wanted = (OPEN, ACCEPTED, FALSE_POSITIVE) if status == "all" else (status,)
+        merged: dict[str, dict[str, int]] = {}
+        for each in wanted:
+            for rule_id, levels in self.cells.get(each, {}).items():
+                into = merged.setdefault(rule_id, {})
+                for severity, count in levels.items():
+                    into[severity] = into.get(severity, 0) + count
+        return merged
+
+    def total(self, status: str = "all") -> int:
+        return sum(sum(levels.values()) for levels in self._merged(status).values())
+
+    def by_severity(self, status: str = "all") -> dict[str, int]:
+        """Only the severities that occur, most serious first."""
+        counted: Counter[str] = Counter()
+        for levels in self._merged(status).values():
+            counted.update(levels)
+        return {s: counted[s] for s in SEVERITIES if counted[s]}
+
+    def rules(self, status: str = "all") -> list[RuleCount]:
+        return _rule_counts(self._merged(status))
+
+
+def breakdown(session: Session, scan: Scan, *, today: date | None = None) -> Breakdown:
+    """Count the findings of a scan by status, rule and severity (one query)."""
+    current = (
+        with_decisions(
+            select(
+                Finding.rule_id.label("rule_id"),
+                Finding.severity.label("severity"),
+                current_status(today or utc_now().date()).label("status"),
+            ).select_from(Finding),
+            scan.assessment_id,
+        )
+        .where(Finding.scan_id == scan.id)
+        .subquery()
+    )
     rows = session.execute(
-        select(Finding.rule_id, Finding.severity, func.count())
-        .where(Finding.scan_id == scan_id)
-        .group_by(Finding.rule_id, Finding.severity)
+        select(current.c.rule_id, current.c.severity, current.c.status, func.count()).group_by(
+            current.c.rule_id, current.c.severity, current.c.status
+        )
     ).all()
-    levels: dict[str, dict[str, int]] = {}
-    for rule_id, severity, count in rows:
-        levels.setdefault(rule_id, {})[severity] = int(count)
-    return _rule_counts(levels)
-
-
-# What a finding currently is. Decisions people made (S2.6) are keyed by assessment and
-# fingerprint, so they apply to every scan of the assessment.
-OPEN = "open"
-ACCEPTED = "accepted"
-FALSE_POSITIVE = "false_positive"
-
-
-def _current_status(today: date) -> Any:
-    """SQL: the status of a finding. An acceptance whose review date has passed no longer applies:
-    the finding is open again."""
-    lapsed = and_(
-        FindingDisposition.status == ACCEPTED,
-        FindingDisposition.review_by.is_not(None),
-        FindingDisposition.review_by < today,
-    )
-    return case(
-        (FindingDisposition.id.is_(None), OPEN),
-        (lapsed, OPEN),
-        else_=FindingDisposition.status,
-    )
+    cells: dict[str, dict[str, dict[str, int]]] = {}
+    for rule_id, severity, status, count in rows:
+        cells.setdefault(status, {}).setdefault(rule_id, {})[severity] = int(count)
+    return Breakdown(cells)
 
 
 @dataclass(frozen=True)
@@ -308,42 +373,12 @@ class Tally:
 
 def tally(session: Session, scan: Scan, *, today: date | None = None) -> Tally:
     """Count the findings of a scan by status (one query)."""
-    current = (
-        select(
-            Finding.rule_id.label("rule_id"),
-            Finding.severity.label("severity"),
-            _current_status(today or utc_now().date()).label("status"),
-        )
-        .select_from(Finding)
-        .outerjoin(
-            FindingDisposition,
-            and_(
-                FindingDisposition.assessment_id == scan.assessment_id,
-                FindingDisposition.fingerprint == Finding.fingerprint,
-            ),
-        )
-        .where(Finding.scan_id == scan.id)
-        .subquery()
-    )
-    rows = session.execute(
-        select(current.c.rule_id, current.c.severity, current.c.status, func.count()).group_by(
-            current.c.rule_id, current.c.severity, current.c.status
-        )
-    ).all()
-    open_levels: dict[str, dict[str, int]] = {}
-    by_severity: Counter[str] = Counter()
-    decided: Counter[str] = Counter()
-    for rule_id, severity, status, count in rows:
-        if status == OPEN:
-            open_levels.setdefault(rule_id, {})[severity] = int(count)
-            by_severity[severity] += int(count)
-        else:
-            decided[status] += int(count)
+    counted = breakdown(session, scan, today=today)
     return Tally(
-        open_by_severity={s: by_severity[s] for s in SEVERITIES if by_severity[s]},
-        open_rules=_rule_counts(open_levels),
-        accepted=decided[ACCEPTED],
-        false_positive=decided[FALSE_POSITIVE],
+        open_by_severity=counted.by_severity(OPEN),
+        open_rules=counted.rules(OPEN),
+        accepted=counted.total(ACCEPTED),
+        false_positive=counted.total(FALSE_POSITIVE),
     )
 
 
@@ -375,8 +410,20 @@ ATTRIBUTION_LABELS = {
 }
 
 
+STATUS_LABELS = {
+    OPEN: N_("Open"),
+    ACCEPTED: N_("Accepted"),
+    FALSE_POSITIVE: N_("False positive"),
+    "all": N_("All"),
+}
+
+
 def severity_label(severity: str) -> str:
     return _(SEVERITY_LABELS.get(severity, severity))
+
+
+def status_label(status: str) -> str:
+    return _(STATUS_LABELS.get(status, status))
 
 
 def severity_tone(severity: str) -> str:
@@ -455,6 +502,10 @@ class FindingView:
     address: str | None  # for address-level findings
     facts: list[tuple[str, str]]
     evidence: EvidenceLink | None
+    status: str  # open | accepted | false_positive
+    decision: (
+        Decision | None
+    )  # what somebody decided; for an acceptance that lapsed, status is open
 
 
 def _sentence(rule: Rule, values: Mapping[str, str]) -> str:
@@ -508,8 +559,14 @@ def _facts(rule: Rule, params: Mapping[str, Any]) -> list[tuple[str, str]]:
     return facts[:MAX_SHOWN_FACTS]
 
 
-def describe(finding: Finding, hostnames: Mapping[uuid.UUID, str] | None = None) -> FindingView:
-    """A stored finding in words. A rule that no longer exists still shows what was stored."""
+def describe(
+    finding: Finding,
+    hostnames: Mapping[uuid.UUID, str] | None = None,
+    decision: Decision | None = None,
+) -> FindingView:
+    """A stored finding in words. A rule that no longer exists still shows what was stored.
+
+    ``decision`` is what somebody decided about it, if anybody did."""
     rule = RULES.get(finding.rule_id)
     params: dict[str, Any] = dict(finding.params or {})
     scope = _scope(finding)
@@ -530,6 +587,8 @@ def describe(finding: Finding, hostnames: Mapping[uuid.UUID, str] | None = None)
         address=str(params["ip"]) if scope == "address" and params.get("ip") else None,
         facts=_facts(rule, params) if rule else [],
         evidence=_evidence(finding, rule, _host_uuids(params)) if rule else None,
+        status=decision.status if decision and not decision.lapsed else OPEN,
+        decision=decision,
     )
 
 
@@ -545,12 +604,24 @@ def hostnames_for(session: Session, findings: Sequence[Finding]) -> dict[uuid.UU
     return dict(session.execute(select(Host.id, Host.hostname).where(Host.id.in_(ids))).all())
 
 
-def describe_all(session: Session, findings: Sequence[Finding]) -> list[FindingView]:
+def describe_all(
+    session: Session,
+    findings: Sequence[Finding],
+    assessment_id: uuid.UUID,
+    *,
+    today: date | None = None,
+) -> list[FindingView]:
+    """Findings in words, with the decisions about them (two queries for the whole list)."""
     names = hostnames_for(session, findings)
-    return [describe(finding, names) for finding in findings]
+    decisions = load_decisions(
+        session, assessment_id, {f.fingerprint for f in findings}, today or utc_now().date()
+    )
+    return [describe(f, names, decisions.get(f.fingerprint)) for f in findings]
 
 
 # --------------------------------------------------------------------------- for the pages
+
+MAX_HOST_OPTIONS = 500  # hosts offered by the host filter of the findings page
 
 
 def evaluation_info(scan: Scan) -> Mapping[str, Any]:
@@ -573,27 +644,47 @@ def evaluation_state(scan: Scan) -> str:
 @dataclass(frozen=True)
 class FindingsSummary:
     """What a scan's findings add up to: the findings panel of the assessment page and the
-    filters of the findings page."""
+    tabs and filters of the findings page. Counts without a status are the open findings."""
 
     state: str
-    total: int
-    by_severity: dict[str, int]  # only the severities that occur, most serious first
-    rules: list[RuleCount]  # the rules that fired, most serious first
+    breakdown: Breakdown
     errors: list[str]  # ids of rules that crashed: their findings are missing
     dropped: int  # findings beyond the per-scan cap
 
+    @property
+    def total(self) -> int:
+        """Every finding, whatever its status."""
+        return self.breakdown.total("all")
 
-def findings_summary(session: Session, scan: Scan) -> FindingsSummary:
+    @property
+    def open_total(self) -> int:
+        return self.breakdown.total(OPEN)
+
+    @property
+    def by_severity(self) -> dict[str, int]:
+        return self.breakdown.by_severity(OPEN)
+
+    @property
+    def rules(self) -> list[RuleCount]:
+        return self.breakdown.rules(OPEN)
+
+    @property
+    def accepted(self) -> int:
+        return self.breakdown.total(ACCEPTED)
+
+    @property
+    def false_positive(self) -> int:
+        return self.breakdown.total(FALSE_POSITIVE)
+
+
+def findings_summary(session: Session, scan: Scan, *, today: date | None = None) -> FindingsSummary:
     state = evaluation_state(scan)
     if state != "ready":
-        return FindingsSummary(state, 0, {}, [], [], 0)
+        return FindingsSummary(state, Breakdown({}), [], 0)
     info = evaluation_info(scan)
-    rules = counts_by_rule(session, scan.id)
     return FindingsSummary(
         state=state,
-        total=sum(rule.count for rule in rules),
-        by_severity=counts_by_severity(session, scan.id),
-        rules=rules,
+        breakdown=breakdown(session, scan, today=today),
         errors=[str(rule) for rule in info.get("errors", [])],
         dropped=int(info.get("dropped", 0)),
     )
@@ -606,6 +697,18 @@ class FindingsListing:
     summary: FindingsSummary
     page: FindingPage
     items: list[FindingView]
+    hosts: list[tuple[uuid.UUID, str]]  # what the host filter offers
+
+
+def host_options(session: Session, scan: Scan) -> list[tuple[uuid.UUID, str]]:
+    """The hosts of the scan by name, bounded."""
+    rows = session.execute(
+        select(Host.id, Host.hostname)
+        .where(Host.scan_id == scan.id)
+        .order_by(Host.hostname)
+        .limit(MAX_HOST_OPTIONS)
+    )
+    return [(host_id, hostname) for host_id, hostname in rows]
 
 
 def findings_listing(
@@ -614,104 +717,101 @@ def findings_listing(
     *,
     severity: str | None = None,
     rule_id: str | None = None,
+    host_id: uuid.UUID | None = None,
+    status: str = OPEN,
     page: int = 1,
     per_page: int = 50,
+    today: date | None = None,
 ) -> FindingsListing:
-    summary = findings_summary(session, scan)
+    summary = findings_summary(session, scan, today=today)
     if summary.state != "ready":
-        return FindingsListing(summary, FindingPage([], 0, 1, per_page), [])
+        return FindingsListing(summary, FindingPage([], 0, 1, per_page), [], [])
     found = list_findings(
-        session, scan.id, severity=severity, rule_id=rule_id, page=page, per_page=per_page
+        session,
+        scan,
+        severity=severity,
+        rule_id=rule_id,
+        host_id=host_id,
+        status=status,
+        page=page,
+        per_page=per_page,
+        today=today,
     )
-    return FindingsListing(summary, found, describe_all(session, found.rows))
-
-
-def _addresses_by_host(
-    session: Session, scan_id: uuid.UUID, host_ids: Sequence[uuid.UUID]
-) -> dict[uuid.UUID, set[str]]:
-    """The public addresses each host resolved to (from its DNS result)."""
-    rows = session.execute(
-        select(CheckResult.host_id, CheckResult.data["addresses"]).where(
-            CheckResult.scan_id == scan_id,
-            CheckResult.check_key == "dns",
-            CheckResult.host_id.in_(host_ids),
-        )
-    )
-    return {
-        host_id: {str(address) for address in addresses if isinstance(address, str)}
-        for host_id, addresses in rows
-        if isinstance(addresses, list)
-    }
-
-
-def _on_addresses(scan_id: uuid.UUID, addresses: Sequence[str]) -> Any:
-    """SQL condition: address-level findings of the scan about one of these addresses."""
-    return and_(
-        Finding.scan_id == scan_id,
-        Finding.host_id.is_(None),
-        Finding.attribution != "domain",
-        Finding.params["ip"].astext.in_(list(addresses)),
+    return FindingsListing(
+        summary,
+        found,
+        describe_all(session, found.rows, scan.assessment_id, today=today),
+        host_options(session, scan),
     )
 
 
 @dataclass(frozen=True)
 class HostFindings:
-    """The findings on a host's page: its own, and those about the addresses it resolves to."""
+    """The findings on a host's page: its own, and those about the addresses it resolves to.
+    Open ones come first."""
 
     state: str
     own: list[FindingView]
     on_addresses: list[FindingView]
 
 
-def host_findings(session: Session, scan: Scan, host_id: uuid.UUID) -> HostFindings:
+def host_findings(
+    session: Session, scan: Scan, host_id: uuid.UUID, *, today: date | None = None
+) -> HostFindings:
     state = evaluation_state(scan)
     if state != "ready":
         return HostFindings(state, [], [])
-    own = list(
-        session.scalars(
-            _in_order(select(Finding).where(Finding.scan_id == scan.id, Finding.host_id == host_id))
-        )
-    )
+    current = current_status(today or utc_now().date())
+
+    def fetch(condition: Any) -> list[Finding]:
+        query = with_decisions(select(Finding), scan.assessment_id).where(condition)
+        return list(session.scalars(_in_order(query, current)))
+
+    own = fetch(and_(Finding.scan_id == scan.id, Finding.host_id == host_id))
     addresses = sorted(_addresses_by_host(session, scan.id, [host_id]).get(host_id, set()))
-    shared: list[Finding] = []
-    if addresses:
-        shared = list(
-            session.scalars(_in_order(select(Finding).where(_on_addresses(scan.id, addresses))))
-        )
+    shared = fetch(_on_addresses(scan.id, addresses)) if addresses else []
     return HostFindings(
         state=state,
-        own=describe_all(session, own),
-        on_addresses=describe_all(session, shared),
+        own=describe_all(session, own, scan.assessment_id, today=today),
+        on_addresses=describe_all(session, shared, scan.assessment_id, today=today),
     )
 
 
 @dataclass(frozen=True)
 class HostSummary:
-    """The hosts table's cell: how many findings, and the most serious severity among them."""
+    """The hosts table's cell: how many open findings, and the most serious severity among them."""
 
     count: int
     top: str
 
 
 def host_summaries(
-    session: Session, scan_id: uuid.UUID, host_ids: Sequence[uuid.UUID]
+    session: Session,
+    scan: Scan,
+    host_ids: Sequence[uuid.UUID],
+    *,
+    today: date | None = None,
 ) -> dict[uuid.UUID, HostSummary]:
-    """Findings per host (its own and those on its addresses) for the hosts of one page."""
+    """Open findings per host (its own and those on its addresses) for the hosts of one page."""
     wanted = list(host_ids)
     if not wanted:
         return {}
+    current = current_status(today or utc_now().date())
+
+    def open_findings(*columns: Any) -> Any:
+        return with_decisions(select(*columns).select_from(Finding), scan.assessment_id).where(
+            Finding.scan_id == scan.id, current == OPEN
+        )
+
     severities: dict[uuid.UUID, list[str]] = {}
     for own_host, severity in session.execute(
-        select(Finding.host_id, Finding.severity).where(
-            Finding.scan_id == scan_id, Finding.host_id.in_(wanted)
-        )
+        open_findings(Finding.host_id, Finding.severity).where(Finding.host_id.in_(wanted))
     ):
         if own_host is not None:
             severities.setdefault(own_host, []).append(severity)
     by_address: dict[str, list[str]] = {}
     for address, severity in session.execute(
-        select(Finding.params["ip"].astext, Finding.severity).where(
-            Finding.scan_id == scan_id,
+        open_findings(Finding.params["ip"].astext, Finding.severity).where(
             Finding.host_id.is_(None),
             Finding.attribution != "domain",
             Finding.params.has_key("ip"),
@@ -719,7 +819,7 @@ def host_summaries(
     ):
         by_address.setdefault(address, []).append(severity)
     if by_address:
-        for host_id, addresses in _addresses_by_host(session, scan_id, wanted).items():
+        for host_id, addresses in _addresses_by_host(session, scan.id, wanted).items():
             for address in sorted(addresses):
                 severities.setdefault(host_id, []).extend(by_address.get(address, []))
     return {

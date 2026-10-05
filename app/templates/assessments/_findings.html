@@ -1,5 +1,6 @@
 {% from 'components/ui.html' import badge, notice %}
-{# What the rules decided, in words. Everything shown here is escaped; nothing collected is trusted. #}
+{# What the rules found and what the team decided about it, in words. Everything shown here is
+   escaped: nothing collected from the network, and nothing a person typed, is trusted. #}
 
 {# Where the evidence of a finding is shown: a check section of a host, or of the domain. #}
 {% macro evidence_link(finding, assessment) -%}
@@ -23,13 +24,80 @@
 {%- endif -%}
 {%- endmacro %}
 
-{# One finding. show_where: name the host, address or domain it is about. #}
-{% macro finding_item(finding, assessment, show_where=true) %}
-<li class="p-4">
+{# What became of a finding, as a chip. Nothing for one that is open and was never decided about. #}
+{% macro status_badge(finding) -%}
+{%- set decision = finding.decision -%}
+{%- if finding.status == 'accepted' -%}
+{{ badge(_('Accepted') ~ (' · ' ~ _('review by %(date)s', date=decision.review_by.isoformat()) if decision.review_by else ''), 'ok') }}
+{%- elif finding.status == 'false_positive' -%}
+{{ badge(_('False positive'), 'muted') }}
+{%- elif decision and decision.lapsed -%}
+{{ badge(_('Acceptance expired'), 'medium') }}
+{%- endif -%}
+{%- endmacro %}
+
+{# What somebody decided, who did, when, and why. #}
+{% macro decision_block(finding) -%}
+{%- set d = finding.decision -%}
+{%- if d -%}
+<div class="mt-2 rounded-md border border-line bg-canvas px-3 py-2 text-sm">
+  <p class="font-semibold">
+    {%- if d.lapsed %}{{ _('Accepted, but the review date has passed: the finding is open again.') }}
+    {%- elif d.status == 'accepted' %}{{ _('Accepted') }}
+    {%- else %}{{ _('Marked as a false positive') }}{% endif -%}
+  </p>
+  <p class="mt-1 whitespace-pre-line">{{ d.reason }}</p>
+  <p class="mt-1 text-xs text-muted">{{ _('by %(who)s on %(when)s', who=d.decided_by, when=d.decided_at.strftime('%Y-%m-%d')) }}{% if d.review_by %} · {{ _('review by %(date)s', date=d.review_by.isoformat()) }}{% endif %}</p>
+</div>
+{%- endif -%}
+{%- endmacro %}
+
+{# The forms of a finding: accept it or mark it as a false positive (a reason is required), or take
+   the decision back. ``back`` holds the hidden fields that return the person to the page they were on. #}
+{% macro decision_form(finding, assessment, back) %}
+{% set earliest, latest = review_window() %}
+{% set action = url_for('assessments.decide_finding', assessment_id=assessment.id, finding_id=finding.id) %}
+<details class="mt-3 rounded-md border border-line px-3 py-2">
+  <summary class="text-sm font-semibold">{{ _('Change the decision') if finding.decision else _('Decide') }}</summary>
+  <form method="post" action="{{ action }}" class="mt-3 grid max-w-2xl gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for name, value in back.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <fieldset class="grid gap-2">
+      <legend class="text-sm font-medium">{{ _('Decision') }}</legend>
+      <label class="flex items-start gap-2 text-sm"><input type="radio" name="status" value="accepted"{% if not finding.decision or finding.decision.status == 'accepted' %} checked{% endif %}><span><strong>{{ _('Accept') }}</strong> · {{ _('the team knows about this and accepts the risk') }}</span></label>
+      <label class="flex items-start gap-2 text-sm"><input type="radio" name="status" value="false_positive"{% if finding.decision and finding.decision.status == 'false_positive' %} checked{% endif %}><span><strong>{{ _('False positive') }}</strong> · {{ _('the finding is wrong') }}</span></label>
+    </fieldset>
+    <div class="field">
+      <label for="reason-{{ finding.id }}">{{ _('Reason') }}</label>
+      <textarea id="reason-{{ finding.id }}" name="reason" rows="3" maxlength="2000" required class="min-h-20 rounded-md border border-control bg-panel px-3 py-2 text-sm" aria-describedby="reason-help-{{ finding.id }}">{{ finding.decision.reason if finding.decision else '' }}</textarea>
+      <p class="field-help" id="reason-help-{{ finding.id }}">{{ _('Required. Whoever reads this finding next will see it.') }}</p>
+    </div>
+    <div class="field">
+      <label for="review-{{ finding.id }}">{{ _('Review by (optional)') }}</label>
+      <input id="review-{{ finding.id }}" name="review_by" type="date" min="{{ earliest }}" max="{{ latest }}" value="{{ finding.decision.review_by.isoformat() if finding.decision and finding.decision.review_by and not finding.decision.lapsed else '' }}" aria-describedby="review-help-{{ finding.id }}">
+      <p class="field-help" id="review-help-{{ finding.id }}">{{ _('For accepted findings only: after this day the finding is open again.') }}</p>
+    </div>
+    <div><button class="btn btn-primary" type="submit" name="action" value="decide">{{ _('Save the decision') }}</button></div>
+  </form>
+  {% if finding.decision %}
+  <form method="post" action="{{ action }}" class="mt-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for name, value in back.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <button class="btn btn-secondary" type="submit" name="action" value="reopen">{{ _('Reopen the finding') }}</button>
+  </form>
+  {% endif %}
+</details>
+{% endmacro %}
+
+{# One finding. show_where: name the host, address or domain it is about. back: the hidden fields of
+   the decision forms; without them the finding can be read but not decided about. #}
+{% macro finding_item(finding, assessment, show_where=true, back=none) %}
+<li class="p-4{% if finding.status != 'open' %} bg-canvas{% endif %}" id="finding-{{ finding.id }}">
   <div class="flex flex-wrap items-center justify-between gap-2">
     <div class="flex min-w-0 flex-wrap items-center gap-2">
       {{ badge(severity_label(finding.severity), severity_tone(finding.severity)) }}
       <h3>{{ finding.title }}</h3>
+      {{ status_badge(finding) }}
     </div>
     <p class="text-xs text-muted">{{ confidence_label(finding.confidence) }} · {{ attribution_label(finding.attribution) }}</p>
   </div>
@@ -52,15 +120,17 @@
     <p class="mt-1 text-sm">{{ finding.advice }}</p>
   </details>
   {% endif %}
+  {{ decision_block(finding) }}
   <p class="mt-2 text-sm">{{ evidence_link(finding, assessment) }}</p>
+  {% if back is not none %}{{ decision_form(finding, assessment, back) }}{% endif %}
 </li>
 {% endmacro %}
 
-{# The panel on the assessment page: counts by severity and one row per rule that fired. #}
+{# The panel on the assessment page: the open findings by severity and one row per rule. #}
 {% macro findings_panel(findings, assessment, checks_problem, shown=8) %}
 <section class="panel mt-4" aria-labelledby="findings-title">
   <div class="section-head">
-    <h2 id="findings-title">{{ _('Findings') }}{% if findings.state == 'ready' %} <span class="text-sm font-normal text-muted">({{ findings.total }})</span>{% endif %}</h2>
+    <h2 id="findings-title">{{ _('Findings') }}{% if findings.state == 'ready' %} <span class="text-sm font-normal text-muted">({{ _('%(n)s open', n=findings.open_total) }})</span>{% endif %}</h2>
     {% if findings.total %}<a class="link text-sm" href="{{ url_for('assessments.findings', assessment_id=assessment.id) }}">{{ _('All findings') }}</a>{% endif %}
   </div>
   {% if findings.state != 'ready' %}
@@ -69,10 +139,20 @@
   <div class="grid gap-3 p-4">
     {% if findings.errors %}{{ notice(_('Some rules could not run'), _('%(rules)s failed and produced no findings; the log has the details.', rules=findings.errors|join(', ')), 'warning') }}{% endif %}
     {% if findings.dropped %}{{ notice(_('Some findings are not kept'), _('%(count)s findings beyond the limit per scan were dropped, the least serious first.', count=findings.dropped), 'warning') }}{% endif %}
-    {% if findings.total %}
+    {% if findings.open_total %}
     {{ severity_chips(findings.by_severity) }}
+    {% elif findings.total %}
+    <p class="text-sm">{{ _('No open findings: the team decided about every finding that fired.') }}</p>
     {% else %}
     <p class="text-sm">{{ _('No rule fired on what was collected.') }}</p>
+    {% endif %}
+    {% if findings.accepted or findings.false_positive %}
+    <p class="text-sm text-muted">
+      {{ _('Not counted as open:') }}
+      {% if findings.accepted %}<a class="link" href="{{ url_for('assessments.findings', assessment_id=assessment.id, status='accepted') }}">{{ _('%(n)s accepted', n=findings.accepted) }}</a>{% endif %}
+      {% if findings.accepted and findings.false_positive %}·{% endif %}
+      {% if findings.false_positive %}<a class="link" href="{{ url_for('assessments.findings', assessment_id=assessment.id, status='false_positive') }}">{{ ngettext('%(num)s false positive', '%(num)s false positives', findings.false_positive) }}</a>{% endif %}
+    </p>
     {% endif %}
     {# Silence is not a clean bill of health: say what the rules could not see. #}
     <p class="text-sm text-muted">
@@ -84,7 +164,7 @@
   <div class="table-scroll border-t border-line">
     <table class="data-table">
       <caption class="sr-only">{{ _('The rules that fired') }}</caption>
-      <thead><tr><th scope="col">{{ _('Severity') }}</th><th scope="col">{{ _('Finding') }}</th><th scope="col" class="text-right">{{ _('Count') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ _('Severity') }}</th><th scope="col">{{ _('Finding') }}</th><th scope="col" class="text-right">{{ _('Open') }}</th></tr></thead>
       <tbody>
         {% for rule in findings.rules[:shown] %}
         <tr>
@@ -104,12 +184,14 @@
 </section>
 {% endmacro %}
 
-{# The section on a host's page: its own findings, then those about its addresses. #}
-{% macro host_findings_panel(findings, assessment) %}
+{# The section on a host's page: its own findings, then those about its addresses. Decisions can be
+   made here too; they come back to this page. #}
+{% macro host_findings_panel(findings, assessment, host) %}
+{% set back = {'back': 'host', 'host': host.id} %}
 <section class="panel mt-6" aria-labelledby="host-findings-title">
   <div class="section-head">
     <h2 id="host-findings-title">{{ _('Findings') }}</h2>
-    <a class="link text-sm" href="{{ url_for('assessments.findings', assessment_id=assessment.id) }}">{{ _('All findings') }}</a>
+    <a class="link text-sm" href="{{ url_for('assessments.findings', assessment_id=assessment.id, host=host.id, status='all') }}">{{ _('All findings of this host, with their status') }}</a>
   </div>
   {% if findings.state != 'ready' %}
   <p class="p-4 text-sm text-muted">{{ state_note(findings.state) }}</p>
@@ -118,7 +200,7 @@
   {% else %}
   {% if findings.own %}
   <ul class="divide-y divide-line">
-    {% for finding in findings.own %}{{ finding_item(finding, assessment, show_where=false) }}{% endfor %}
+    {% for finding in findings.own %}{{ finding_item(finding, assessment, show_where=false, back=back) }}{% endfor %}
   </ul>
   {% endif %}
   {% if findings.on_addresses %}
@@ -127,7 +209,7 @@
     <p class="mt-1 text-sm text-muted">{{ _('Reported for the IP addresses this name resolves to. They can concern other services on the same address, not only this hostname.') }}</p>
   </div>
   <ul class="divide-y divide-line">
-    {% for finding in findings.on_addresses %}{{ finding_item(finding, assessment) }}{% endfor %}
+    {% for finding in findings.on_addresses %}{{ finding_item(finding, assessment, back=back) }}{% endfor %}
   </ul>
   {% endif %}
   {% endif %}
