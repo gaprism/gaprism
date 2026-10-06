@@ -82,6 +82,7 @@ warn_return_any = true
 
 [[tool.mypy.overrides]]
 module = [
+    "flask_login",
     "flask_security.*",
     "flask_migrate",
     "flask_wtf.*",

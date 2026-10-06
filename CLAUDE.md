@@ -8,6 +8,8 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 - DB: `uv run flask --app app db upgrade` · worker: `uv run flask --app app worker` · web: `uv run flask --app app run --debug`
 - IP location data (offline, DB-IP Lite): `uv run flask --app app datasets update` (status: `datasets status`); stored in `var/datasets/`
 - Accounts: `uv run flask --app app users --help` (create-admin, create, list, set-password, deactivate, activate, grant-admin, revoke-admin, reset-mfa); assessments are private or shared with the team (owner and admins decide)
+- Audit log: `uv run flask --app app audit list [--days N] [--group g] [--user text]` (administrators also read `/audit/`); limits `MAX_SCANS_PER_USER_PER_HOUR`, `MAX_HOSTS_PER_RUN` (ceiling 2000), `AUDIT_RETENTION_DAYS`
+- After pulling or switching branches run `db upgrade` on the dev schema (the worker's housekeeping fails on a table the schema lacks)
 - Docker: `docker compose up -d --build` (db, web, worker; `--profile proxy` adds HTTPS) · one-off commands `docker compose run --rm cli flask …` · see `docs/deploy.md`; the image installs gunicorn from the `deploy` dependency group, and `TRUSTED_PROXY_COUNT` says how many reverse proxies stand in front
 - Rules and findings: `uv run flask --app app findings rules` (list) · `findings evaluate [--domain d]` (re-run on a finished scan) · `uv run python -m app.rules.docs` regenerates `docs/rules.md` (a test fails when it is stale)
 - Config comes from `.env` (git-ignored; template `.env.example`): `DATABASE_URL`, `TEST_DATABASE_URL`, `DB_SCHEMA`, secrets, provider keys. Never print or commit keys.
@@ -27,6 +29,7 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 6. Unit tests never touch the network; mark real-network tests `@pytest.mark.live`.
 7. Provider keys only from the environment; logs redact `key=`, `token=` and `Authorization`.
 8. Security-boundary changes (egress, auth, SQL) get a short review note in the commit message.
+9. Every state change somebody could ask "who did that?" about calls `app.service.audit.record` in the same transaction (add the action to `ACTIONS` with its label, test it in the style of `tests/test_audit_log.py`). Details are small facts (ids, counts, rule ids), never passwords, secrets or text people typed.
 
 ## Process
 - Small vertical slices (stories `S*.*` in the roadmap); one commit per story on branch `mvp`; ask before pushing.

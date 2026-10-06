@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import io
 import json
-import logging
 import re
 import uuid
 from datetime import timedelta
@@ -19,7 +18,7 @@ from app.models import CheckResult, Finding, FindingDisposition, Scan, User
 from app.models.base import utc_now
 from app.service import decisions
 from app.service import findings as findings_service
-from tests.helpers import create_assessment, create_user, login_as
+from tests.helpers import audit_rows, create_assessment, create_user, login_as
 from tests.test_decisions import SPF, TLS
 from tests.test_findings_service import RULES_CONFIG, populated_scan
 from tests.test_summary import evaluated
@@ -189,26 +188,29 @@ def test_a_cancelled_scan_can_be_exported_too(client: FlaskClient, db_session: S
     assert "This scan did not finish everywhere (Cancelled)" in report
 
 
-def test_every_export_leaves_a_line_in_the_audit_log(
-    finished: Finished, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_every_export_is_in_the_audit_log(finished: Finished, db_session: Session) -> None:
     client, scan, _ = finished
-    with caplog.at_level(logging.INFO, logger="app.audit"):
-        for what in ALL:
-            client.get(url(scan, what))
-    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("export:")]
-    assert [line.split()[1] for line in lines] == [
-        "kind=report",
-        "kind=json",
-        "kind=hosts_csv",
-        "kind=findings_csv",
-    ]
-    assert all(
-        f"assessment={scan.assessment_id}" in line and f"scan={scan.id}" in line for line in lines
+    for what in ALL:
+        client.get(url(scan, what))
+    entries = audit_rows(
+        db_session, "export.report", "export.json", "export.hosts_csv", "export.findings_csv"
     )
+    assert [e.action for e in entries] == [
+        "export.report",
+        "export.json",
+        "export.hosts_csv",
+        "export.findings_csv",
+    ]
+    owner = db_session.get(User, scan.requested_by)
+    assert owner is not None
+    for entry in entries:
+        assert entry.assessment_id == scan.assessment_id and entry.subject == str(scan.id)
+        assert entry.actor_id == owner.id and entry.actor_email == owner.email
+        assert entry.source == "web" and entry.remote_addr == "127.0.0.1"
+    # what is exported stays out of the log
     assert not any(
-        "Certificate" in line or "bad-tls" in line for line in lines
-    )  # what is exported stays out
+        "Certificate" in repr(e.details) or "bad-tls" in repr(e.details) for e in entries
+    )
 
 
 # ----- the assessment page offers them

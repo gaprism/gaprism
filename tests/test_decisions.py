@@ -14,7 +14,7 @@ from app.models import Finding, FindingDisposition, Scan, User
 from app.models.base import utc_now
 from app.service import decisions
 from app.service.decisions import DecisionError
-from tests.helpers import create_user
+from tests.helpers import audit_rows, create_user
 from tests.test_summary import evaluated
 
 TODAY = date(2026, 10, 5)
@@ -313,7 +313,7 @@ def test_losing_the_race_to_decide_is_reported_not_crashed(db_session: Session) 
 # ----- the trail
 
 
-def test_every_change_is_logged_without_the_reason(
+def test_every_change_is_in_the_audit_log_without_the_reason(
     db_session: Session, caplog: pytest.LogCaptureFixture
 ) -> None:
     scan, rows = evaluated(db_session)
@@ -325,10 +325,31 @@ def test_every_change_is_logged_without_the_reason(
             status="accepted", reason=secret, review_by="2027-01-31", today=TODAY,
         )  # fmt: skip
         db_session.flush()
+        decisions.decide(
+            db_session, scan.assessment_id, rows[SPF], person,
+            status="false_positive", reason="Changed my mind.", today=TODAY,
+        )  # fmt: skip
         decisions.reopen(db_session, scan.assessment_id, rows[SPF], person)
 
-    text = "\n".join(record.getMessage() for record in caplog.records)
-    assert "finding decision" in text and "finding reopened" in text
-    assert rows[SPF].fingerprint in text and str(person.id) in text and "SPF_MISSING" in text
-    assert "2027-01-31" in text
-    assert secret not in text  # the reason can hold anything: it stays out of the logs
+    entries = audit_rows(
+        db_session, "finding.accepted", "finding.false_positive", "finding.reopened"
+    )
+    assert [e.action for e in entries] == [
+        "finding.accepted",
+        "finding.false_positive",
+        "finding.reopened",
+    ]
+    first, second, third = entries
+    assert first.actor_id == person.id and first.actor_email == person.email
+    assert first.assessment_id == scan.assessment_id and first.subject == rows[SPF].fingerprint
+    assert first.details == {
+        "rule": "SPF_MISSING",
+        "review_by": "2027-01-31",
+        "domain": "example.com",
+    }  # the first decision replaced nothing
+    assert second.details["replaced"] == "accepted"  # the second took the first one's place
+    assert third.details["was"] == "false_positive"
+    assert third.details["decided_by"] == person.email  # who decided, as the row is deleted
+
+    everything = repr([(e.subject, e.details) for e in entries]) + caplog.text
+    assert secret not in everything and "Changed my mind" not in everything  # reasons stay out

@@ -38,6 +38,9 @@ _COUNTRY_CODE = re.compile(r"[A-Z]{2}")
 PORTS_PROVIDERS = ("auto", "shodan", "internetdb", "off")
 MAX_PORTS_CACHE_HOURS = 30 * 24  # the worker deletes cache entries after 30 days
 MAX_TRUSTED_PROXIES = 5  # reverse proxies in front of the app that TRUSTED_PROXY_COUNT may name
+MAX_HOSTS_CEILING = 2000  # the most hosts one scan may review, whatever MAX_HOSTS_PER_RUN says
+MAX_SCANS_PER_HOUR_CEILING = 1000  # upper bound of MAX_SCANS_PER_USER_PER_HOUR
+MAX_AUDIT_RETENTION_DAYS = 3650  # upper bound of AUDIT_RETENTION_DAYS (ten years)
 
 
 class BaseConfig:
@@ -70,6 +73,9 @@ class BaseConfig:
     # Flask-Security-Too defaults
     SECURITY_REGISTERABLE: bool = False
     SECURITY_SEND_REGISTER_EMAIL: bool = False
+    # There is no mail server: with this on, changing a password failed with a 500 after the new
+    # hash was stored. An administrator sets other people's passwords on the command line.
+    SECURITY_SEND_PASSWORD_CHANGE_EMAIL: bool = False
     SECURITY_TWO_FACTOR: bool = True
     SECURITY_TWO_FACTOR_REQUIRED: bool = True
     SECURITY_TWO_FACTOR_ENABLED_METHODS: ClassVar[list[str]] = ["authenticator"]
@@ -91,6 +97,9 @@ class BaseConfig:
     SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS: bool = False
     SECURITY_TOTP_SECRETS: ClassVar[dict[str, str]] = {}
 
+    # The audit log keeps its entries this many days (0 = forever); the worker removes older ones.
+    AUDIT_RETENTION_DAYS: int = 730
+
     # Authentication abuse controls
     AUTH_RATE_LIMIT_KEY: str = ""
     AUTH_RATE_LIMIT_FAILURES: int = 5
@@ -110,8 +119,12 @@ class BaseConfig:
     # (shared servers): `flask db upgrade` creates the schema and the app uses it.
     DB_SCHEMA: str = ""
 
-    # Scanning limits
+    # Scanning limits. A scan reviews at most MAX_HOSTS_PER_RUN hosts (never above
+    # MAX_HOSTS_CEILING); one person may start MAX_SCANS_PER_USER_PER_HOUR scans an hour
+    # (0 = no limit): both keep a stolen session or a careless script from loading the targets,
+    # the providers and the worker.
     MAX_HOSTS_PER_RUN: int = 200
+    MAX_SCANS_PER_USER_PER_HOUR: int = 20
     MAX_DISCOVERY_PAGES: int = 50
     # `flask worker` runs this many checks at once; PER_TARGET_CONCURRENCY caps how many of them
     # may belong to the same scan (= the same assessed domain) so no target is flooded.
@@ -233,8 +246,17 @@ def validate_config(config_obj: Any) -> None:
 
     validate_db_schema(getattr(config_obj, "DB_SCHEMA", ""))
 
-    if not isinstance(max_hosts, int) or max_hosts <= 0:
+    if not isinstance(max_hosts, int) or isinstance(max_hosts, bool) or max_hosts <= 0:
         raise ConfigurationError("MAX_HOSTS_PER_RUN must be a positive integer.")
+    if max_hosts > MAX_HOSTS_CEILING:
+        raise ConfigurationError(f"MAX_HOSTS_PER_RUN may not exceed {MAX_HOSTS_CEILING}.")
+    for name, ceiling in (
+        ("MAX_SCANS_PER_USER_PER_HOUR", MAX_SCANS_PER_HOUR_CEILING),
+        ("AUDIT_RETENTION_DAYS", MAX_AUDIT_RETENTION_DAYS),
+    ):
+        value = getattr(config_obj, name, 0)
+        if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= ceiling:
+            raise ConfigurationError(f"{name} must be an integer from 0 to {ceiling}.")
 
     if not isinstance(max_pages, int) or max_pages <= 0:
         raise ConfigurationError("MAX_DISCOVERY_PAGES must be a positive integer.")
@@ -370,6 +392,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "DB_SCHEMA": "DB_SCHEMA",
             "REQUIRE_MFA": "REQUIRE_MFA",
             "MAX_HOSTS_PER_RUN": "MAX_HOSTS_PER_RUN",
+            "MAX_SCANS_PER_USER_PER_HOUR": "MAX_SCANS_PER_USER_PER_HOUR",
+            "AUDIT_RETENTION_DAYS": "AUDIT_RETENTION_DAYS",
             "MAX_DISCOVERY_PAGES": "MAX_DISCOVERY_PAGES",
             "WORKER_THREADS": "WORKER_THREADS",
             "PER_TARGET_CONCURRENCY": "PER_TARGET_CONCURRENCY",

@@ -7,7 +7,6 @@ logger (whom it concerned, never a password).
 
 from __future__ import annotations
 
-import logging
 import re
 import uuid
 from dataclasses import dataclass
@@ -18,14 +17,12 @@ from flask_security.utils import hash_password
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.audit import AUDIT_LOGGER
 from app.models.auth import Role, User
+from app.service import audit as audit_service
 
 ADMIN_ROLE = "admin"
 MIN_PASSWORD_LENGTH = 12
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
-
-audit = logging.getLogger(AUDIT_LOGGER)
 
 
 class UserAdminError(ValueError):
@@ -89,6 +86,14 @@ def _keep_an_administrator(session: Session, user: User, what: str) -> None:
         )
 
 
+def _record(session: Session, action: str, user: User, **details: object) -> None:
+    """Write the change to the audit log: the account it concerned, never a password. An
+    administrator at the command line has no signed-in user, so the entry has no actor."""
+    audit_service.record(
+        session, action, subject=str(user.id), details={"email": user.email, **details}
+    )
+
+
 def _end_sessions(user: User) -> None:
     """Sign the account out everywhere: Flask-Security ties a session to this identifier."""
     user.fs_uniquifier = uuid.uuid4().hex
@@ -111,7 +116,7 @@ def create_user(session: Session, email: str, password: str, *, admin: bool = Fa
     if admin:
         user.roles.append(_admin_role(session))
     session.flush()
-    audit.info("user created: user=%s admin=%s", user.id, admin)
+    _record(session, "user.created", user, admin=admin)
     return user
 
 
@@ -135,7 +140,10 @@ def create_admin(session: Session, email: str, password: str) -> User:
     if role not in user.roles:
         user.roles.append(role)
     session.flush()
-    audit.info("user %s as administrator: user=%s", "created" if created else "reset", user.id)
+    if created:
+        _record(session, "user.created", user, admin=True)
+    else:
+        _record(session, "user.password_set", user, via="create-admin")
     return user
 
 
@@ -146,7 +154,7 @@ def set_password(session: Session, email: str, password: str) -> User:
     user.password = hash_password(password)
     _end_sessions(user)
     session.flush()
-    audit.info("user password set: user=%s", user.id)
+    _record(session, "user.password_set", user)
     return user
 
 
@@ -160,7 +168,7 @@ def set_active(session: Session, email: str, active: bool) -> bool:
         _keep_an_administrator(session, user, "deactivating it")
     user.active = active
     session.flush()
-    audit.info("user %s: user=%s", "activated" if active else "deactivated", user.id)
+    _record(session, "user.activated" if active else "user.deactivated", user)
     return True
 
 
@@ -175,7 +183,7 @@ def set_admin(session: Session, email: str, admin: bool) -> bool:
         _keep_an_administrator(session, user, "taking the role away")
         user.roles = [role for role in user.roles if role.name != ADMIN_ROLE]
     session.flush()
-    audit.info("user %s the administrator role: user=%s", "got" if admin else "lost", user.id)
+    _record(session, "user.admin_granted" if admin else "user.admin_revoked", user)
     return True
 
 
@@ -187,7 +195,7 @@ def reset_mfa(session: Session, email: str) -> bool:
     user.tf_primary_method = None
     user.tf_totp_secret = None
     session.flush()
-    audit.info("user authenticator reset: user=%s had=%s", user.id, had)
+    _record(session, "user.mfa_reset", user, had=had)
     return had
 
 

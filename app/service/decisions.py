@@ -6,13 +6,12 @@ decision stored for its fingerprint, with one rule: an acceptance whose review d
 longer applies, the finding is open again and is flagged "acceptance expired".
 
 Reopening deletes the decision; before any change the previous state is appended to ``history``
-(the last ``MAX_HISTORY`` states). Until the audit log (S3.5) exists every change is also logged,
-without the reason text.
+(the last ``MAX_HISTORY`` states). Every change is also written to the audit log, without the
+reason text, so that what a reopening deletes is still on record.
 """
 
 from __future__ import annotations
 
-import logging
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -22,12 +21,10 @@ from sqlalchemy import Select, and_, case, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.audit import AUDIT_LOGGER
 from app.i18n import gettext as _
 from app.models import Finding, FindingDisposition, Scan, User
 from app.models.base import utc_now
-
-log = logging.getLogger(AUDIT_LOGGER)
+from app.service import audit as audit_service
 
 OPEN = "open"
 ACCEPTED = "accepted"
@@ -247,6 +244,7 @@ def decide(
         )
         .with_for_update()
     )
+    replaced = existing.status if existing is not None else None
     if existing is None:
         row = _create(
             session,
@@ -263,14 +261,17 @@ def decide(
         existing.status, existing.reason, existing.decided_by = status, reason, user.id
         existing.decided_at, existing.review_by = now, review
         row = existing
-    log.info(
-        "finding decision: assessment=%s rule=%s fingerprint=%s status=%s review_by=%s by=%s",
-        assessment_id,
-        finding.rule_id,
-        finding.fingerprint,
-        status,
-        review,
-        user.id,
+    audit_service.record(
+        session,
+        f"finding.{status}",
+        actor=user,
+        assessment=assessment_id,
+        subject=finding.fingerprint,
+        details={
+            "rule": finding.rule_id,
+            "review_by": review.isoformat() if review else None,
+            "replaced": replaced,  # the status of the decision this one took the place of
+        },
     )
     return row
 
@@ -289,14 +290,18 @@ def reopen(session: Session, assessment_id: uuid.UUID, finding: Finding, user: U
     )
     if row is None:
         return False
-    log.info(
-        "finding reopened: assessment=%s rule=%s fingerprint=%s was=%s decided_by=%s by=%s",
-        assessment_id,
-        finding.rule_id,
-        finding.fingerprint,
-        row.status,
-        row.decided_by,
-        user.id,
+    audit_service.record(
+        session,
+        "finding.reopened",
+        actor=user,
+        assessment=assessment_id,
+        subject=finding.fingerprint,
+        details={
+            "rule": finding.rule_id,
+            "was": row.status,
+            # the row goes with this, so the log keeps who had decided
+            "decided_by": session.scalar(select(User.email).where(User.id == row.decided_by)),
+        },
     )
     session.delete(row)
     return True

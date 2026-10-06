@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import uuid
 
 import pytest
@@ -13,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Host, User
 from app.service import scans as scan_service
-from tests.helpers import create_assessment, create_user, login_as
+from tests.helpers import audit_rows, create_assessment, create_user, login_as
 from tests.test_engine import CONFIG, new_scan
 from tests.test_history import D, Two, finish, two_scans
 
@@ -283,12 +282,11 @@ def test_the_export_of_a_scan_that_is_not_ours_or_not_over_is_refused(
 
 
 def test_an_export_of_an_older_scan_is_logged_with_that_scan(
-    client: FlaskClient, two: Two, caplog: pytest.LogCaptureFixture
+    client: FlaskClient, db_session: Session, two: Two
 ) -> None:
-    with caplog.at_level(logging.INFO, logger="app.audit"):
-        client.get(url(two, "export/scan.json", scan=two.older.id))
-    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("export:")]
-    assert lines and f"scan={two.older.id}" in lines[0]
+    client.get(url(two, "export/scan.json", scan=two.older.id))
+    (entry,) = audit_rows(db_session, "export.json")
+    assert entry.subject == str(two.older.id) and entry.assessment_id == two.assessment.id
 
 
 # ------------------------------------------------------------------------------ from the assessment

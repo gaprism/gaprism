@@ -7,25 +7,22 @@ never cached (the application sets ``Cache-Control: no-store`` on every response
 
 from __future__ import annotations
 
-import logging
 import uuid
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_security import login_required
 from werkzeug.wrappers import Response
 
-from app.audit import AUDIT_LOGGER
 from app.blueprints.assessments import assessments_bp
-from app.blueprints.assessments.access import current_user_object, get_accessible, uuid_or_none
+from app.blueprints.assessments.access import get_accessible, uuid_or_none
 from app.extensions import db
 from app.i18n import gettext as _
 from app.models.assessment import Assessment
+from app.service import audit as audit_service
 from app.service import export as export_service
 from app.service import history as history_service
 from app.service import report as report_service
 from app.service import scans as scan_service
-
-audit = logging.getLogger(AUDIT_LOGGER)
 
 
 def _export_data(assessment: Assessment, kind: str) -> export_service.ExportData | None:
@@ -47,13 +44,14 @@ def _export_data(assessment: Assessment, kind: str) -> export_service.ExportData
         flash(_("Export a scan once it has finished."), "warning")
         return None
     data = export_service.build_export(db.session(), assessment, scan, current_app.config)
-    audit.info(
-        "export: kind=%s assessment=%s scan=%s by=%s",
-        kind,
-        assessment.id,
-        scan.id,
-        current_user_object().id,
+    audit_service.record(
+        db.session(),
+        f"export.{kind}",
+        assessment=assessment,
+        subject=str(scan.id),
+        details={"scan_status": scan.status},
     )
+    db.session.commit()  # the entry is kept even though nothing else changed
     return data
 
 

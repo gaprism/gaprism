@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import re
 import uuid
 from collections.abc import Collection
@@ -11,17 +10,15 @@ from dataclasses import dataclass
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.audit import AUDIT_LOGGER
 from app.models.assessment import VISIBILITIES, Assessment
 from app.models.auth import User
+from app.service import audit as audit_service
 from app.service.discovery.scope import ScopeValidationError, canonicalise_domain, is_in_scope
 from app.service.discovery.service import normalise_name
 from app.service.users import ADMIN_ROLE
 
 MAX_LABEL_LENGTH = 255
 MAX_MANUAL_HOSTS = 200
-
-audit = logging.getLogger(AUDIT_LOGGER)
 
 
 class DuplicateAssessmentError(ValueError):
@@ -83,11 +80,11 @@ def set_visibility(session: Session, assessment: Assessment, visibility: str, us
             raise DuplicateAssessmentError(existing)
     assessment.visibility = visibility
     session.flush()
-    audit.info(
-        "assessment visibility: assessment=%s visibility=%s by=%s",
-        assessment.id,
-        visibility,
-        user.id,
+    audit_service.record(
+        session,
+        "assessment.shared" if visibility == "team" else "assessment.unshared",
+        actor=user,
+        assessment=assessment,
     )
 
 
@@ -136,6 +133,13 @@ def create_assessment(
     )
     session.add(assessment)
     session.flush()
+    audit_service.record(
+        session,
+        "assessment.created",
+        actor=user,
+        assessment=assessment,
+        details={"visibility": visibility},
+    )
     return assessment
 
 
@@ -179,6 +183,12 @@ def add_manual_hosts(session: Session, assessment: Assessment, raw: str) -> Manu
     if added:
         assessment.manual_hosts = [*existing, *added]
         session.flush()
+        audit_service.record(
+            session,
+            "hosts.added",
+            assessment=assessment,
+            details={"count": len(added), "hosts": added},
+        )
     return ManualHostsResult(tuple(added), tuple(present), tuple(rejected))
 
 
@@ -189,4 +199,7 @@ def remove_manual_host(session: Session, assessment: Assessment, hostname: str) 
         return False
     assessment.manual_hosts = remaining
     session.flush()
+    audit_service.record(
+        session, "hosts.removed", assessment=assessment, details={"host": hostname}
+    )
     return True

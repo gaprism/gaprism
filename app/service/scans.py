@@ -15,9 +15,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.checks import DISCOVERY_KEY, Check, checks_with_scope
+from app.config import MAX_HOSTS_CEILING
 from app.models import Assessment, CheckResult, Host, Scan, User
 from app.models.base import utc_now
 from app.models.scan import COMPARABLE_SCAN_STATUSES
+from app.service import audit as audit_service
 from app.service import findings as findings_service
 from app.service import summary as summary_service
 from app.service.host_view import CheckCell, DomainRow, domain_rows, host_cells
@@ -35,6 +37,19 @@ class ScanInProgressError(Exception):
     def __init__(self, scan: Scan) -> None:
         super().__init__("A scan is already in progress for this assessment.")
         self.scan = scan
+
+
+class ScanRateLimitError(Exception):
+    """The person has started as many scans in the last hour as they may."""
+
+    def __init__(self, limit: int, retry_after: timedelta) -> None:
+        super().__init__(f"At most {limit} scans an hour per person.")
+        self.limit = limit
+        self.retry_after = retry_after  # until the oldest scan of the hour is an hour old
+
+
+SCAN_RATE_WINDOW = timedelta(hours=1)
+DEFAULT_MAX_HOSTS = 200  # for a scan that recorded no cap
 
 
 # --------------------------------------------------------------------------- queries
@@ -74,12 +89,15 @@ def start_scan(
     active = get_active_scan(session, assessment.id)
     if active is not None:
         raise ScanInProgressError(active)
+    _check_scan_rate(session, user, int(config.get("MAX_SCANS_PER_USER_PER_HOUR", 0)))
+    # The host cap is read once here and stays with the scan: it is what the scan is planned by.
+    max_hosts = min(int(config["MAX_HOSTS_PER_RUN"]), MAX_HOSTS_CEILING)
     scan = Scan(
         assessment_id=assessment.id,
         requested_by=user.id,
         status="queued",
         options={
-            "max_hosts": int(config["MAX_HOSTS_PER_RUN"]),
+            "max_hosts": max_hosts,
             "ct_mode": str(config["CT_MODE"]),
             "ct_sources": list(config["CT_SOURCES"]),
             "manual_hosts": list(assessment.manual_hosts),
@@ -97,7 +115,36 @@ def start_scan(
         raise ScanInProgressError(winner) from None
     session.add(CheckResult(scan_id=scan.id, host_id=None, check_key=DISCOVERY_KEY))
     session.flush()
+    audit_service.record(
+        session,
+        "scan.started",
+        actor=user,
+        assessment=assessment,
+        subject=str(scan.id),
+        details={"max_hosts": max_hosts, "manual_hosts": len(assessment.manual_hosts)},
+    )
     return scan
+
+
+def _check_scan_rate(session: Session, user: User, limit: int) -> None:
+    """Refuse a scan when the person has started ``limit`` of them in the last hour (0: no limit).
+
+    A soft limit: two requests at the same instant can both pass. It is there to stop a script or
+    a stolen session from loading the targets, the providers and the worker, not to count exactly.
+    """
+    if limit <= 0:
+        return
+    now = utc_now()
+    recent = list(
+        session.scalars(
+            select(Scan.created_at)
+            .where(Scan.requested_by == user.id, Scan.created_at > now - SCAN_RATE_WINDOW)
+            .order_by(Scan.created_at)
+        )
+    )
+    if len(recent) >= limit:
+        # The scan that has to leave the hour before there is room again.
+        raise ScanRateLimitError(limit, recent[len(recent) - limit] + SCAN_RATE_WINDOW - now)
 
 
 # --------------------------------------------------------------------------- discovery -> hosts
@@ -121,6 +168,16 @@ def _parse_time(value: object) -> datetime | None:
         return datetime.fromisoformat(value)
     except ValueError:
         return None
+
+
+def host_cap(options: Mapping[str, Any]) -> int:
+    """How many hosts the scan may review: what it was started with, at least one and never more
+    than the ceiling. This is the number the scan is planned by, whatever was stored."""
+    try:
+        wanted = int(options.get("max_hosts", DEFAULT_MAX_HOSTS))
+    except (TypeError, ValueError):
+        wanted = DEFAULT_MAX_HOSTS
+    return max(1, min(wanted, MAX_HOSTS_CEILING))
 
 
 def plan_hosts(
@@ -190,7 +247,7 @@ def apply_discovery(
         discovery.data,
         discovery.status == "ok",
         list(scan.options.get("manual_hosts", [])),
-        int(scan.options.get("max_hosts", 200)),
+        host_cap(scan.options),
     )
     host_checks = checks_with_scope("host", registry)
     for seed in seeds:
@@ -359,6 +416,7 @@ def cancel_active_scan(session: Session, assessment_id: Any) -> bool:
     )
     scan.status = "cancelled"
     scan.finished_at = now
+    audit_service.record(session, "scan.cancelled", assessment=assessment_id, subject=str(scan.id))
     return True
 
 

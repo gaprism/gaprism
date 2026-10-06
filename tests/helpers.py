@@ -8,11 +8,12 @@ from typing import Any
 from flask import Flask, g, has_app_context
 from flask.testing import FlaskClient
 from flask_security.utils import hash_password
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import create_app
 from app.config import TestingConfig
-from app.models import Assessment, User
+from app.models import Assessment, AuditEvent, User
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS_DIRECTORY = PROJECT_ROOT / "migrations"
@@ -31,6 +32,14 @@ def make_app(database_url: str, schema: str, **overrides: Any) -> Flask:
     for name, value in overrides.items():
         setattr(DatabaseTestingConfig, name, value)
     return create_app(DatabaseTestingConfig)
+
+
+def audit_rows(session: Session, *actions: str) -> list[AuditEvent]:
+    """The entries of the audit log, oldest first (only these actions when some are named)."""
+    query = select(AuditEvent).order_by(AuditEvent.occurred_at, AuditEvent.id)
+    if actions:
+        query = query.where(AuditEvent.action.in_(actions))
+    return list(session.scalars(query))
 
 
 def create_user(session: Session, email: str | None = None) -> User:

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Audit log') }}{% endblock %}
+{% block content %}
+{# What an entry says besides who and what: its small facts, as text. Nothing here is trusted. #}
+{% macro facts(details) -%}
+{%- for key, text in audit_facts(details) -%}
+{%- if not loop.first %} · {% endif -%}
+<span class="text-muted">{{ key }}</span> <bdi>{{ text }}</bdi>
+{%- endfor -%}
+{%- endmacro %}
+
+<div class="mb-4">
+  <p class="eyebrow">{{ _('Administration') }}</p>
+  <h1 class="mt-1">{{ _('Audit log') }}</h1>
+  <p class="mt-1 max-w-3xl text-sm text-muted">{{ _('Who did what, when, and to which assessment: sign-ins, scans, exports, decisions about findings, sharing and the accounts. An entry is added together with the change it records and is never edited; the oldest are removed when the retention period has passed.') }}</p>
+</div>
+
+<form method="get" class="panel flex flex-wrap items-end gap-3 p-4" role="search">
+  {% if filters.assessment %}<input type="hidden" name="assessment" value="{{ filters.assessment }}">{% endif %}
+  <div class="field">
+    <label for="audit-group">{{ _('Kind') }}</label>
+    <select id="audit-group" name="group">
+      <option value="">{{ _('Everything') }}</option>
+      {% for code in groups %}<option value="{{ code }}"{% if code == filters.group %} selected{% endif %}>{{ audit_group_label(code) }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="audit-action">{{ _('Action') }}</label>
+    <select id="audit-action" name="action">
+      <option value="">{{ _('Any') }}</option>
+      {% for code in groups %}
+      <optgroup label="{{ audit_group_label(code) }}">
+        {% for action in actions if action.startswith(code ~ '.') %}<option value="{{ action }}"{% if action == filters.action %} selected{% endif %}>{{ audit_action_label(action) }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="audit-user">{{ _('Person') }}</label>
+    <input id="audit-user" name="user" type="text" maxlength="100" value="{{ filters.user }}" placeholder="name@example.org">
+  </div>
+  <div class="field">
+    <label for="audit-days">{{ _('When') }}</label>
+    <select id="audit-days" name="days">
+      <option value="">{{ _('Ever') }}</option>
+      {% for count in day_choices %}<option value="{{ count }}"{% if count == filters.days %} selected{% endif %}>{{ _('The last %(num)s days', num=count) }}</option>{% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-secondary" type="submit">{{ _('Filter') }}</button>
+  {% if filters.assessment %}<a class="link text-sm" href="{{ url_for('audit.index') }}">{{ _('Show every assessment') }}</a>{% endif %}
+</form>
+
+<div class="panel mt-4">
+  <div class="section-head"><h2>{{ _('Entries') }} <span class="text-sm font-normal text-muted">({{ page.total }})</span></h2></div>
+  {% if page.items %}
+  <div class="table-scroll">
+    <table class="data-table">
+      <caption class="sr-only">{{ _('The audit log, newest first') }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{{ _('When') }}</th>
+          <th scope="col">{{ _('Who') }}</th>
+          <th scope="col">{{ _('What') }}</th>
+          <th scope="col">{{ _('Assessment') }}</th>
+          <th scope="col">{{ _('Details') }}</th>
+          <th scope="col">{{ _('From') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in page.items %}
+        <tr>
+          <td class="whitespace-nowrap"><time datetime="{{ entry.occurred_at.isoformat() }}">{{ entry.occurred_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</time></td>
+          <td>{% if entry.actor_email %}<bdi>{{ entry.actor_email }}</bdi>{% elif entry.source == 'cli' %}<span class="text-muted">{{ _('command line') }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td>{{ audit_action_label(entry.action) }}</td>
+          <td>
+            {% if entry.assessment_id and entry.assessment_id in names %}<a class="link" href="{{ url_for('assessments.detail', assessment_id=entry.assessment_id) }}"><bdi class="font-mono">{{ names[entry.assessment_id] }}</bdi></a>
+            {% elif entry.details.get('domain') %}<bdi class="font-mono">{{ entry.details.get('domain') }}</bdi> <span class="text-muted">({{ _('removed') }})</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-sm">{{ facts(entry.details) }}</td>
+          <td class="text-sm text-muted">{{ entry.remote_addr or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.pages > 1 %}
+  <nav class="flex items-center justify-between gap-3 border-t border-line px-4 py-3 text-sm" aria-label="{{ _('Pages') }}">
+    <span class="text-muted">{{ _('Page %(page)s of %(pages)s', page=page.page, pages=page.pages) }}</span>
+    <span class="flex gap-2">
+      {% if page.page > 1 %}<a class="btn btn-secondary" href="{{ url_for('audit.index', group=filters.group or none, action=filters.action or none, user=filters.user or none, assessment=filters.assessment, days=filters.days, page=page.page - 1 if page.page > 2 else none) }}">{{ _('Previous') }}</a>{% endif %}
+      {% if page.page < page.pages %}<a class="btn btn-secondary" href="{{ url_for('audit.index', group=filters.group or none, action=filters.action or none, user=filters.user or none, assessment=filters.assessment, days=filters.days, page=page.page + 1) }}">{{ _('Next') }}</a>{% endif %}
+    </span>
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="p-5 text-sm text-muted">{{ _('No entry matches.') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

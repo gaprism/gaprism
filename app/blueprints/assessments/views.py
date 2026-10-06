@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import uuid
 from collections.abc import Mapping
@@ -19,9 +20,11 @@ from app.blueprints.assessments.access import uuid_or_none as _uuid_or_none
 from app.blueprints.assessments.forms import NewAssessmentForm
 from app.extensions import db
 from app.i18n import gettext as _
+from app.i18n import ngettext
 from app.models.assessment import VISIBILITIES, Assessment
 from app.models.finding import Finding
 from app.service import assessments as assessment_service
+from app.service import audit as audit_service
 from app.service import decisions as decision_service
 from app.service import findings as findings_service
 from app.service import host_view as host_view_service
@@ -177,6 +180,23 @@ def start_scan(assessment_id: uuid.UUID) -> Response:
     except scan_service.ScanInProgressError:
         db.session.rollback()
         flash(_("A scan is already queued or running for this assessment."), "warning")
+    except scan_service.ScanRateLimitError as exc:
+        db.session.rollback()
+        audit_service.record(
+            db.session(), "scan.refused", assessment=assessment, details={"limit": exc.limit}
+        )
+        db.session.commit()  # the refusal itself is worth keeping
+        flash(
+            ngettext(
+                "You have started the most scans allowed in an hour (%(count)s). "
+                "The next one can start in about %(num)s minute.",
+                "You have started the most scans allowed in an hour (%(count)s). "
+                "The next one can start in about %(num)s minutes.",
+                max(1, math.ceil(exc.retry_after.total_seconds() / 60)),
+                count=exc.limit,
+            ),
+            "warning",
+        )
     else:
         db.session.commit()
         flash(_("Scan queued."), "info")

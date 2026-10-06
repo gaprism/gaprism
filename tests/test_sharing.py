@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-
 import pytest
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
@@ -11,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.assessment import Assessment
 from app.service import assessments as assessment_service
 from app.service import users as user_service
-from tests.helpers import create_assessment, create_user, login_as, make_app
+from tests.helpers import audit_rows, create_assessment, create_user, login_as, make_app
 
 
 def boss(session: Session) -> object:
@@ -78,18 +76,17 @@ def test_sharing_is_refused_when_the_team_already_has_that_domain(db_session: Se
         assessment_service.set_visibility(db_session, mine, "everyone", bob)
 
 
-def test_the_change_is_logged_with_who_made_it(
-    db_session: Session, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_the_change_is_in_the_audit_log_with_who_made_it(db_session: Session) -> None:
     owner = create_user(db_session)
     assessment = create_assessment(db_session, owner, "logged.example")
-    with caplog.at_level(logging.INFO, logger="app.audit"):
-        assessment_service.set_visibility(db_session, assessment, "team", owner)
-        assessment_service.set_visibility(db_session, assessment, "team", owner)  # nothing changed
-    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("assessment")]
-    assert lines == [
-        f"assessment visibility: assessment={assessment.id} visibility=team by={owner.id}"
-    ]
+    assessment_service.set_visibility(db_session, assessment, "team", owner)
+    assessment_service.set_visibility(db_session, assessment, "team", owner)  # nothing changed
+    assessment_service.set_visibility(db_session, assessment, "private", owner)
+
+    entries = audit_rows(db_session, "assessment.shared", "assessment.unshared")
+    assert [e.action for e in entries] == ["assessment.shared", "assessment.unshared"]
+    assert all(e.actor_id == owner.id and e.assessment_id == assessment.id for e in entries)
+    assert entries[0].details["domain"] == "logged.example"
 
 
 # ------------------------------------------------------------------------------ the page

@@ -1,9 +1,9 @@
-"""The audit trail, until the audit log of story S3.5 exists.
+"""The audit log's copy in the application log.
 
-Decisions about findings (accepting, marking as a false positive, reopening) are written to the
-``app.audit`` logger: who did what to which finding, never the reason text. The decision row keeps
-author, time and history while it exists; reopening deletes it, so this is what remains. INFO
-records of that logger are written to stderr unless the deployment configured logging itself.
+Every audit entry (``app.service.audit.record``) goes to the ``audit_event`` table, in the
+transaction of the change it records, and as one line to the ``app.audit`` logger, so that a log
+collector holds a copy the database does not. INFO records of that logger are written to stderr
+unless the deployment configured logging itself.
 """
 
 from __future__ import annotations

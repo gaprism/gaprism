@@ -44,6 +44,7 @@ from app.checks import (
 from app.extensions import db
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
+from app.service import audit as audit_service
 from app.service import scans as scan_service
 from app.service.provider_cache import DbCacheStore
 
@@ -397,9 +398,31 @@ class _Shared:
     limiter: TargetLimiter
     claim_lock: threading.Lock  # makes "which scans are full? -> claim -> count it" one step
     sweep: _Interval
-    purge: _Interval  # old provider-cache entries
+    purge: _Interval  # old provider-cache entries and audit entries
     wakeup: _Wakeup
     stop: threading.Event
+
+
+def purge_audit_log(session: Session, config: Mapping[str, Any]) -> None:
+    """Remove audit entries older than AUDIT_RETENTION_DAYS (0 keeps them all)."""
+    removed = audit_service.purge(session, int(config.get("AUDIT_RETENTION_DAYS", 0)))
+    session.commit()
+    if removed:
+        log.info("audit log: removed %s entries past the retention period", removed)
+
+
+def housekeeping(session: Session, cache: DbCacheStore, config: Mapping[str, Any]) -> None:
+    """Remove old provider-cache and audit entries. A failure is logged and goes no further:
+    clearing out old rows must never keep the scans' tasks from being claimed."""
+    try:
+        cache.purge(CACHE_RETENTION)
+    except Exception:
+        log.exception("housekeeping: removing old provider-cache entries failed")
+    try:
+        purge_audit_log(session, config)
+    except Exception:
+        log.exception("housekeeping: removing old audit-log entries failed")
+        session.rollback()
 
 
 def _claim(
@@ -443,7 +466,7 @@ def _work(
             seen = shared.wakeup.mark()
             try:
                 if shared.purge.due():
-                    cache.purge(CACHE_RETENTION)
+                    housekeeping(session, cache, app.config)
                 task = _claim(session, name, shared, registry, app.config)
                 if task is None and once and shared.limiter.active == 0:
                     # Nothing runs anywhere in this process; a task that just finished may have

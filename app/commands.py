@@ -1,6 +1,7 @@
 """Flask CLI commands: thin entry points that call services."""
 
 from collections.abc import Callable
+from datetime import timedelta
 from pathlib import Path
 
 import click
@@ -10,7 +11,9 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models import Assessment
+from app.models.base import utc_now
 from app.rules import RULES
+from app.service import audit as audit_service
 from app.service import findings as findings_service
 from app.service import geo as geo_service
 from app.service import scans as scan_service
@@ -270,6 +273,40 @@ def register_cli_commands(app: Flask) -> None:
             )
 
         _run(act)
+
+    @app.cli.group(name="audit")
+    def audit_group() -> None:
+        """The audit log: who did what, when, and to what."""
+
+    @audit_group.command(name="list")
+    @click.option("--days", type=click.IntRange(1, 3650), help="Only the last N days.")
+    @click.option(
+        "--group",
+        type=click.Choice(sorted(audit_service.GROUPS)),
+        help="Only one kind of entry (sign-in, assessment, hosts, scan, finding, export, user).",
+    )
+    @click.option("--user", help="Only entries of people whose e-mail address contains this.")
+    @click.option("--limit", type=click.IntRange(1, 200), default=50, show_default=True)
+    def audit_list(days: int | None, group: str | None, user: str | None, limit: int) -> None:
+        """Show the newest entries of the audit log (the same as the audit page)."""
+        page = audit_service.list_events(
+            db.session(),
+            group=group,
+            actor=user,
+            since=utc_now() - timedelta(days=days) if days else None,
+            per_page=limit,
+        )
+        names = audit_service.assessment_names(db.session(), page.items)
+        for entry in page.items:
+            who = entry.actor_email or ("command line" if entry.source == "cli" else "-")
+            domain = names.get(entry.assessment_id) if entry.assessment_id else None
+            domain = domain or entry.details.get("domain")
+            facts = " ".join(f"{key}={text}" for key, text in audit_service.facts(entry.details))
+            line = f"{entry.occurred_at:%Y-%m-%d %H:%M:%S} UTC  {who:28}  "
+            line += audit_service.action_label(entry.action)
+            click.echo(line + (f"  [{domain}]" if domain else "") + (f"  {facts}" if facts else ""))
+        shown = f"{len(page.items)} of {page.total}"
+        click.echo(f"{shown} entries." if page.total else "The audit log has no entry for this.")
 
     @app.cli.command(name="worker")
     @click.option("--once", is_flag=True, help="Process the queued work, then exit.")

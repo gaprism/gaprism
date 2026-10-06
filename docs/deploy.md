@@ -123,18 +123,52 @@ There is no sign-up and no password-reset mail: administrators run the accounts 
 | `users grant-admin EMAIL` · `users revoke-admin EMAIL` | give or take the administrator role |
 | `users reset-mfa EMAIL` | forget a lost authenticator; the person sets up a new one at the next sign-in |
 
-Passwords are asked for at a hidden prompt, never taken as arguments (they would show up in the process list and the shell history), and need 12 characters. In a script on Linux or in a container the prompt also reads standard input (`printf '%s\n%s\n' "$PW" "$PW" | docker compose run --rm -T cli flask users create EMAIL`); on Windows run the command in a terminal. The last active administrator cannot be switched off or demoted. Every change is written to the `app.audit` log, without the password.
+Passwords are asked for at a hidden prompt, never taken as arguments (they would show up in the process list and the shell history), and need 12 characters. In a script on Linux or in a container the prompt also reads standard input (`printf '%s\n%s\n' "$PW" "$PW" | docker compose run --rm -T cli flask users create EMAIL`); on Windows run the command in a terminal. The last active administrator cannot be switched off or demoted. Every change goes into the [audit log](#limits-and-the-audit-log), without the password. People change their own password with *Password* in the page header; no mail is sent about it.
 
 **Who sees what.** An assessment is private when it is created: only its owner and the administrators can open it. On the assessment page the owner or an administrator can *Share with the team* (and make it private again). A shared assessment can be opened by every signed-in user, who can scan it, add hosts and decide about its findings, but only the owner and the administrators change who sees it. A domain is shared once: sharing a second assessment of the same domain is refused. When somebody leaves, switch the account off; their private assessments stay, and an administrator can share them.
 
 **Two-factor sign-in** is optional and on by default in production (`REQUIRE_MFA`): a new account sets up an authenticator app at its first sign-in. With `REQUIRE_MFA=false` anybody can still turn it on through *Two-factor* in the page header.
+
+## Limits and the audit log
+
+Three settings bound what the tool does and how long it remembers it (`.env`; `.env.example` lists them):
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `MAX_HOSTS_PER_RUN` | `200` | hosts one scan reviews; the rest is reported as "over the limit". At most 2000, whatever is set: a larger value stops the start |
+| `MAX_SCANS_PER_USER_PER_HOUR` | `20` | scans one person may start in an hour, over all their assessments; `0` switches the limit off (at most 1000) |
+| `AUDIT_RETENTION_DAYS` | `730` | how long the audit log keeps an entry; `0` keeps them for ever (at most 3650) |
+
+The scan limit protects the assessed hosts, the data providers and the worker from a script or a stolen session. A person who reaches it is told when the next scan can start, and the refusal is written to the audit log. It is a brake, not a meter: two requests in the same instant can both pass.
+
+**The audit log** answers *who did what, when, to which assessment*. An entry is written in the same database transaction as the change it records, so there is no entry without the change and no change without its entry, and nothing edits an entry afterwards.
+
+| Kind | Entries |
+|---|---|
+| Sign-in | signed in, signed out, failed sign-in (of an address that has an account), password changed, two-factor setup changed |
+| Assessments | created, shared with the team, made private |
+| Hosts | hosts added by hand, a host removed |
+| Scans | started, cancelled, refused because of the limit |
+| Findings | accepted, marked as a false positive, reopened |
+| Exports | report opened, JSON, hosts CSV, findings CSV |
+| Accounts | created, new password, switched on or off, administrator role given or taken away, authenticator forgotten |
+
+Each entry has the time (UTC), the person (the e-mail address as it was then), where it came from (the client address, or *command line* for `flask` commands), the assessment, and a few small facts such as the rule of a finding, the number of hosts or the limit that was hit. **It never holds a password, a secret or the reason somebody gave for a decision**; that stays with the decision. A failed sign-in for an address nobody has is not recorded: it may be a password typed into the wrong field, and strangers must not be able to fill the log.
+
+Administrators read it on the **Audit log** page (a link next to *Assessments*, for administrators only; everybody else gets a 404) with filters for the kind, the action, the person, the time and the assessment, and with a command (the same entries, newest first):
+
+```bash
+docker compose run --rm cli flask audit list --days 7 --group scan --user @example.org
+```
+
+The table is `audit_event` if you prefer SQL. The worker removes entries older than `AUDIT_RETENTION_DAYS` once an hour. Entries outlive the account and the assessment they are about (the links are cleared, the e-mail address and the domain stay as text). Every entry is also written as one line to the `app.audit` logger (`docker compose logs web worker`): ship these lines to a log collector when the record must outlast what a database administrator could change, because the table is only as trustworthy as the access to the database.
 
 ## Security notes
 
 - **Containers.** The application runs as an unprivileged user in a read-only container with no capabilities, `no-new-privileges`, memory and process limits and rotated logs. The only writable place is the `datasets` volume, and only the `cli` service mounts it writable. There is no Docker socket anywhere. The database sits on an internal network and publishes nothing.
 - **The worker connects to hosts that people type in.** The application refuses to connect to private, loopback and link-local addresses and pins the address it resolved (`runner/`); that gate is in the code, and it is the only thing between the worker and the networks the Docker host can reach. If those include internal networks, add a rule of your own as a second layer: run the stack on a host or VLAN that cannot reach them, or filter the containers' egress. Keep `.env` out of version control and readable by its owner only; anyone in the `docker` group can read the settings of a container (`docker inspect`), so treat that group like root.
 - **IPv6.** Docker does not give containers IPv6 by default; a host reachable only over IPv6 then shows failed checks (never a clean result). Enable IPv6 for the Docker network if you need those.
-- **No mail, no registration.** Accounts are created on the command line ([Team accounts](#team-accounts)); there is no sign-up and no password-reset mail.
+- **No mail, no registration.** Accounts are created on the command line ([Team accounts](#team-accounts)); there is no sign-up, no password-reset mail and no "your password was changed" notice (the change is in the [audit log](#limits-and-the-audit-log) instead).
 
 ## Troubleshooting
 
@@ -146,5 +180,7 @@ Passwords are asked for at a hidden prompt, never taken as arguments (they would
 | Signing in does nothing or loops | plain HTTP on an address other than `localhost`: the `Secure` cookie is dropped; use HTTPS |
 | Everyone is told "Too many attempts" | `TRUSTED_PROXY_COUNT` is 0 behind a proxy: all clients count as one address |
 | Scans stay queued | the worker is not running (`docker compose ps`, `docker compose logs worker`) |
+| "You have started the most scans allowed in an hour" | `MAX_SCANS_PER_USER_PER_HOUR`: the message says when the next scan can start; raise the limit or set it to `0` |
+| The worker logs `relation "audit_event" does not exist` (or another missing table) | the database is behind the code: run `flask db upgrade` (`docker compose up -d --build` does it) |
 | Somebody forgot the password or lost the phone | `users set-password EMAIL`, `users reset-mfa EMAIL` |
 | IP location says "unavailable" | run `docker compose run --rm cli flask datasets update` |

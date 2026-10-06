@@ -7,6 +7,7 @@ from flask_security.datastore import SQLAlchemyUserDatastore
 
 from app.audit import init_audit_log
 from app.blueprints.assessments import assessments_bp
+from app.blueprints.audit import audit_bp
 from app.blueprints.core import core_bp
 from app.commands import register_cli_commands
 from app.config import (
@@ -22,6 +23,7 @@ from app.extensions import csrf, db, migrate, security
 from app.i18n import init_i18n
 from app.logging_redaction import install_log_redaction
 from app.models.auth import Role, User
+from app.service.auth import register_auth_audit
 from app.service.auth.rate_limit import register_auth_rate_limit
 from app.web import register_error_pages, register_proxy_fix, register_security_headers
 
@@ -80,6 +82,7 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
     user_datastore = SQLAlchemyUserDatastore(db, User, Role)
     security.init_app(app, user_datastore)
     register_auth_rate_limit(app)
+    register_auth_audit(app)
 
     init_i18n(app)
     register_security_headers(app)
@@ -87,6 +90,7 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
 
     app.register_blueprint(core_bp)
     app.register_blueprint(assessments_bp)
+    app.register_blueprint(audit_bp)
 
     register_cli_commands(app)
 

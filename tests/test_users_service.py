@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models.auth import User
 from app.service import users as user_service
 from app.service.users import UserAdminError
-from tests.helpers import login_as
+from tests.helpers import audit_rows, login_as
 
 PASSWORD = "Correct-Horse-Battery-1"
 
@@ -204,7 +204,7 @@ def test_the_list_names_administrators_first_and_what_each_account_can_do(
 # ------------------------------------------------------------------------------ the log
 
 
-def test_every_change_is_logged_without_a_password(
+def test_every_change_is_in_the_audit_log_without_a_password(
     db_session: Session, caplog: pytest.LogCaptureFixture
 ) -> None:
     with caplog.at_level(logging.INFO, logger="app.audit"):
@@ -213,13 +213,16 @@ def test_every_change_is_logged_without_a_password(
         user_service.set_active(db_session, user.email, False)
         user_service.set_admin(db_session, user.email, True)
         user_service.reset_mfa(db_session, user.email)
-    lines = [r.getMessage() for r in caplog.records if r.name == "app.audit"]
-    assert [line.split(":")[0] for line in lines] == [
-        "user created",
-        "user password set",
-        "user deactivated",
-        "user got the administrator role",
-        "user authenticator reset",
+    entries = audit_rows(db_session)
+    assert [e.action for e in entries] == [
+        "user.created",
+        "user.password_set",
+        "user.deactivated",
+        "user.admin_granted",
+        "user.mfa_reset",
     ]
-    assert all(str(user.id) in line for line in lines)
-    assert not any(PASSWORD in line or "Another-Strong" in line for line in lines)
+    # a command line has nobody signed in; the entry says whom it concerned
+    assert all(e.actor_id is None and e.source == "cli" for e in entries)
+    assert all(e.subject == str(user.id) and e.details["email"] == user.email for e in entries)
+    everything = repr([e.details for e in entries]) + caplog.text
+    assert PASSWORD not in everything and "Another-Strong" not in everything
