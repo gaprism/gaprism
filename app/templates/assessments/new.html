@@ -10,7 +10,7 @@
 <form method="post" class="panel max-w-2xl p-5" novalidate>
   {{ form.hidden_tag() }}
   {% if existing %}
-  <div class="notice mb-4" role="alert">{{ icon('info') }}<p>{{ _('An assessment for this domain already exists:') }} <a class="link" href="{{ url_for('assessments.detail', assessment_id=existing.id) }}"><bdi>{{ existing.domain_display }}</bdi></a></p></div>
+  <div class="notice mb-4" role="alert">{{ icon('info') }}<p>{{ _('An assessment for this domain already exists:') }} <a class="link" href="{{ url_for('assessments.detail', assessment_id=existing.id) }}"><bdi>{{ existing.domain_display }}</bdi></a>{% if existing.archived_at %} ({{ _('archived: restore it from its page to work on it again') }}){% endif %}</p></div>
   {% endif %}
   {{ text_field(form.domain, _('Domain'), help=_('The vendor domain, for example example.com. No URL, no IP address, no wildcard.'), placeholder='example.com') }}
   {{ text_field(form.label, _('Label (optional)'), help=_('A name to recognise the assessment, for example the vendor or the project.')) }}

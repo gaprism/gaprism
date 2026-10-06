@@ -18,17 +18,17 @@ from app.checks import DISCOVERY_KEY, Check, checks_with_scope
 from app.config import MAX_HOSTS_CEILING
 from app.models import Assessment, CheckResult, Host, Scan, User
 from app.models.base import utc_now
-from app.models.scan import COMPARABLE_SCAN_STATUSES
+from app.models.scan import ACTIVE_SCAN_STATUSES, COMPARABLE_SCAN_STATUSES
 from app.service import audit as audit_service
 from app.service import findings as findings_service
 from app.service import summary as summary_service
+from app.service.assessments import AssessmentArchivedError
 from app.service.host_view import CheckCell, DomainRow, domain_rows, host_cells
 
 log = logging.getLogger(__name__)
 
 OPEN_CHECK_STATUSES = ("queued", "running")
 PROBLEM_CHECK_STATUSES = ("error", "unavailable")
-ACTIVE_SCAN_STATUSES = ("queued", "running")
 
 
 class ScanInProgressError(Exception):
@@ -86,6 +86,8 @@ def start_scan(
     The options record what this scan was configured with, so an old scan stays explainable
     after the configuration or the manual host list changed.
     """
+    if assessment.archived_at is not None:
+        raise AssessmentArchivedError
     active = get_active_scan(session, assessment.id)
     if active is not None:
         raise ScanInProgressError(active)

@@ -127,6 +127,8 @@ Passwords are asked for at a hidden prompt, never taken as arguments (they would
 
 **Who sees what.** An assessment is private when it is created: only its owner and the administrators can open it. On the assessment page the owner or an administrator can *Share with the team* (and make it private again). A shared assessment can be opened by every signed-in user, who can scan it, add hosts and decide about its findings, but only the owner and the administrators change who sees it. A domain is shared once: sharing a second assessment of the same domain is refused. When somebody leaves, switch the account off; their private assessments stay, and an administrator can share them.
 
+**Archive and delete.** The owner and the administrators can archive an assessment: it leaves the list (the *Archived* tab has it), cannot be scanned or changed, and can be restored; its reports, exports and history stay available. They can also delete it, which removes it with all its scans, hosts, findings and decisions for good, after typing its domain; take a [backup](#operating-it) first if you may need it again. Neither works while a scan is queued or running, a colleague who only has access to a shared assessment can do neither, and both are written to the [audit log](#limits-and-the-audit-log) (a deleted assessment stays in it by domain).
+
 **Two-factor sign-in** is optional and on by default in production (`REQUIRE_MFA`): a new account sets up an authenticator app at its first sign-in. With `REQUIRE_MFA=false` anybody can still turn it on through *Two-factor* in the page header.
 
 ## Limits and the audit log
@@ -146,7 +148,7 @@ The scan limit protects the assessed hosts, the data providers and the worker fr
 | Kind | Entries |
 |---|---|
 | Sign-in | signed in, signed out, failed sign-in (of an address that has an account), password changed, two-factor setup changed |
-| Assessments | created, shared with the team, made private |
+| Assessments | created, shared with the team, made private, archived, restored, deleted |
 | Hosts | hosts added by hand, a host removed |
 | Scans | started, cancelled, refused because of the limit |
 | Findings | accepted, marked as a false positive, reopened |

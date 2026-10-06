@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, String
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +37,9 @@ class Assessment(BaseUUIDModel, TimestampMixin):
     manual_hosts: Mapped[list[str]] = mapped_column(
         JSONB, nullable=False, default=list, server_default=JSONB_EMPTY_ARRAY
     )
+    # Set while the assessment is archived: hidden from the default list and read-only. It still
+    # holds its domain, so the domain cannot be assessed a second time next to it.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     scans: Mapped[list[Scan]] = relationship(
         "Scan",

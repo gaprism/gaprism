@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.assessment import Assessment
 
 SCAN_STATUSES = ("queued", "running", "completed", "partial", "failed", "cancelled")
+ACTIVE_SCAN_STATUSES = ("queued", "running")  # a worker may still touch the scan
 TERMINAL_SCAN_STATUSES = ("completed", "partial", "failed", "cancelled")
 # Scans that ran to the end: what a comparison with an earlier scan starts from. A cancelled or
 # failed scan did not look at everything, so what it lacks is not a change.

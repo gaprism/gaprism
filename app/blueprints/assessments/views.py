@@ -79,12 +79,22 @@ def _panel_context(assessment: Assessment) -> dict[str, Any]:
 @assessments_bp.get("/")
 @login_required
 def index() -> str:
-    """List the assessments the signed-in user may open."""
-    assessments = assessment_service.list_visible(db.session(), _current_user())
+    """List the assessments the signed-in user may open: the live ones, or the archived ones."""
+    everything = assessment_service.list_visible(db.session(), _current_user(), archived=None)
+    live = [item for item in everything if item.archived_at is None]
+    archived = sorted(
+        (item for item in everything if item.archived_at is not None),
+        key=lambda item: item.archived_at or item.created_at,
+        reverse=True,
+    )
+    viewing_archive = request.args.get("view") == "archived"
+    shown = archived if viewing_archive else live
     return render_template(
         "assessments/index.html",
-        assessments=assessments,
-        owners=assessment_service.owner_emails(db.session(), assessments),
+        assessments=shown,
+        owners=assessment_service.owner_emails(db.session(), shown),
+        viewing_archive=viewing_archive,
+        counts={"live": len(live), "archived": len(archived)},
     )
 
 
@@ -167,6 +177,100 @@ def set_visibility(assessment_id: uuid.UUID) -> Response:
     return redirect(url_for("assessments.detail", assessment_id=assessment.id))
 
 
+def _archived_refusal(assessment: Assessment) -> Response | None:
+    """A redirect with a message when the assessment is archived (read-only); else ``None``."""
+    if assessment.archived_at is None:
+        return None
+    flash(_("This assessment is archived and read-only. Restore it to change it."), "warning")
+    return redirect(url_for("assessments.detail", assessment_id=assessment.id))
+
+
+def _manageable(assessment_id: uuid.UUID) -> Assessment:
+    """An assessment the signed-in user may archive or delete (the owner or an administrator);
+    a colleague who can only open it gets 403, a stranger 404."""
+    assessment = _get_accessible(assessment_id)
+    if not assessment_service.can_manage(_current_user(), assessment):
+        abort(403)
+    return assessment
+
+
+@assessments_bp.post("/<uuid:assessment_id>/archive")
+@login_required
+def archive_assessment(assessment_id: uuid.UUID) -> Response:
+    """Hide the assessment from the list and make it read-only (owner and administrators)."""
+    assessment = _manageable(assessment_id)
+    try:
+        archived = assessment_service.archive(db.session(), assessment, _current_user())
+    except assessment_service.AssessmentBusyError:
+        db.session.rollback()
+        flash(
+            _(
+                "A scan is queued or running for this assessment. "
+                "Cancel it, or wait for it, before archiving it."
+            ),
+            "warning",
+        )
+        return redirect(url_for("assessments.detail", assessment_id=assessment.id))
+    db.session.commit()
+    if archived:
+        flash(
+            _(
+                "Archived. It is hidden from the list: "
+                "the Archived tab has it, and you can restore it."
+            ),
+            "info",
+        )
+    return redirect(url_for("assessments.index"))
+
+
+@assessments_bp.post("/<uuid:assessment_id>/unarchive")
+@login_required
+def unarchive_assessment(assessment_id: uuid.UUID) -> Response:
+    """Bring an archived assessment back to the list (owner and administrators)."""
+    assessment = _manageable(assessment_id)
+    if assessment_service.unarchive(db.session(), assessment, _current_user()):
+        db.session.commit()
+        flash(_("Restored from the archive."), "info")
+    return redirect(url_for("assessments.detail", assessment_id=assessment.id))
+
+
+@assessments_bp.route("/<uuid:assessment_id>/delete", methods=["GET", "POST"])
+@login_required
+def delete_assessment(assessment_id: uuid.UUID) -> str | Response:
+    """Delete the assessment for good, after the person typed its domain (owner and
+    administrators). The page says what goes with it."""
+    assessment = _manageable(assessment_id)
+    error: str | None = None
+    if request.method == "POST":
+        typed = request.form.get("confirm", "")[:300].strip().lower()
+        if typed not in {assessment.domain, assessment.domain_display.lower()}:
+            error = _("That is not the domain, so nothing was deleted.")
+        else:
+            domain = assessment.domain_display
+            try:
+                assessment_service.delete_assessment(db.session(), assessment, _current_user())
+            except assessment_service.AssessmentBusyError:
+                db.session.rollback()
+                flash(
+                    _(
+                        "A scan is queued or running for this assessment. "
+                        "Cancel it, or wait for it, before deleting it."
+                    ),
+                    "warning",
+                )
+                return redirect(url_for("assessments.detail", assessment_id=assessment.id))
+            db.session.commit()
+            flash(_("Deleted %(domain)s.", domain=domain), "info")
+            return redirect(url_for("assessments.index"))
+    return render_template(
+        "assessments/delete.html",
+        assessment=assessment,
+        contents=assessment_service.contents(db.session(), assessment),
+        scan_active=scan_service.get_active_scan(db.session(), assessment.id) is not None,
+        error=error,
+    )
+
+
 @assessments_bp.get("/<uuid:assessment_id>/scan-panel")
 @login_required
 def scan_panel(assessment_id: uuid.UUID) -> str:
@@ -183,6 +287,9 @@ def start_scan(assessment_id: uuid.UUID) -> Response:
     assessment = _get_accessible(assessment_id)
     try:
         scan_service.start_scan(db.session(), assessment, _current_user(), current_app.config)
+    except assessment_service.AssessmentArchivedError:
+        db.session.rollback()
+        flash(_("This assessment is archived and read-only. Restore it to change it."), "warning")
     except scan_service.ScanInProgressError:
         db.session.rollback()
         flash(_("A scan is already queued or running for this assessment."), "warning")
@@ -313,6 +420,8 @@ def _after_decision(assessment: Assessment, finding: Finding) -> str:
 def decide_finding(assessment_id: uuid.UUID, finding_id: uuid.UUID) -> Response:
     """Accept a finding, mark it as a false positive, or reopen it."""
     assessment = _get_accessible(assessment_id)
+    if (refusal := _archived_refusal(assessment)) is not None:
+        return refusal
     finding = decision_service.get_finding(db.session(), assessment.id, finding_id)
     if finding is None:
         abort(404)  # also for a finding of another assessment: never confirm it exists
@@ -362,6 +471,8 @@ def domain_detail(assessment_id: uuid.UUID) -> str:
 def add_hosts(assessment_id: uuid.UUID) -> Response:
     """Add hostnames by hand; they join every later scan."""
     assessment = _get_accessible(assessment_id)
+    if (refusal := _archived_refusal(assessment)) is not None:
+        return refusal
     raw = request.form.get("hostnames", "")[:MAX_HOSTNAMES_INPUT]
     result = assessment_service.add_manual_hosts(db.session(), assessment, raw)
     db.session.commit()
@@ -387,6 +498,8 @@ def add_hosts(assessment_id: uuid.UUID) -> Response:
 def remove_host(assessment_id: uuid.UUID) -> Response:
     """Remove a manually added hostname."""
     assessment = _get_accessible(assessment_id)
+    if (refusal := _archived_refusal(assessment)) is not None:
+        return refusal
     hostname = request.form.get("hostname", "")
     if assessment_service.remove_manual_host(db.session(), assessment, hostname):
         db.session.commit()

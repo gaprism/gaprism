@@ -55,6 +55,7 @@
 {# The forms of a finding: accept it or mark it as a false positive (a reason is required), or take
    the decision back. ``back`` holds the hidden fields that return the person to the page they were on. #}
 {% macro decision_form(finding, assessment, back) %}
+{% if not assessment.archived_at %}  {# an archived assessment is read-only #}
 {% set earliest, latest = review_window() %}
 {% set action = url_for('assessments.decide_finding', assessment_id=assessment.id, finding_id=finding.id) %}
 <details class="mt-3 rounded-md border border-line px-3 py-2">
@@ -87,6 +88,7 @@
   </form>
   {% endif %}
 </details>
+{% endif %}
 {% endmacro %}
 
 {# One finding. show_where: name the host, address or domain it is about. back: the hidden fields of

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from 'components/ui.html' import action, badge %}
+{% from 'components/ui.html' import action, badge, icon %}
 {% block title %}{{ assessment.domain_display }}{% endblock %}
 {% block content %}
 <div class="mb-2 flex flex-wrap items-start justify-between gap-3">
@@ -30,12 +30,30 @@
   </div>
   <div class="flex flex-wrap items-center gap-2">
     {% if overview %}{{ action(_('Scan history'), href=url_for('assessments.scan_history', assessment_id=assessment.id)) }}{% endif %}
+    {% if not assessment.archived_at %}
     <form method="post" action="{{ url_for('assessments.start_scan', assessment_id=assessment.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {{ action(_('Re-scan') if overview else _('Start scan'), variant='primary', type='submit') }}
     </form>
+    {% endif %}
   </div>
 </div>
+
+{% if assessment.archived_at %}
+<div class="notice mt-4" role="status">
+  {{ icon('info') }}
+  <div>
+    <p class="font-semibold">{{ _('This assessment is archived.') }}</p>
+    <p class="mt-1 text-muted">{{ _('It is hidden from the list and read-only: it cannot be scanned or changed, but the reports, the exports and the scan history stay available.') }} {{ _('Archived') }} <time datetime="{{ assessment.archived_at.isoformat() }}">{{ assessment.archived_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>.</p>
+    {% if can_manage %}
+    <form method="post" action="{{ url_for('assessments.unarchive_assessment', assessment_id=assessment.id) }}" class="mt-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {{ action(_('Restore'), variant='secondary', type='submit') }}
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
 {% include "assessments/_scan_panel.html" %}
 
@@ -46,16 +64,21 @@
   <ul class="mt-4 flex flex-wrap gap-2">
     {% for hostname in assessment.manual_hosts %}
     <li>
+      {% if assessment.archived_at %}
+      <span class="inline-flex items-center rounded-md border border-line bg-canvas px-3 py-1"><bdi class="font-mono text-sm">{{ hostname }}</bdi></span>
+      {% else %}
       <form method="post" action="{{ url_for('assessments.remove_host', assessment_id=assessment.id) }}" class="inline-flex items-center gap-1 rounded-md border border-line bg-canvas py-1 pl-3 pr-1">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="hostname" value="{{ hostname }}">
         <bdi class="font-mono text-sm">{{ hostname }}</bdi>
         <button class="btn btn-quiet min-h-8 px-2 py-0" type="submit" aria-label="{{ _('Remove %(host)s', host=hostname) }}">×</button>
       </form>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>
   {% endif %}
+  {% if not assessment.archived_at %}
   <form method="post" action="{{ url_for('assessments.add_hosts', assessment_id=assessment.id) }}" class="mt-4 max-w-2xl">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
@@ -65,5 +88,32 @@
     </div>
     <div class="mt-3">{{ action(_('Add hosts'), type='submit') }}</div>
   </form>
+  {% endif %}
 </section>
+
+{% if can_manage %}
+<section class="panel mt-6 p-5" aria-labelledby="manage-title">
+  <h2 id="manage-title">{{ _('Archive or delete') }}</h2>
+  {% if overview and overview.is_active %}
+  <p class="mt-2 max-w-3xl text-sm text-muted">{{ _('A scan is queued or running. Cancel it, or wait for it to finish, before archiving or deleting this assessment.') }}</p>
+  {% endif %}
+  <div class="mt-4 grid gap-6 md:grid-cols-2">
+    {% if not assessment.archived_at %}
+    <div>
+      <h3 class="text-base">{{ _('Archive') }}</h3>
+      <p class="mt-1 text-sm text-muted">{{ _('Hide this assessment from the list. It stays readable and can be restored; its scans, hosts and decisions are kept. An archived assessment cannot be scanned or changed.') }}</p>
+      <form method="post" action="{{ url_for('assessments.archive_assessment', assessment_id=assessment.id) }}" class="mt-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ action(_('Archive'), type='submit') }}
+      </form>
+    </div>
+    {% endif %}
+    <div>
+      <h3 class="text-base">{{ _('Delete') }}</h3>
+      <p class="mt-1 text-sm text-muted">{{ _('Delete this assessment with its scans, hosts, findings and decisions. This cannot be undone; the audit log keeps that it happened.') }}</p>
+      <div class="mt-3">{{ action(_('Delete…'), url_for('assessments.delete_assessment', assessment_id=assessment.id), 'destructive') }}</div>
+    </div>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

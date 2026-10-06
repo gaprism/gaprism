@@ -7,11 +7,14 @@ import uuid
 from collections.abc import Collection
 from dataclasses import dataclass
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.models import Finding, FindingDisposition, Host, Scan
 from app.models.assessment import VISIBILITIES, Assessment
 from app.models.auth import User
+from app.models.base import utc_now
+from app.models.scan import ACTIVE_SCAN_STATUSES
 from app.service import audit as audit_service
 from app.service.discovery.scope import ScopeValidationError, canonicalise_domain, is_in_scope
 from app.service.discovery.service import normalise_name
@@ -27,6 +30,14 @@ class DuplicateAssessmentError(ValueError):
     def __init__(self, existing: Assessment) -> None:
         super().__init__("An assessment for this domain already exists.")
         self.existing = existing
+
+
+class AssessmentBusyError(Exception):
+    """A scan is queued or running: cancel it, or wait for it, before archiving or deleting."""
+
+
+class AssessmentArchivedError(Exception):
+    """The assessment is archived and read-only: restore it to change it."""
 
 
 def is_admin(user: User) -> bool:
@@ -88,12 +99,137 @@ def set_visibility(session: Session, assessment: Assessment, visibility: str, us
     )
 
 
-def list_visible(session: Session, user: User) -> list[Assessment]:
-    """Assessments the user may open, newest first."""
+def list_visible(session: Session, user: User, archived: bool | None = False) -> list[Assessment]:
+    """Assessments the user may open, newest first: the live ones by default, only the archived
+    ones with ``archived=True``, all of them with ``None``."""
     stmt = select(Assessment).order_by(Assessment.created_at.desc())
     if not is_admin(user):
         stmt = stmt.where(or_(Assessment.created_by == user.id, Assessment.visibility == "team"))
+    if archived is True:
+        stmt = stmt.where(Assessment.archived_at.is_not(None))
+    elif archived is False:
+        stmt = stmt.where(Assessment.archived_at.is_(None))
     return list(session.scalars(stmt))
+
+
+def _locked(session: Session, assessment: Assessment) -> Assessment:
+    """The assessment's row, locked until the transaction ends. Archiving and deleting then queue
+    up behind a scan that is being started, and a scan that is started during one of them waits."""
+    row: Assessment | None = session.scalar(
+        select(Assessment).where(Assessment.id == assessment.id).with_for_update()
+    )
+    if row is None:
+        raise LookupError("The assessment no longer exists.")
+    return row
+
+
+def _scan_active(session: Session, assessment: Assessment) -> bool:
+    return (
+        session.scalar(
+            select(Scan.id)
+            .where(Scan.assessment_id == assessment.id, Scan.status.in_(ACTIVE_SCAN_STATUSES))
+            .limit(1)
+        )
+        is not None
+    )
+
+
+def archive(session: Session, assessment: Assessment, user: User) -> bool:
+    """Hide an assessment from the default list and make it read-only; scans, hosts and decisions
+    stay. ``False`` if it was archived already. Raises ``AssessmentBusyError`` while a scan is
+    queued or running. The caller checks that ``user`` may manage it and commits."""
+    row = _locked(session, assessment)
+    if row.archived_at is not None:
+        return False
+    if _scan_active(session, row):
+        raise AssessmentBusyError
+    row.archived_at = utc_now()
+    session.flush()
+    audit_service.record(session, "assessment.archived", actor=user, assessment=row)
+    return True
+
+
+def unarchive(session: Session, assessment: Assessment, user: User) -> bool:
+    """Bring an archived assessment back to the list. ``False`` if it was not archived. The caller
+    checks that ``user`` may manage it and commits."""
+    row = _locked(session, assessment)
+    if row.archived_at is None:
+        return False
+    row.archived_at = None
+    session.flush()
+    audit_service.record(session, "assessment.unarchived", actor=user, assessment=row)
+    return True
+
+
+@dataclass(frozen=True)
+class Contents:
+    """What an assessment holds: what deleting it takes with it."""
+
+    scans: int
+    hosts: int
+    findings: int
+    decisions: int
+
+
+def contents(session: Session, assessment: Assessment) -> Contents:
+    """Count what belongs to the assessment (for the confirmation page and the audit entry)."""
+
+    def count(*statement: object) -> int:
+        return int(session.scalar(*statement) or 0)  # type: ignore[call-overload]
+
+    return Contents(
+        scans=count(
+            select(func.count()).select_from(Scan).where(Scan.assessment_id == assessment.id)
+        ),
+        hosts=count(
+            select(func.count())
+            .select_from(Host)
+            .join(Scan, Scan.id == Host.scan_id)
+            .where(Scan.assessment_id == assessment.id)
+        ),
+        findings=count(
+            select(func.count())
+            .select_from(Finding)
+            .join(Scan, Scan.id == Finding.scan_id)
+            .where(Scan.assessment_id == assessment.id)
+        ),
+        decisions=count(
+            select(func.count())
+            .select_from(FindingDisposition)
+            .where(FindingDisposition.assessment_id == assessment.id)
+        ),
+    )
+
+
+def delete_assessment(session: Session, assessment: Assessment, user: User) -> Contents:
+    """Delete an assessment with its scans, hosts, check results, findings and decisions (the
+    foreign keys cascade). Raises ``AssessmentBusyError`` while a scan is queued or running.
+
+    The audit entry is written first, with the domain and what went with it; its link to the
+    assessment is cleared by the delete and the entry stays. The caller checks that ``user`` may
+    manage it, and commits."""
+    row = _locked(session, assessment)
+    if _scan_active(session, row):
+        raise AssessmentBusyError
+    taken = contents(session, row)
+    audit_service.record(
+        session,
+        "assessment.deleted",
+        actor=user,
+        assessment=row,
+        subject=str(row.id),
+        details={
+            "scans": taken.scans,
+            "hosts": taken.hosts,
+            "findings": taken.findings,
+            "decisions": taken.decisions,
+            "visibility": row.visibility,
+            "archived": row.archived_at is not None,
+        },
+    )
+    session.delete(row)
+    session.flush()
+    return taken
 
 
 def create_assessment(
@@ -120,7 +256,7 @@ def create_assessment(
     if len(clean_label) > MAX_LABEL_LENGTH:
         raise ValueError(f"The label may not exceed {MAX_LABEL_LENGTH} characters.")
 
-    for existing in list_visible(session, user):
+    for existing in list_visible(session, user, archived=None):  # an archived one keeps its domain
         if existing.domain == scope.canonical:
             raise DuplicateAssessmentError(existing)
 

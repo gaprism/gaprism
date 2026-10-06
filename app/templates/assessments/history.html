@@ -14,10 +14,12 @@
     <h1>{{ _('Scan history') }}</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">{{ _('Every scan stays as it was when it ended; a new scan never changes an old one. What the team decided about a finding belongs to the assessment and counts in every scan, so the report of an older scan shows the decisions of today.') }}</p>
   </div>
+  {% if not assessment.archived_at %}
   <form method="post" action="{{ url_for('assessments.start_scan', assessment_id=assessment.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {{ action(_('Re-scan') if rows else _('Start scan'), variant='primary', type='submit') }}
   </form>
+  {% endif %}
 </div>
 
 {% if not rows %}
