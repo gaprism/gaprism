@@ -23,7 +23,6 @@ from app.rules.base import (
 )
 
 HSTS_MIN_SECONDS = 15_552_000  # six months
-SERIOUS_TLS_FAILURES = ("expired", "not_yet_valid", "untrusted", "verify_failed", "other")
 WEAK_SIGNATURE_HASHES = ("md2", "md4", "md5", "sha1")
 _SESSION_COOKIE = re.compile(r"(sess|sid\b|auth|token|jwt|login|remember|identity)", re.IGNORECASE)
 _CSRF_COOKIE = re.compile(r"(csrf|xsrf)", re.IGNORECASE)

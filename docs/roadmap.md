@@ -1,7 +1,7 @@
 # Roadmap — MVP first
 
 > Proposed 2026-10-04 · replaces `docs/implementation/*` and `docs/backlog.md` (archived by S0.1)
-> Related: [design spec](superpowers/specs/2026-10-04-mvp-restart-design.md) · [checks catalogue](checks-catalog.md) · [code improvement plan](improvement-plan.md)
+> Related: [design spec](superpowers/specs/2026-10-04-mvp-restart-design.md) · [checks catalogue](checks-catalog.md) · [code improvement plan, archived](archive/2026-10-baseline-1/improvement-plan.md)
 
 ## 1. Goal and MVP
 

@@ -26,6 +26,7 @@ node_modules/
 .idea/
 .vscode/
 .junie/
+.aiassistant/
 .claude/settings.local.json
 
 # OS

@@ -1,7 +1,7 @@
 # MVP restart — design
 
 > 2026-10-04 · **Status: approved 2026-10-04 — implementation started on branch `mvp`.** Confirmed by the owner: D2 (Apache-2.0), D3/D4 (lean access defaults), D9 (24 months), D10 (CDN → Medium, low confidence), baseline snapshot (`baseline-1`). The change list (city, Shodan key, three CT sources, breach and location rules, finding acceptance) is folded into the roadmap, catalogue and plan. · Supersedes `docs/architecture.md`, `docs/design/*`, `docs/implementation/*`, `docs/backlog.md` (archived by S0.1)
-> Companions: [roadmap](../../roadmap.md) (epics/stories) · [checks catalogue](../../checks-catalog.md) · [improvement plan](../../improvement-plan.md) (code review)
+> Companions: [roadmap](../../roadmap.md) (epics/stories) · [checks catalogue](../../checks-catalog.md) · [improvement plan](../../archive/2026-10-baseline-1/improvement-plan.md) (code review, archived)
 
 ## 1. Understanding
 
@@ -26,7 +26,7 @@
 - A5. Internal deployment behind a TLS reverse proxy; not a public service.
 - A6. "Shodan InternetDB — I have an API key": InternetDB itself takes no key, so I read this as *your Shodan API key* and use the full host API with it (decision D5/S2.2).
 
-## 2. Why restart (details in the [improvement plan](../../improvement-plan.md))
+## 2. Why restart (details in the [improvement plan](../../archive/2026-10-baseline-1/improvement-plan.md))
 
 - The live UI cannot render, and the tests cannot run on the configured Postgres.
 - The schema and plan serve a multi-tenant product: 22 tables, 16 with `workspace_id`, RLS helper functions, grants, lease-fencing queue, immutable hashed reports, retention clocks.

@@ -1,6 +1,6 @@
 # Code review and improvement plan
 
-> 2026-10-04 · Basis: static review of `app/` and `runner/`, a run of the tests that do not need DB-admin rights, probes against the configured WSL Postgres, and the new [roadmap](roadmap.md). Findings are **verified** unless marked *(inference)*.
+> 2026-10-04 · Basis: static review of `app/` and `runner/`, a run of the tests that do not need DB-admin rights, probes against the configured WSL Postgres, and the new [roadmap](../../roadmap.md). Findings are **verified** unless marked *(inference)*.
 
 ## 1. Verdict: selective rebuild
 
@@ -89,7 +89,7 @@ Each step is its own commit on `mvp`; nothing is pushed without your say-so.
 ## 6. Risks and open points
 
 - **Data confidentiality of targets.** Every external lookup tells a third party which vendor you are assessing (CT, InternetDB, RDAP, HIBP). Fine for most due diligence; for M&A work you may want an *offline-only* mode (local datasets, no third-party lookups). The checks are written so each external source can be switched off.
-- **Provider terms.** InternetDB, ip-api and a free ctlogs.dev key are non-commercial; they are config-switchable and the terms are in the [catalogue](checks-catalog.md#3-free-sources--verified-2026-10-04). A paid ctlogs.dev plan and your Shodan key cover commercial/internal corporate use.
+- **Provider terms.** InternetDB, ip-api and a free ctlogs.dev key are non-commercial; they are config-switchable and the terms are in the [catalogue](../../checks-catalog.md#3-free-sources--verified-2026-10-04). A paid ctlogs.dev plan and your Shodan key cover commercial/internal corporate use.
 - **Provider keys.** `SHODAN_API_KEY`, `CTLOGS_API_KEY` and `CERTSPOTTER_TOKEN` live only in `.env` (git-ignored). To record real-response fixtures in S2.2 I will read the Shodan key from there without printing it — and ask you before the first use.
 - **Licence choice** (S5.1) decides whether AGPL/GPL tools or data may ever be bundled.
 - **Auth.** Flask-Security-Too and its MFA flow were not exercised end-to-end here (DB harness); S0.4 includes a manual login test.
