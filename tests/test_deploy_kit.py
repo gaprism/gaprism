@@ -52,6 +52,26 @@ def test_the_dockerfile_copies_named_paths_and_never_the_settings() -> None:
         assert ".env" not in source, source
 
 
+def test_the_image_gets_every_package_the_application_imports() -> None:
+    """A package the Dockerfile forgot to copy would fail only inside the image."""
+    from_context = [
+        source.split()[0]
+        for line in DOCKERFILE.splitlines()
+        if line.startswith("COPY ") and "--from=" not in line
+        for source in [line.removeprefix("COPY ").rsplit(" ", 1)[0]]
+    ]
+    copied = {Path(source).parts[0] for source in from_context}
+    for source in from_context:
+        assert (ROOT / source).exists(), f"the Dockerfile copies {source}, which does not exist"
+    packages = {
+        path.parent.name
+        for path in ROOT.glob("*/__init__.py")
+        if path.parent.name not in {"tests", "docs", "scripts", "assets"}
+    }
+    assert packages <= copied, sorted(packages - copied)  # app and runner
+    assert {"migrations", "app", "runner"} <= copied
+
+
 def test_the_image_runs_as_an_unprivileged_user() -> None:
     final = DOCKERFILE.rsplit("\nFROM ", 1)[1]
     assert re.search(r"^USER app$", final, re.MULTILINE)
