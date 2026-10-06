@@ -19,7 +19,7 @@ from app.blueprints.assessments.access import uuid_or_none as _uuid_or_none
 from app.blueprints.assessments.forms import NewAssessmentForm
 from app.extensions import db
 from app.i18n import gettext as _
-from app.models.assessment import Assessment
+from app.models.assessment import VISIBILITIES, Assessment
 from app.models.finding import Finding
 from app.service import assessments as assessment_service
 from app.service import decisions as decision_service
@@ -60,12 +60,15 @@ def _panel_context(assessment: Assessment) -> dict[str, Any]:
         if scan
         else None
     )
+    user = _current_user()
     return {
         "assessment": assessment,
         "overview": overview,
         "q": query,
         "page": page,
         "state": state,
+        "owner_email": assessment_service.owner_emails(db.session(), [assessment])[assessment.id],
+        "can_manage": assessment_service.can_manage(user, assessment),
     }
 
 
@@ -73,9 +76,11 @@ def _panel_context(assessment: Assessment) -> dict[str, Any]:
 @login_required
 def index() -> str:
     """List the assessments the signed-in user may open."""
+    assessments = assessment_service.list_visible(db.session(), _current_user())
     return render_template(
         "assessments/index.html",
-        assessments=assessment_service.list_visible(db.session(), _current_user()),
+        assessments=assessments,
+        owners=assessment_service.owner_emails(db.session(), assessments),
     )
 
 
@@ -116,6 +121,41 @@ def detail(assessment_id: uuid.UUID) -> str:
     return render_template(
         "assessments/detail.html", **_panel_context(_get_accessible(assessment_id))
     )
+
+
+@assessments_bp.post("/<uuid:assessment_id>/visibility")
+@login_required
+def set_visibility(assessment_id: uuid.UUID) -> Response:
+    """Share the assessment with the whole team, or make it private again (owner and
+    administrators only)."""
+    assessment = _get_accessible(assessment_id)
+    user = _current_user()
+    if not assessment_service.can_manage(user, assessment):
+        abort(403)  # a colleague may work on a shared assessment, not hide it from the others
+    wanted = request.form.get("visibility", "")
+    if wanted not in VISIBILITIES:
+        abort(400)
+    try:
+        assessment_service.set_visibility(db.session(), assessment, wanted, user)
+    except assessment_service.DuplicateAssessmentError:
+        db.session.rollback()
+        flash(
+            _(
+                "The team already has a shared assessment for %(domain)s, so this one cannot be "
+                "shared as well.",
+                domain=assessment.domain_display,
+            ),
+            "warning",
+        )
+    else:
+        db.session.commit()
+        flash(
+            _("Shared with the team: every signed-in user can open it.")
+            if wanted == "team"
+            else _("Now private: only the owner and the administrators can open it."),
+            "info",
+        )
+    return redirect(url_for("assessments.detail", assessment_id=assessment.id))
 
 
 @assessments_bp.get("/<uuid:assessment_id>/scan-panel")

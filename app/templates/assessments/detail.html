@@ -13,7 +13,20 @@
       {% if assessment.domain != assessment.domain_display %}<bdi class="font-mono">{{ assessment.domain }}</bdi> · {% endif %}
       {% if assessment.label %}{{ assessment.label }} · {% endif %}
       {{ _('Created') }} <time datetime="{{ assessment.created_at.isoformat() }}">{{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+      {% if owner_email %} · {{ _('Owner') }}: <bdi>{{ owner_email }}</bdi>{% endif %}
     </p>
+    {% if can_manage %}
+    <form method="post" action="{{ url_for('assessments.set_visibility', assessment_id=assessment.id) }}" class="mt-2 flex flex-wrap items-center gap-2 text-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if assessment.visibility == 'team' %}
+      <span class="text-muted">{{ _('Every signed-in user can open this assessment.') }}</span>
+      <button class="btn btn-secondary" type="submit" name="visibility" value="private">{{ _('Make private') }}</button>
+      {% else %}
+      <span class="text-muted">{{ _('Only the owner and the administrators can open this assessment.') }}</span>
+      <button class="btn btn-secondary" type="submit" name="visibility" value="team">{{ _('Share with the team') }}</button>
+      {% endif %}
+    </form>
+    {% endif %}
   </div>
   <div class="flex flex-wrap items-center gap-2">
     {% if overview %}{{ action(_('Scan history'), href=url_for('assessments.scan_history', assessment_id=assessment.id)) }}{% endif %}

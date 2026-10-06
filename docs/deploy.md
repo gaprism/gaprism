@@ -109,12 +109,32 @@ docker compose up -d
 
 Volumes: `pgdata` (the database), `datasets` (IP location data, can be downloaded again), `caddy_data` (certificates), `caddy_config`.
 
+## Team accounts
+
+There is no sign-up and no password-reset mail: administrators run the accounts from the command line, with `docker compose run --rm cli flask users …` (without Docker: `uv run flask --app app users …`).
+
+| Command | What it does |
+|---|---|
+| `users create-admin` | the first administrator (asks for the e-mail address and the password); on an existing account it resets the password |
+| `users create EMAIL [--admin]` | a team account |
+| `users list` | the accounts: role, switched on or off, whether an authenticator is enrolled, last sign-in |
+| `users set-password EMAIL` | a new password; the person is signed out everywhere |
+| `users deactivate EMAIL` · `users activate EMAIL` | switch an account off (it is signed out with its next request) or on again |
+| `users grant-admin EMAIL` · `users revoke-admin EMAIL` | give or take the administrator role |
+| `users reset-mfa EMAIL` | forget a lost authenticator; the person sets up a new one at the next sign-in |
+
+Passwords are asked for at a hidden prompt, never taken as arguments (they would show up in the process list and the shell history), and need 12 characters. In a script on Linux or in a container the prompt also reads standard input (`printf '%s\n%s\n' "$PW" "$PW" | docker compose run --rm -T cli flask users create EMAIL`); on Windows run the command in a terminal. The last active administrator cannot be switched off or demoted. Every change is written to the `app.audit` log, without the password.
+
+**Who sees what.** An assessment is private when it is created: only its owner and the administrators can open it. On the assessment page the owner or an administrator can *Share with the team* (and make it private again). A shared assessment can be opened by every signed-in user, who can scan it, add hosts and decide about its findings, but only the owner and the administrators change who sees it. A domain is shared once: sharing a second assessment of the same domain is refused. When somebody leaves, switch the account off; their private assessments stay, and an administrator can share them.
+
+**Two-factor sign-in** is optional and on by default in production (`REQUIRE_MFA`): a new account sets up an authenticator app at its first sign-in. With `REQUIRE_MFA=false` anybody can still turn it on through *Two-factor* in the page header.
+
 ## Security notes
 
 - **Containers.** The application runs as an unprivileged user in a read-only container with no capabilities, `no-new-privileges`, memory and process limits and rotated logs. The only writable place is the `datasets` volume, and only the `cli` service mounts it writable. There is no Docker socket anywhere. The database sits on an internal network and publishes nothing.
 - **The worker connects to hosts that people type in.** The application refuses to connect to private, loopback and link-local addresses and pins the address it resolved (`runner/`); that gate is in the code, and it is the only thing between the worker and the networks the Docker host can reach. If those include internal networks, add a rule of your own as a second layer: run the stack on a host or VLAN that cannot reach them, or filter the containers' egress. Keep `.env` out of version control and readable by its owner only; anyone in the `docker` group can read the settings of a container (`docker inspect`), so treat that group like root.
 - **IPv6.** Docker does not give containers IPv6 by default; a host reachable only over IPv6 then shows failed checks (never a clean result). Enable IPv6 for the Docker network if you need those.
-- **No mail, no registration.** Accounts are created on the command line (`flask users create-admin`, which also resets a password); there is no sign-up and no password-reset mail.
+- **No mail, no registration.** Accounts are created on the command line ([Team accounts](#team-accounts)); there is no sign-up and no password-reset mail.
 
 ## Troubleshooting
 
@@ -126,4 +146,5 @@ Volumes: `pgdata` (the database), `datasets` (IP location data, can be downloade
 | Signing in does nothing or loops | plain HTTP on an address other than `localhost`: the `Secure` cookie is dropped; use HTTPS |
 | Everyone is told "Too many attempts" | `TRUSTED_PROXY_COUNT` is 0 behind a proxy: all clients count as one address |
 | Scans stay queued | the worker is not running (`docker compose ps`, `docker compose logs worker`) |
+| Somebody forgot the password or lost the phone | `users set-password EMAIL`, `users reset-mfa EMAIL` |
 | IP location says "unavailable" | run `docker compose run --rm cli flask datasets update` |

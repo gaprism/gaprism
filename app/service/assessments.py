@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import re
+import uuid
 from collections.abc import Collection
 from dataclasses import dataclass
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.audit import AUDIT_LOGGER
 from app.models.assessment import VISIBILITIES, Assessment
 from app.models.auth import User
 from app.service.discovery.scope import ScopeValidationError, canonicalise_domain, is_in_scope
@@ -17,6 +20,8 @@ from app.service.users import ADMIN_ROLE
 
 MAX_LABEL_LENGTH = 255
 MAX_MANUAL_HOSTS = 200
+
+audit = logging.getLogger(AUDIT_LOGGER)
 
 
 class DuplicateAssessmentError(ValueError):
@@ -35,6 +40,55 @@ def is_admin(user: User) -> bool:
 def can_access(user: User, assessment: Assessment) -> bool:
     """Owners and administrators always; everyone else only for team-shared assessments."""
     return assessment.created_by == user.id or assessment.visibility == "team" or is_admin(user)
+
+
+def can_manage(user: User, assessment: Assessment) -> bool:
+    """Who decides how widely an assessment is shared: its owner and the administrators. Everyone
+    who can open a team assessment may work on it (scan, decide, add hosts), but not hide it from
+    the others."""
+    return assessment.created_by == user.id or is_admin(user)
+
+
+def owner_emails(session: Session, assessments: Collection[Assessment]) -> dict[uuid.UUID, str]:
+    """The e-mail address of the owner of each assessment, by assessment id (one query)."""
+    owners = {assessment.created_by for assessment in assessments}
+    if not owners:
+        return {}
+    emails = dict(session.execute(select(User.id, User.email).where(User.id.in_(owners))).all())
+    return {a.id: emails.get(a.created_by, "") for a in assessments}
+
+
+def set_visibility(session: Session, assessment: Assessment, visibility: str, user: User) -> None:
+    """Share an assessment with the whole team, or make it private again. The caller checks that
+    ``user`` may manage it and commits.
+
+    Raises ``DuplicateAssessmentError`` when another assessment of the domain is already shared:
+    the team would then have two.
+    """
+    if visibility not in VISIBILITIES:
+        raise ValueError(f"Unknown visibility: {visibility!r}")
+    if visibility == assessment.visibility:
+        return
+    if visibility == "team":
+        existing = session.scalar(
+            select(Assessment)
+            .where(
+                Assessment.domain == assessment.domain,
+                Assessment.visibility == "team",
+                Assessment.id != assessment.id,
+            )
+            .limit(1)
+        )
+        if existing is not None:
+            raise DuplicateAssessmentError(existing)
+    assessment.visibility = visibility
+    session.flush()
+    audit.info(
+        "assessment visibility: assessment=%s visibility=%s by=%s",
+        assessment.id,
+        visibility,
+        user.id,
+    )
 
 
 def list_visible(session: Session, user: User) -> list[Assessment]:

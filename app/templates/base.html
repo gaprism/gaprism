@@ -16,6 +16,7 @@
       <div class="flex flex-wrap items-center gap-3 text-sm">
         <span class="text-muted">{{ current_user.email }}</span>
         <a class="link" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a>
+        <a class="link" href="{{ url_for_security('two_factor_setup') }}">{{ _('Two-factor') }}</a>
         <form action="{{ url_for_security('logout') }}" method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-quiet" type="submit">{{ _('Sign out') }}</button>

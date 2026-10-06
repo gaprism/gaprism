@@ -7,6 +7,7 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 - Tests: `uv run pytest` (unit + DB; `-m live` = real network, off by default) · lint: `uv run ruff check .` · types: `uv run mypy`
 - DB: `uv run flask --app app db upgrade` · worker: `uv run flask --app app worker` · web: `uv run flask --app app run --debug`
 - IP location data (offline, DB-IP Lite): `uv run flask --app app datasets update` (status: `datasets status`); stored in `var/datasets/`
+- Accounts: `uv run flask --app app users --help` (create-admin, create, list, set-password, deactivate, activate, grant-admin, revoke-admin, reset-mfa); assessments are private or shared with the team (owner and admins decide)
 - Docker: `docker compose up -d --build` (db, web, worker; `--profile proxy` adds HTTPS) · one-off commands `docker compose run --rm cli flask …` · see `docs/deploy.md`; the image installs gunicorn from the `deploy` dependency group, and `TRUSTED_PROXY_COUNT` says how many reverse proxies stand in front
 - Rules and findings: `uv run flask --app app findings rules` (list) · `findings evaluate [--domain d]` (re-run on a finished scan) · `uv run python -m app.rules.docs` regenerates `docs/rules.md` (a test fails when it is stale)
 - Config comes from `.env` (git-ignored; template `.env.example`): `DATABASE_URL`, `TEST_DATABASE_URL`, `DB_SCHEMA`, secrets, provider keys. Never print or commit keys.

@@ -1,5 +1,6 @@
 """Flask CLI commands: thin entry points that call services."""
 
+from collections.abc import Callable
 from pathlib import Path
 
 import click
@@ -142,6 +143,133 @@ def register_cli_commands(app: Flask) -> None:
             raise click.ClickException(str(exc)) from exc
         db.session.commit()
         click.echo(f"Administrator '{user.email}' is ready.")
+
+    def _new_password() -> str:
+        """Ask for a password the way create-admin does: hidden, twice, never as an argument."""
+        return click.prompt("Password", hide_input=True, confirmation_prompt=True, type=str)
+
+    def _run(action: Callable[[], str]) -> None:
+        """Carry out an account change, commit it, and say what happened; errors are messages."""
+        try:
+            message = action()
+        except user_service.UserAdminError as exc:
+            db.session.rollback()
+            raise click.ClickException(str(exc)) from exc
+        db.session.commit()
+        click.echo(message)
+
+    @users_group.command(name="list")
+    def users_list() -> None:
+        """List the accounts: administrators first."""
+        rows = user_service.list_users(db.session())
+        if not rows:
+            click.echo(
+                "There are no accounts yet. Create the first with `flask users create-admin`."
+            )
+            return
+        width = max(len(row.email) for row in rows)
+        click.echo(f"{'E-mail':{width}}  {'Role':6}  {'State':8}  {'MFA':3}  Last sign-in")
+        for row in rows:
+            seen = row.last_login.strftime("%Y-%m-%d %H:%M UTC") if row.last_login else "never"
+            click.echo(
+                f"{row.email:{width}}  {'admin' if row.admin else 'member':6}  "
+                f"{'active' if row.active else 'off':8}  {'yes' if row.mfa else 'no':3}  {seen}"
+            )
+
+    @users_group.command(name="create")
+    @click.argument("email")
+    @click.option("--admin", is_flag=True, help="Make the account an administrator.")
+    def users_create(email: str, admin: bool) -> None:
+        """Create a team account. The password is asked for, never given as an argument."""
+
+        def act() -> str:
+            clean = user_service.normalise_email(
+                email
+            )  # a typo is told before the password is asked
+            user = user_service.create_user(db.session(), clean, _new_password(), admin=admin)
+            return f"Account '{user.email}' created{' as an administrator' if admin else ''}."
+
+        _run(act)
+
+    @users_group.command(name="set-password")
+    @click.argument("email")
+    def users_set_password(email: str) -> None:
+        """Give an account a new password; whoever is signed in with it is signed out."""
+
+        def act() -> str:
+            user_service.find_user(db.session(), email)  # no such account: say so first
+            user = user_service.set_password(db.session(), email, _new_password())
+            return f"New password set for '{user.email}'. Their sessions have ended."
+
+        _run(act)
+
+    @users_group.command(name="deactivate")
+    @click.argument("email")
+    def users_deactivate(email: str) -> None:
+        """Switch an account off: it cannot sign in and its session ends with the next request."""
+
+        def act() -> str:
+            if not user_service.set_active(db.session(), email, False):
+                return f"'{email}' is switched off already."
+            return (
+                f"'{email}' is switched off. Their assessments stay; administrators can share them."
+            )
+
+        _run(act)
+
+    @users_group.command(name="activate")
+    @click.argument("email")
+    def users_activate(email: str) -> None:
+        """Switch an account on again."""
+
+        def act() -> str:
+            if not user_service.set_active(db.session(), email, True):
+                return f"'{email}' is active already."
+            return f"'{email}' is active again."
+
+        _run(act)
+
+    @users_group.command(name="grant-admin")
+    @click.argument("email")
+    def users_grant_admin(email: str) -> None:
+        """Make an account an administrator: it sees every assessment and can share any."""
+
+        def act() -> str:
+            changed = user_service.set_admin(db.session(), email, True)
+            return f"'{email}' is an administrator." if changed else f"'{email}' is one already."
+
+        _run(act)
+
+    @users_group.command(name="revoke-admin")
+    @click.argument("email")
+    def users_revoke_admin(email: str) -> None:
+        """Take the administrator role from an account (never from the last active one)."""
+
+        def act() -> str:
+            changed = user_service.set_admin(db.session(), email, False)
+            return (
+                f"'{email}' is not an administrator any more."
+                if changed
+                else f"'{email}' is not an administrator."
+            )
+
+        _run(act)
+
+    @users_group.command(name="reset-mfa")
+    @click.argument("email")
+    def users_reset_mfa(email: str) -> None:
+        """Forget the authenticator of an account (a lost phone): it enrols a new one when MFA is
+        required, and can do so by itself when it is not."""
+
+        def act() -> str:
+            had = user_service.reset_mfa(db.session(), email)
+            return (
+                f"The authenticator of '{email}' is forgotten."
+                if had
+                else f"'{email}' had no authenticator."
+            )
+
+        _run(act)
 
     @app.cli.command(name="worker")
     @click.option("--once", is_flag=True, help="Process the queued work, then exit.")
