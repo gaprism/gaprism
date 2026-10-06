@@ -26,6 +26,7 @@ from app.models.finding import Finding
 from app.service import assessments as assessment_service
 from app.service import audit as audit_service
 from app.service import decisions as decision_service
+from app.service import disclosure as disclosure_service
 from app.service import findings as findings_service
 from app.service import host_view as host_view_service
 from app.service import scans as scan_service
@@ -114,7 +115,12 @@ def new() -> str | Response:
             db.session.commit()
             flash(_("Assessment created."), "info")
             return redirect(url_for("assessments.detail", assessment_id=assessment.id))
-    return render_template("assessments/new.html", form=form, existing=existing)
+    return render_template(
+        "assessments/new.html",
+        form=form,
+        existing=existing,
+        disclosure=disclosure_service.describe(current_app.config),
+    )
 
 
 @assessments_bp.get("/<uuid:assessment_id>")

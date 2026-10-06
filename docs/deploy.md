@@ -163,6 +163,24 @@ docker compose run --rm cli flask audit list --days 7 --group scan --user @examp
 
 The table is `audit_event` if you prefer SQL. The worker removes entries older than `AUDIT_RETENTION_DAYS` once an hour. Entries outlive the account and the assessment they are about (the links are cleared, the e-mail address and the domain stay as text). Every entry is also written as one line to the `app.audit` logger (`docker compose logs web worker`): ship these lines to a log collector when the record must outlast what a database administrator could change, because the table is only as trustworthy as the access to the database.
 
+## What leaves your network
+
+A scan is not silent. This is everything it sends to somebody else; the page for a new assessment shows the same list for your configuration, and `tests/test_disclosure.py` keeps this table and that list in step. Every recipient also sees the address this server connects from.
+
+| Recipient | What it receives | When | Setting |
+|---|---|---|---|
+| Certificate Transparency sources: `api.ctlogs.dev`, `api.certspotter.com`, `crt.sh` | the domain name (and your `CTLOGS_API_KEY` or `CERTSPOTTER_TOKEN`, if you set one, as a request header) | discovery, at the start of every scan | `CT_SOURCES` (at least one; a scan cannot find its hosts without) |
+| DNS resolvers: `1.1.1.1` and `8.8.8.8` by default | every name that is looked up: the domain, its hosts, and the mail and policy names derived from it (`_dmarc.`, `_mta-sts.`, `_smtp._tls.`) | the DNS, e-mail and domain checks | `EGRESS_DNS_RESOLVERS` (your own resolvers; `system` uses the operating system's) |
+| The assessed domain's own servers | TLS handshakes and HTTP requests (the home page, `security.txt`, the MTA-STS policy) with the User-Agent `WebDueDiligence/0.1 (+https://github.com/stalpers/web_due_diligence)`: **the owner can see the scan in their logs** | per host | `USER_AGENT`, `BLOCKED_DOMAINS` (domains that may not be assessed) |
+| Shodan InternetDB (`internetdb.shodan.io`, keyless), or the Shodan host API (`api.shodan.io`) when `SHODAN_API_KEY` is set | the public IP addresses of the hosts, never their names (the Shodan key travels in the URL; logs redact it) | per address, cached for `PORTS_CACHE_HOURS` | `PORTS_PROVIDER` (`off` sends nothing) |
+| The registry's RDAP service, found through IANA's bootstrap file (`data.iana.org`) | the domain name | once per scan | `EXTERNAL_DOMAIN_LOOKUPS` (`rdap`) |
+| `hstspreload.org` | the domain name | once per scan, cached 24 hours | `EXTERNAL_DOMAIN_LOOKUPS` (`hsts_preload`) |
+| Have I Been Pwned (`haveibeenpwned.com`) | the domain name | once per scan | `EXTERNAL_DOMAIN_LOOKUPS` (`hibp`) |
+
+Besides the scan, `flask datasets update` downloads the IP location files from `download.db-ip.com` (with a jsDelivr mirror as a fallback); nothing about an assessment is sent.
+
+With `EXTERNAL_DOMAIN_LOOKUPS=none` and `PORTS_PROVIDER=off`, the only outsiders who learn the domain are the certificate-transparency sources and the DNS resolvers, and the assessed servers see the checks. The three optional lookups are on by default because their facts (expiry and locks, HSTS preload, breach history) are part of the answer; switch them off when the name of the assessed domain must not reach anybody else. A per-assessment switch for that is on the roadmap's backlog.
+
 ## Security notes
 
 - **Containers.** The application runs as an unprivileged user in a read-only container with no capabilities, `no-new-privileges`, memory and process limits and rotated logs. The only writable place is the `datasets` volume, and only the `cli` service mounts it writable. There is no Docker socket anywhere. The database sits on an internal network and publishes nothing.
