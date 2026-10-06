@@ -212,6 +212,8 @@ Deferred (kept in the archive, not deleted): RLS and per-report grants (INV-01/0
 | S5.7 | Scheduled re-scans and alerts (email / webhook) |
 | S5.8 | TPRM export / API |
 
+**Status (2026-10-06).** S5.1 is done for what exists: `LICENSE` (Apache-2.0), `NOTICE` (the project, the front-end components that are in the repository and the data attributions: DB-IP, Have I Been Pwned) and `license` in `pyproject.toml`; the `can-i-take-over-xyz` attribution comes with S4.1. S5.2 is done for `CONTRIBUTING.md` and `SECURITY.md` (reports go through GitHub's private vulnerability reporting, which has to be switched on in the repository settings); the "how to add a check" guide is section 6 of the catalogue; issue templates are left. S5.3: the history was scanned before the first push (no keys, tokens, private keys or sensitive file names in any commit, every commit under the GitHub noreply address) and the dependencies were audited and their licences checked in S0.5; the SBOM and the image scan are left. The copyright line in `NOTICE` says "The Web Due Diligence contributors": put a name or an organisation there if you prefer.
+
 ### Backlog — decided in the R3 review (2026-10-06)
 
 **Direction.** The tool is used internally and published as open source. A professional SaaS ("Pro") version may follow later; what only makes sense there stays out of the open-source core until then. **To discuss before any Pro work starts:** the best way to approach that plan: what is core and what is Pro, how it is hosted and sold, and what that means for the licence, for the terms of the data sources (InternetDB and ip-api are non-commercial) and for support.

@@ -3,6 +3,8 @@ name = "web-due-diligence"
 version = "0.1.0"
 description = "Technical due diligence from a single pane of glass"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
 # What the code imports is declared here, and nothing else (a test of the lock keeps it that way:
 # tests/test_dependencies.py). A few are needed without being imported; the comments say why.

@@ -1,6 +1,6 @@
 # Documentation
 
-Start with [`CLAUDE.md`](../CLAUDE.md) in the repository root (commands, layout, rules). The documents below are read on demand, not all at once.
+Start with [`CLAUDE.md`](../CLAUDE.md) in the repository root (commands, layout, rules); contributors also read [`CONTRIBUTING.md`](../CONTRIBUTING.md). The documents below are read on demand, not all at once.
 
 | Document | Read it when |
 |---|---|

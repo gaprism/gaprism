@@ -1,0 +1,30 @@
+Web Due Diligence
+Copyright 2026 The Web Due Diligence contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE). It includes or
+uses the third-party material below; nothing here changes the terms under which that material is
+offered.
+
+Included in this repository
+
+- htmx (https://htmx.org), Zero-Clause BSD: app/static/js/htmx.min.js; licence text in
+  app/static/licenses/htmx.txt.
+- Tailwind CSS (https://tailwindcss.com), MIT, Copyright (c) Tailwind Labs, Inc.: the compiled
+  stylesheet app/static/css/app.css carries its notice; licence text in
+  app/static/licenses/tailwindcss.txt.
+- Inter typeface (https://github.com/rsms/inter), SIL Open Font License 1.1, Copyright (c) 2016 The
+  Inter Project Authors: app/static/fonts/; licence text in app/static/fonts/LICENSE.txt.
+
+Data the application downloads or queries (not part of this repository)
+
+- IP geolocation: DB-IP.com Lite databases (IP to City Lite, IP to ASN Lite), CC BY 4.0, "IP
+  geolocation by DB-IP.com", https://db-ip.com. They are installed on request by
+  `flask datasets update`; the attribution is shown in the footer, on the IP location page, in the
+  report and in the JSON export, and must stay wherever the data is shown.
+- Public breaches: Have I Been Pwned, https://haveibeenpwned.com, CC BY 4.0.
+- Everything else is queried, not redistributed. Its terms are listed in docs/checks-catalog.md
+  (sections 3 and 5); the Shodan InternetDB, for one, is free for non-commercial use only.
+
+Python dependencies are installed from PyPI under their own licences (permissive ones, MPL-2.0 for
+certifi and publicsuffixlist, LGPL-3.0 for psycopg, used as an unmodified library); uv.lock lists
+the exact set.

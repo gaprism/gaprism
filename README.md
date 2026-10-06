@@ -37,8 +37,8 @@ IP geolocation: [DB-IP.com](https://db-ip.com) Lite databases (CC BY 4.0), insta
 
 ## Development
 
-Commands and conventions: [CLAUDE.md](CLAUDE.md). Documentation index: [docs/README.md](docs/README.md).
+Commands and conventions: [CLAUDE.md](CLAUDE.md). How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md). Found a vulnerability: [SECURITY.md](SECURITY.md). Documentation index: [docs/README.md](docs/README.md).
 
 ## Licence
 
-Apache-2.0 (decided; the `LICENSE` file and third-party notices are added in roadmap story S5.1).
+Apache License 2.0: see [LICENSE](LICENSE). [NOTICE](NOTICE) lists the third-party material and the data attributions.
