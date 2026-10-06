@@ -15,6 +15,7 @@ from werkzeug.wrappers import Response
 from app.blueprints.assessments import assessments_bp
 from app.blueprints.assessments.access import current_user_object as _current_user
 from app.blueprints.assessments.access import get_accessible as _get_accessible
+from app.blueprints.assessments.access import uuid_or_none as _uuid_or_none
 from app.blueprints.assessments.forms import NewAssessmentForm
 from app.extensions import db
 from app.i18n import gettext as _
@@ -170,13 +171,6 @@ def host_detail(assessment_id: uuid.UUID, host_id: uuid.UUID) -> str:
         detail=detail,
         findings=findings_service.host_findings(db.session(), detail.scan, host_id),
     )
-
-
-def _uuid_or_none(value: str) -> uuid.UUID | None:
-    try:
-        return uuid.UUID(value)
-    except ValueError:
-        return None
 
 
 def _findings_filters(values: Mapping[str, str]) -> dict[str, Any]:

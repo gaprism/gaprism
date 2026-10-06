@@ -25,6 +25,7 @@
       <p class="text-sm text-muted">
         {{ _('Queued') }} <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
         {% if scan.finished_at %} · {{ _('finished') }} <time datetime="{{ scan.finished_at.isoformat() }}">{{ scan.finished_at.strftime('%H:%M:%S') }} UTC</time>{% endif %}
+        {% if overview.previous_scan_id %} · <a class="link" href="{{ url_for('assessments.compare_scans', assessment_id=assessment.id, **{'from': overview.previous_scan_id, 'to': scan.id}) }}">{{ _('What changed since the scan before') }}</a>{% endif %}
       </p>
     </div>
     <dl class="mt-4 grid gap-4 sm:grid-cols-3">

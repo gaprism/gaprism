@@ -15,10 +15,13 @@
       {{ _('Created') }} <time datetime="{{ assessment.created_at.isoformat() }}">{{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
     </p>
   </div>
-  <form method="post" action="{{ url_for('assessments.start_scan', assessment_id=assessment.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {{ action(_('Re-scan') if overview else _('Start scan'), variant='primary', type='submit') }}
-  </form>
+  <div class="flex flex-wrap items-center gap-2">
+    {% if overview %}{{ action(_('Scan history'), href=url_for('assessments.scan_history', assessment_id=assessment.id)) }}{% endif %}
+    <form method="post" action="{{ url_for('assessments.start_scan', assessment_id=assessment.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {{ action(_('Re-scan') if overview else _('Start scan'), variant='primary', type='submit') }}
+    </form>
+  </div>
 </div>
 
 {% include "assessments/_scan_panel.html" %}

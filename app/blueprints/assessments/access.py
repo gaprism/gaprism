@@ -14,6 +14,14 @@ from app.models.auth import User
 from app.service import assessments as assessment_service
 
 
+def uuid_or_none(value: str) -> uuid.UUID | None:
+    """An identifier out of a request, or ``None`` when it is not one."""
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        return None
+
+
 def current_user_object() -> User:
     """The signed-in user as a model object (not the request-local proxy)."""
     return cast(User, current_user._get_current_object())

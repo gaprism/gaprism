@@ -4,18 +4,20 @@ from __future__ import annotations
 
 import logging
 import math
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.checks import DISCOVERY_KEY, Check, checks_with_scope
 from app.models import Assessment, CheckResult, Host, Scan, User
 from app.models.base import utc_now
+from app.models.scan import COMPARABLE_SCAN_STATUSES
 from app.service import findings as findings_service
 from app.service import summary as summary_service
 from app.service.host_view import CheckCell, DomainRow, domain_rows, host_cells
@@ -436,6 +438,7 @@ class ScanOverview:
     findings: findings_service.FindingsSummary
     host_findings: dict[Any, findings_service.HostSummary]
     summary: summary_service.ScanSummary | None  # once the scan is over
+    previous_scan_id: uuid.UUID | None  # the scan to compare this one with (it ran before it)
 
     @property
     def is_active(self) -> bool:
@@ -458,6 +461,23 @@ class ScanOverview:
 
 
 WAITING_FOR_WORKER_AFTER = timedelta(seconds=10)
+
+
+def previous_scan_id(session: Session, scan: Scan) -> uuid.UUID | None:
+    """The scan to compare this one with: the one that ran to the end just before it. ``None`` when
+    this scan did not run to the end itself (what it lacks is not a change) or is the first."""
+    if scan.status not in COMPARABLE_SCAN_STATUSES:
+        return None
+    return session.scalar(
+        select(Scan.id)
+        .where(
+            Scan.assessment_id == scan.assessment_id,
+            Scan.status.in_(COMPARABLE_SCAN_STATUSES),
+            tuple_(Scan.created_at, Scan.id) < tuple_(scan.created_at, scan.id),
+        )
+        .order_by(Scan.created_at.desc(), Scan.id.desc())
+        .limit(1)
+    )
 
 
 def scan_overview(
@@ -511,6 +531,7 @@ def scan_overview(
             if scan.is_terminal
             else None
         ),
+        previous_scan_id=previous_scan_id(session, scan),
         host_findings=(
             findings_service.host_summaries(session, scan, [host.id for host in hosts.rows])
             if findings.state == "ready"

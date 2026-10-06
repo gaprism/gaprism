@@ -4,7 +4,7 @@ What leaves the tool when someone exports a finished scan: a JSON file with ever
 
 ## Who, when, where
 
-Anyone who can open the assessment can export it; a stranger gets a 404, as for every page. Exports describe the **latest scan** and only once it has finished (completed, with gaps, failed or cancelled; a cancelled scan says so in the report and in the JSON). Every export writes a line to the `app.audit` log (`export: kind=… assessment=… scan=… by=…`, never the content) and is served with `Cache-Control: no-store`.
+Anyone who can open the assessment can export it; a stranger gets a 404, as for every page. Exports describe the **latest scan** and only once it has finished (completed, with gaps, failed or cancelled; a cancelled scan says so in the report and in the JSON). Any other scan of the assessment that has ended can be exported by adding `?scan=<id>` to the address; the scan history links to them. What the team decided about a finding belongs to the assessment, so the export of an older scan shows today's decisions. Every export writes a line to the `app.audit` log (`export: kind=… assessment=… scan=… by=…`, never the content) and is served with `Cache-Control: no-store`.
 
 | What | Address (`/assessments/<id>/…`) | File name |
 |---|---|---|

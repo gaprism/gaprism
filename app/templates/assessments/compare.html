@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% from 'components/ui.html' import badge, notice %}
+{% from 'assessments/_findings.html' import evidence_link, status_badge %}
+{% block title %}{{ _('What changed') }} · {{ assessment.domain_display }}{% endblock %}
+{% block content %}
+{% set labels = {'queued': _('Queued'), 'running': _('Running'), 'completed': _('Completed'), 'partial': _('Completed with gaps'), 'failed': _('Failed'), 'cancelled': _('Cancelled')} %}
+{% set answers = {'unavailable': _('was unavailable'), 'error': _('failed'), 'skipped': _('was skipped'), 'queued': _('had not run'), 'running': _('had not finished')} %}
+{% set sources = {'ctlogs': 'ctlogs.dev', 'certspotter': 'CertSpotter', 'crtsh': 'crt.sh'} %}
+
+{# Why a finding of the older scan could not be judged in the newer one. #}
+{% macro gap_text(gap) -%}
+{%- if gap.check is none -%}{{ _('What this finding rests on was not recorded.') }}
+{%- elif gap.status is none and gap.hostname -%}{{ _('The %(check)s check of %(host)s was not run again: the host is not in the newer scan.', check=check_title(gap.check), host=gap.hostname) }}
+{%- elif gap.status is none -%}{{ _('The %(check)s check of the domain was not run again.', check=check_title(gap.check)) }}
+{%- elif gap.hostname -%}{{ _('The %(check)s check of %(host)s %(answer)s in the newer scan%(why)s.', check=check_title(gap.check), host=gap.hostname, answer=answers.get(gap.status, gap.status), why=(': ' ~ reason_label(gap.reason)) if gap.reason else '') }}
+{%- else -%}{{ _('The %(check)s check of the domain %(answer)s in the newer scan%(why)s.', check=check_title(gap.check), answer=answers.get(gap.status, gap.status), why=(': ' ~ reason_label(gap.reason)) if gap.reason else '') }}
+{%- endif -%}
+{%- endmacro %}
+
+{# One finding of a list: how serious, what, where, and a note about it. #}
+{% macro row(view, note=none) %}
+<li class="flex flex-wrap items-start justify-between gap-3 p-4{% if view.status != 'open' %} bg-canvas{% endif %}">
+  <div class="min-w-0">
+    <div class="flex flex-wrap items-center gap-2">
+      {{ badge(severity_label(view.severity), severity_tone(view.severity)) }}
+      <h3>{{ view.title }}</h3>
+      {{ status_badge(view) }}
+    </div>
+    <p class="mt-1 text-sm text-muted">
+      {% if view.scope == 'host' and view.hostname %}{{ _('Host') }}: <bdi class="font-mono">{{ view.hostname }}</bdi>
+      {% elif view.scope == 'address' %}{{ _('Address') }}: <bdi class="font-mono">{{ view.address or view.subject }}</bdi>
+      {% else %}{{ _('The domain itself') }}{% endif %}
+    </p>
+    {% if view.message %}<p class="mt-1 text-sm">{{ view.message }}</p>{% endif %}
+    {% if note %}<p class="mt-1 text-sm font-semibold">{{ note }}</p>{% endif %}
+  </div>
+  <p class="text-sm">{{ evidence_link(view, assessment) }}</p>
+</li>
+{% endmacro %}
+
+{% macro section(title, total, shown, intro=none) %}
+<section class="panel mt-4" aria-label="{{ title }}">
+  <div class="section-head"><h2>{{ title }} <span class="text-sm font-normal text-muted">({{ total }})</span></h2></div>
+  {% if intro %}<p class="px-4 pt-3 text-sm text-muted">{{ intro }}</p>{% endif %}
+  <ul class="divide-y divide-line">{{ caller() }}</ul>
+  {% if total > shown %}<p class="border-t border-line p-4 text-sm text-muted">{{ _('and %(count)s more: the report and the JSON file of the scan list them all.', count=total - shown) }}</p>{% endif %}
+</section>
+{% endmacro %}
+
+{% macro gaps_text(gaps, scan) -%}
+{%- if gaps.sources %}{{ _('these certificate sources did not deliver everything: %(sources)s', sources=gaps.sources|join(', ')) }}{% endif -%}
+{%- if gaps.sources and gaps.over_limit %}; {% endif -%}
+{%- if gaps.over_limit %}{{ ngettext('%(num)s host was over the limit of %(limit)s per scan', '%(num)s hosts were over the limit of %(limit)s per scan', gaps.over_limit, limit=scan.options.get('max_hosts')) }}{% endif -%}
+{%- endmacro %}
+
+<nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
+  <a class="link" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
+  <span class="text-muted" aria-hidden="true">/</span>
+  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}"><bdi class="font-mono">{{ assessment.domain_display }}</bdi></a>
+  <span class="text-muted" aria-hidden="true">/</span>
+  <a class="link" href="{{ url_for('assessments.scan_history', assessment_id=assessment.id) }}">{{ _('Scan history') }}</a>
+</nav>
+<h1 class="mt-2">{{ _('What changed') }}</h1>
+
+{% if not comparison %}
+<div class="panel mt-6 p-5 text-sm text-muted">
+  {{ _('A comparison needs two scans that ran to the end. Scan again, and this page shows what changed between the two.') }}
+  <a class="link" href="{{ url_for('assessments.scan_history', assessment_id=assessment.id) }}">{{ _('Scan history') }}</a>
+</div>
+{% else %}
+{% set c = comparison %}
+<p class="mt-1 text-sm text-muted">
+  {{ _('From the scan of %(older)s to the scan of %(newer)s.', older=c.older.created_at.strftime('%Y-%m-%d %H:%M') ~ ' UTC', newer=c.newer.created_at.strftime('%Y-%m-%d %H:%M') ~ ' UTC') }}
+  {{ _('Hosts are matched by name and findings by what they are about; nothing is judged that was not checked in both scans.') }}
+</p>
+
+{% if finished|length >= 2 %}
+<form method="get" action="{{ url_for('assessments.compare_scans', assessment_id=assessment.id) }}" class="panel mt-4 flex flex-wrap items-end gap-3 p-4">
+  <div class="field">
+    <label for="compare-from">{{ _('From') }}</label>
+    <select id="compare-from" name="from">
+      {% for scan in finished %}<option value="{{ scan.id }}"{% if scan.id == c.older.id %} selected{% endif %}>{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC · {{ labels[scan.status] }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="compare-to">{{ _('to') }}</label>
+    <select id="compare-to" name="to">
+      {% for scan in finished %}<option value="{{ scan.id }}"{% if scan.id == c.newer.id %} selected{% endif %}>{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC · {{ labels[scan.status] }}</option>{% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-secondary" type="submit">{{ _('Compare') }}</button>
+</form>
+{% endif %}
+
+{% if c.older.status != 'completed' %}
+<div class="mt-4">{{ notice(_('The older scan did not finish everywhere'), _('It ended as: %(status)s. What it could not check is not a change; the lists below say so where they can.', status=labels[c.older.status]), 'warning') }}</div>
+{% endif %}
+{% if c.newer.status != 'completed' %}
+<div class="mt-4">{{ notice(_('The newer scan did not finish everywhere'), _('It ended as: %(status)s. What it could not check is not a change; the lists below say so where they can.', status=labels[c.newer.status]), 'warning') }}</div>
+{% endif %}
+{% if not c.findings_comparable %}
+<div class="mt-4">{{ notice(_('Findings are not compared'), _('A scan that was cancelled, or that ran before the rules existed, has no findings to compare. Compare two scans that were evaluated.'), 'warning') }}</div>
+{% elif c.rules_differ %}
+<div class="mt-4">{{ notice(_('The scans were judged by different rules'), _('A finding can appear or disappear because a rule changed, not because the vendor did.'), 'warning') }}</div>
+{% endif %}
+{% if c.findings_comparable and (c.findings_dropped[0] or c.findings_dropped[1]) %}
+<div class="mt-4">{{ notice(_('Not every finding was kept'), _('A scan keeps a limited number of findings; the ones beyond the limit are not compared, so a finding can seem to be new or resolved only because it was cut.'), 'warning') }}</div>
+{% endif %}
+{% if c.newer_gaps %}
+<div class="mt-4">{{ notice(_('Discovery of the newer scan was incomplete'), _('A host that is listed as no longer found may still exist: %(why)s.', why=gaps_text(c.newer_gaps, c.newer)), 'warning') }}</div>
+{% endif %}
+{% if c.older_gaps %}
+<div class="mt-4">{{ notice(_('Discovery of the older scan was incomplete'), _('A host that is listed as new may have been there before: %(why)s.', why=gaps_text(c.older_gaps, c.older)), 'warning') }}</div>
+{% endif %}
+
+<section class="panel mt-4 p-5" aria-label="{{ _('Summary of the changes') }}">
+  <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div><dt>{{ _('New hosts') }}</dt><dd class="text-lg font-semibold">{{ c.hosts_added_total }}</dd></div>
+    <div><dt>{{ _('Hosts no longer found') }}</dt><dd class="text-lg font-semibold">{{ c.hosts_removed_total }}</dd></div>
+    {% if c.findings_comparable %}
+    <div><dt>{{ _('New findings') }}</dt><dd class="text-lg font-semibold">{{ c.new_total }}</dd></div>
+    <div><dt>{{ _('Resolved findings') }}</dt><dd class="text-lg font-semibold">{{ c.resolved_total }}</dd></div>
+    <div><dt>{{ _('Changed severity') }}</dt><dd class="text-lg font-semibold">{{ c.changed_total }}</dd></div>
+    <div><dt>{{ _('Not re-checked') }}</dt><dd class="text-lg font-semibold">{{ c.unclear_total }}</dd></div>
+    <div><dt>{{ _('Unchanged findings') }}</dt><dd class="text-lg font-semibold">{{ c.unchanged }}</dd></div>
+    <div><dt>{{ _('Unchanged hosts') }}</dt><dd class="text-lg font-semibold">{{ c.hosts_kept }}</dd></div>
+    {% else %}
+    <div><dt>{{ _('Unchanged hosts') }}</dt><dd class="text-lg font-semibold">{{ c.hosts_kept }}</dd></div>
+    {% endif %}
+  </dl>
+  {% if c.findings_comparable and c.unchanged_decided %}
+  <p class="mt-3 text-sm text-muted">{{ ngettext('%(num)s of the unchanged findings was accepted or marked as a false positive; decisions carry over from scan to scan.', '%(num)s of the unchanged findings were accepted or marked as false positives; decisions carry over from scan to scan.', c.unchanged_decided) }}</p>
+  {% endif %}
+</section>
+
+{% if c.findings_comparable %}
+{% if c.new %}
+{% call section(_('New findings'), c.new_total, c.new|length, _('Not in the older scan.')) %}
+{% for view in c.new %}{{ row(view) }}{% endfor %}
+{% endcall %}
+{% endif %}
+{% if c.resolved %}
+{% call section(_('Resolved findings'), c.resolved_total, c.resolved|length, _('In the older scan, not in the newer one, and what they rested on was checked again and answered. Open the evidence to see the older scan.')) %}
+{% for view in c.resolved %}{{ row(view) }}{% endfor %}
+{% endcall %}
+{% endif %}
+{% if c.changed %}
+{% call section(_('Changed severity'), c.changed_total, c.changed|length) %}
+{% for change in c.changed %}{{ row(change.finding, _('Was %(was)s, now %(now)s.', was=severity_label(change.was), now=severity_label(change.finding.severity))) }}{% endfor %}
+{% endcall %}
+{% endif %}
+{% if c.unclear %}
+{% call section(_('Not re-checked'), c.unclear_total, c.unclear|length, _('In the older scan, not in the newer one, but what they rested on did not answer again. They are not reported as resolved: nobody has looked.')) %}
+{% for item in c.unclear %}{{ row(item.finding, gap_text(item.gap)) }}{% endfor %}
+{% endcall %}
+{% endif %}
+{% if not (c.new or c.resolved or c.changed or c.unclear) %}
+<div class="panel mt-4 p-5 text-sm text-muted">{{ _('No finding appeared, disappeared or changed its severity between the two scans.') }}</div>
+{% endif %}
+{% endif %}
+
+{% if c.hosts_added %}
+<section class="panel mt-4" aria-label="{{ _('New hosts') }}">
+  <div class="section-head"><h2>{{ _('New hosts') }} <span class="text-sm font-normal text-muted">({{ c.hosts_added_total }})</span></h2></div>
+  <ul class="flex flex-wrap gap-2 p-4">
+    {% for host in c.hosts_added %}<li><a class="link" href="{{ url_for('assessments.host_detail', assessment_id=assessment.id, host_id=host.id) }}"><bdi class="font-mono text-sm">{{ host.hostname }}</bdi></a></li>{% endfor %}
+  </ul>
+  {% if c.hosts_added_total > c.hosts_added|length %}<p class="border-t border-line p-4 text-sm text-muted">{{ _('and %(count)s more: the report and the JSON file of the scan list them all.', count=c.hosts_added_total - c.hosts_added|length) }}</p>{% endif %}
+</section>
+{% endif %}
+{% if c.hosts_removed %}
+<section class="panel mt-4" aria-label="{{ _('Hosts no longer found') }}">
+  <div class="section-head"><h2>{{ _('Hosts no longer found') }} <span class="text-sm font-normal text-muted">({{ c.hosts_removed_total }})</span></h2></div>
+  <p class="px-4 pt-3 text-sm text-muted">{{ _('In the older scan, not in the newer one. That does not mean the host is gone: only that discovery did not list it this time.') }}</p>
+  <ul class="flex flex-wrap gap-2 p-4">
+    {% for host in c.hosts_removed %}<li><a class="link" href="{{ url_for('assessments.host_detail', assessment_id=assessment.id, host_id=host.id) }}"><bdi class="font-mono text-sm">{{ host.hostname }}</bdi></a></li>{% endfor %}
+  </ul>
+  {% if c.hosts_removed_total > c.hosts_removed|length %}<p class="border-t border-line p-4 text-sm text-muted">{{ _('and %(count)s more: the report and the JSON file of the scan list them all.', count=c.hosts_removed_total - c.hosts_removed|length) }}</p>{% endif %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 
 SCAN_STATUSES = ("queued", "running", "completed", "partial", "failed", "cancelled")
 TERMINAL_SCAN_STATUSES = ("completed", "partial", "failed", "cancelled")
+# Scans that ran to the end: what a comparison with an earlier scan starts from. A cancelled or
+# failed scan did not look at everything, so what it lacks is not a change.
+COMPARABLE_SCAN_STATUSES = ("completed", "partial")
 
 
 class Scan(BaseUUIDModel, TimestampMixin):

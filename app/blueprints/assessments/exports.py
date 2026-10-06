@@ -1,4 +1,5 @@
-"""Exports of the latest finished scan: the printable report, JSON, and two CSV files.
+"""Exports of a finished scan (the latest, unless the history names another): the printable
+report, JSON, and two CSV files.
 
 Thin, like the other routes: check access, find the scan, ask the services for the data, send it.
 The files carry findings about a vendor, so they follow the access rules of the assessment and are
@@ -9,17 +10,18 @@ from __future__ import annotations
 import logging
 import uuid
 
-from flask import current_app, flash, redirect, render_template, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_security import login_required
 from werkzeug.wrappers import Response
 
 from app.audit import AUDIT_LOGGER
 from app.blueprints.assessments import assessments_bp
-from app.blueprints.assessments.access import current_user_object, get_accessible
+from app.blueprints.assessments.access import current_user_object, get_accessible, uuid_or_none
 from app.extensions import db
 from app.i18n import gettext as _
 from app.models.assessment import Assessment
 from app.service import export as export_service
+from app.service import history as history_service
 from app.service import report as report_service
 from app.service import scans as scan_service
 
@@ -27,9 +29,20 @@ audit = logging.getLogger(AUDIT_LOGGER)
 
 
 def _export_data(assessment: Assessment, kind: str) -> export_service.ExportData | None:
-    """The export of the latest scan, or ``None`` (with a message) when there is nothing to export:
-    no scan yet, or one that still runs."""
-    scan = scan_service.get_latest_scan(db.session(), assessment.id)
+    """The export of the latest scan, or of the one the history names (``?scan=``), or ``None``
+    (with a message) when there is nothing to export: no scan yet, or one that still runs."""
+    wanted = request.args.get("scan")
+    if wanted is None:
+        scan = scan_service.get_latest_scan(db.session(), assessment.id)
+    else:
+        scan_id = uuid_or_none(wanted)
+        scan = (
+            history_service.get_scan(db.session(), assessment.id, scan_id)
+            if scan_id is not None
+            else None
+        )
+        if scan is None:
+            abort(404)  # also for a scan of another assessment: never confirmed
     if scan is None or not scan.is_terminal:
         flash(_("Export a scan once it has finished."), "warning")
         return None
