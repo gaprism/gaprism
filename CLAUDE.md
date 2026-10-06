@@ -3,7 +3,7 @@
 Internal tool for security teams: enter a domain → discover hosts via Certificate Transparency → run technical checks per host → answer *Where is the data? Who processes it? How secure is the external posture?* Flask + Jinja/HTMX/Tailwind + PostgreSQL. Start with `docs/roadmap.md`; the doc index is `docs/README.md`.
 
 ## Commands (PowerShell, Python via uv)
-- Install: `uv sync` · assets: `npm ci` then `npm run build`
+- Install: `uv sync` · assets: `npm ci` then `npm run build`. Declared dependencies are what the code imports (`tests/test_dependencies.py`); add one with `uv add`, and stop the worker and the web first: on Windows `uv sync` cannot replace a compiled package a running process has loaded (`markupsafe`) and a failed run leaves `.venv` half-installed (repair: rename the locked `.pyd` aside, then `uv sync --reinstall-package <name>`)
 - Tests: `uv run pytest` (unit + DB; `-m live` = real network, off by default) · lint: `uv run ruff check .` · types: `uv run mypy`
 - DB: `uv run flask --app app db upgrade` · worker: `uv run flask --app app worker` · web: `uv run flask --app app run --debug`
 - IP location data (offline, DB-IP Lite): `uv run flask --app app datasets update` (status: `datasets status`); stored in `var/datasets/`
