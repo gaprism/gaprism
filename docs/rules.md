@@ -63,7 +63,7 @@ this file. Wording changes keep the rule's version; a change in *what* it flags 
 | [`DNS_PRIVATE_ADDRESS`](#dns_private_address) | Low | Public name points to a private address |
 | [`LOCATION_OUTSIDE_EU_CH`](#location_outside_eu_ch) | High or Medium | Host located outside the allowed area |
 | [`RISKY_PORT_EXPOSED`](#risky_port_exposed) | High or Medium | Risky service reachable from the internet |
-| [`CVE_OBSERVED`](#cve_observed) | Informational | Known vulnerabilities reported |
+| [`CVE_OBSERVED`](#cve_observed) | High or Medium or Low or Informational | Known vulnerabilities reported |
 | [`SPF_MISSING`](#spf_missing) | Medium or Low | No SPF record |
 | [`SPF_PERMISSIVE`](#spf_permissive) | High or Medium | SPF does not restrict senders |
 | [`SPF_INVALID`](#spf_invalid) | Medium | SPF record is broken |
@@ -283,15 +283,15 @@ Run once per public address a scanner reported on, however many hosts resolve to
 
 ### `CVE_OBSERVED`
 
-**Known vulnerabilities reported** · Informational · reads the `ports` check · version 1
+**Known vulnerabilities reported** · High or Medium or Low or Informational · reads the `ports` check · version 2
 
-*Fires when:* The provider lists CVE identifiers for the address (it derives them from software versions it read, so they are leads, not proof). Always Informational for now; later stories rank them by exploitation data. Addresses of shared infrastructure are skipped.
+*Fires when:* The provider lists CVE identifiers for the address (it derives them from software versions it read, so they are leads, not proof). The severity follows what is known about the exploitation of those CVEs: High when one is on CISA's Known Exploited Vulnerabilities list, Medium when the highest EPSS score is 0.5 or more (an estimated chance of exploitation within 30 days of 50 %), Low from 0.1, otherwise Informational. When the exploitation data is not installed the finding stays Informational and says that it was not ranked. Confidence is Medium when the provider verified a CVE, otherwise Low. Addresses of shared infrastructure are skipped.
 
 *Says:* {count} CVEs are reported for software seen on {ip}; they are leads to verify, not confirmed vulnerabilities.
 
-*Advice:* Ask the vendor which of these apply and how patching is tracked.
+*Advice:* Ask the vendor which of these apply and how patching is tracked, starting with the ones that are known to be exploited.
 
-*Facts shown:* Examples, Highest CVSS score, Hosts on this address
+*Facts shown:* Examples, Known to be exploited (CISA KEV), Used in ransomware campaigns, Highest EPSS score, Highest CVSS score, Ranked by, Exploitation data out of date, Hosts on this address
 
 ## Domain rules
 

@@ -17,15 +17,20 @@ carries an attribution that says how far it speaks for the assessed host:
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from app.checks.base import CachedAnswer, CheckContext, CheckOutcome, CheckScope
 from app.checks.dns import alias_names
+from app.service import exploits
 from app.service.geo import hint_for
 from app.service.ports import PortFacts, PortsLookup, PortsProvider, build_provider
 from app.service.ratelimit import KeyedLocks
+
+log = logging.getLogger(__name__)
 
 MAX_ADDRESSES = 4  # per host; more is a round-robin pool, which says little about one server
 SHARED_HOSTNAME_COUNT = 5  # more host names than this on one address: shared hosting
@@ -48,10 +53,63 @@ STOP_AFTER = frozenset(
 DEFINITIVE = ("ok", "no_data")  # the only answers worth caching
 
 ProviderFactory = Callable[[CheckContext], PortsProvider | str]
+ExploitFactory = Callable[[CheckContext], exploits.ExploitLookup]
 
 
 def _default_provider(ctx: CheckContext) -> PortsProvider | str:
     return build_provider(ctx.config, ctx.http)
+
+
+def _default_exploits(ctx: CheckContext) -> exploits.ExploitLookup:
+    directory = ctx.config.get("DATASETS_DIR")
+    return exploits.shared(Path(str(directory))) if directory else exploits.NOTHING
+
+
+def rank(entries: list[dict[str, Any]], lookup: exploits.ExploitLookup) -> dict[str, Any] | None:
+    """Add what is known about the exploitation of each CVE to the entries (in place) and put the
+    ones that matter first: known exploited, then by EPSS, then by CVSS. Returns what the lookup
+    was based on, or ``None`` when no address has a CVE.
+
+    A failing lookup never fails the check: the entries stay as the provider gave them and the
+    snapshot says the data could not be read.
+    """
+    with_cves = [
+        entry["facts"]
+        for entry in entries
+        if isinstance(entry.get("facts"), dict) and entry["facts"].get("vulnerabilities")
+    ]
+    if not with_cves:
+        return None
+    try:
+        snapshot = lookup.snapshot()
+        found = (
+            lookup.lookup({v["id"] for facts in with_cves for v in facts["vulnerabilities"]})
+            if snapshot.ranked_by != "none"
+            else {}
+        )
+    except Exception:  # a broken data file must not cost the scan its ports result
+        log.exception("exploitation data could not be read")
+        snapshot, found = exploits.Snapshot(problem="unreadable"), {}
+    summary = snapshot.to_data()
+    for facts in with_cves:
+        for vulnerability in facts["vulnerabilities"]:
+            hit = found.get(vulnerability["id"])
+            vulnerability["kev"] = hit.kev.to_data() if hit and hit.kev else None
+            vulnerability["epss"] = hit.epss.to_data() if hit and hit.epss else None
+        facts["vulnerabilities"].sort(key=_importance)
+        facts["exploit_data"] = summary
+    return summary
+
+
+def _importance(vulnerability: Mapping[str, Any]) -> tuple[int, float, float]:
+    """Sort key: known exploited first, then the higher EPSS score, then the higher CVSS."""
+    epss = vulnerability.get("epss") or {}
+    cvss = vulnerability.get("cvss")
+    return (
+        0 if vulnerability.get("kev") else 1,
+        -float(epss.get("score", -1.0)),
+        -float(cvss if isinstance(cvss, int | float) else -1.0),
+    )
 
 
 def attribute(
@@ -117,8 +175,10 @@ class PortsCheck:
         self,
         provider_factory: ProviderFactory | None = None,
         clock: Callable[[], datetime] | None = None,
+        exploit_factory: ExploitFactory | None = None,
     ) -> None:
         self._provider = provider_factory or _default_provider
+        self._exploits = exploit_factory or _default_exploits
         self._clock = clock or (lambda: datetime.now(UTC))
         self._flights = KeyedLocks()
 
@@ -157,6 +217,9 @@ class PortsCheck:
             "addresses_total": len(found),
             "truncated": len(found) > len(addresses),
         }
+        ranking = rank(entries, self._exploits(ctx))
+        if ranking is not None:
+            data["exploit_data"] = ranking
         return _outcome(entries, data, provider.name)
 
     def _ask(

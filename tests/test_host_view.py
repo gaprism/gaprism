@@ -14,6 +14,7 @@ from app.checks.base import CheckOutcome
 from app.checks.tls import outcome_from_probe
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
+from app.service import exploits as exploit_data
 from app.service import host_view
 from app.service import scans as scan_service
 from app.service.geo import IpLocation
@@ -49,6 +50,7 @@ from tests.checks.test_securitytxt_check import WELL_KNOWN, Web
 from tests.checks.test_securitytxt_check import run as run_security
 from tests.checks.test_securitytxt_check import text as security_text
 from tests.checks.test_tls_check import probe_result
+from tests.exploit_helpers import FakeExploits, listed, scored
 from tests.helpers import create_assessment, create_user, login_as
 from tests.test_engine import CONFIG
 
@@ -111,13 +113,17 @@ def http_outcome(
 
 
 def ports_outcome(
-    provider: FakeProvider | None = None, previous: dict[str, CheckOutcome] | None = None
+    provider: FakeProvider | None = None,
+    previous: dict[str, CheckOutcome] | None = None,
+    exploits: Any = None,
 ) -> CheckOutcome:
     """The real ports check over a fake provider (the host name is listed for the address)."""
     provider = provider or FakeProvider(
         {IP1: found(ports=(80, 443), cves=("CVE-2021-23017",), hostnames=(WEB_HOST,))}
     )
-    return run_ports(provider, previous or {"dns": ports_dns(IP1)}, hostname=WEB_HOST)
+    return run_ports(
+        provider, previous or {"dns": ports_dns(IP1)}, hostname=WEB_HOST, exploits=exploits
+    )
 
 
 def entry(
@@ -809,6 +815,88 @@ def test_the_hosts_table_has_one_cell_per_check_and_links_to_the_host(
     assert "Ports" in body and "2 ports · 1 CVE" in body
     assert re.search(r">\s*200\s*</span>", body)
     assert f"/assessments/{assessment.id}/hosts/{host.id}" in body
+
+
+def host_page(client: Any, assessment: Assessment, host: Host) -> str:
+    response = client.get(f"/assessments/{assessment.id}/hosts/{host.id}")
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+def test_the_ports_panel_shows_what_is_known_about_the_exploitation_of_each_cve(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    lookup = FakeExploits(
+        {
+            "CVE-2021-23017": exploit_data.Enrichment(
+                listed("CVE-2021-23017", ransomware=True), scored(0.97312)
+            )
+        }
+    )
+    host = add_host(
+        db_session, scan, WEB_HOST, {**healthy(), "ports": ports_outcome(exploits=lookup)}
+    )
+    body = host_page(client, assessment, host)
+    assert "known exploited (CISA KEV)" in body and "used in ransomware" in body
+    assert "EPSS 97.3 %" in body
+    assert "CISA KEV, as of 2026-10-04" in body and "EPSS, as of 2026-10-06" in body
+    assert "Not ranked" not in body and "out of date" not in body
+
+
+def test_the_ports_panel_never_shows_an_epss_score_as_a_certainty(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    lookup = FakeExploits({"CVE-2021-23017": exploit_data.Enrichment(None, scored(0.99999, 1.0))})
+    host = add_host(
+        db_session, scan, WEB_HOST, {**healthy(), "ports": ports_outcome(exploits=lookup)}
+    )
+    body = host_page(client, assessment, host)
+    assert "EPSS &gt; 99.9 %" in body and "100.0" not in body
+
+
+def test_the_ports_panel_says_when_the_cves_are_not_ranked(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    lookup = FakeExploits(snapshot=exploit_data.Snapshot())
+    host = add_host(
+        db_session, scan, WEB_HOST, {**healthy(), "ports": ports_outcome(exploits=lookup)}
+    )
+    body = host_page(client, assessment, host)
+    assert "Not ranked: the exploitation data (CISA KEV, EPSS) is not installed." in body
+    assert "flask datasets update" in body and "known exploited" not in body
+
+
+def test_the_ports_panel_says_when_the_exploitation_data_is_out_of_date(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    stale = exploit_data.Snapshot("2026-09-01", "2026-09-01", stale=True)
+    host = add_host(
+        db_session,
+        scan,
+        WEB_HOST,
+        {**healthy(), "ports": ports_outcome(exploits=FakeExploits(snapshot=stale))},
+    )
+    assert "This data is out of date" in host_page(client, assessment, host)
+
+
+def test_a_ports_result_from_before_exploitation_data_still_shows(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    outcome = ports_outcome()  # the plain check: no exploitation data configured
+    for entry in outcome.data["addresses"]:
+        entry["facts"].pop("exploit_data", None)
+        for vulnerability in entry["facts"]["vulnerabilities"]:
+            vulnerability.pop("kev", None)
+            vulnerability.pop("epss", None)
+    outcome.data.pop("exploit_data", None)
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "ports": outcome})
+    body = host_page(client, assessment, host)
+    assert "1 CVE reported" in body and "Not ranked" in body  # an old result is not "ranked"
 
 
 def test_a_host_still_being_checked_shows_queued_cells(signed_in: Any, db_session: Session) -> None:

@@ -103,8 +103,13 @@ def run(
     config: dict[str, Any] | None = None,
     cache: FakeCache | None = None,
     hostname: str | None = HOST,
+    exploits: Any = None,
 ) -> CheckOutcome:
-    check = PortsCheck(provider_factory=lambda ctx: provider, clock=lambda: NOW)
+    check = PortsCheck(
+        provider_factory=lambda ctx: provider,
+        clock=lambda: NOW,
+        exploit_factory=(lambda ctx: exploits) if exploits is not None else None,
+    )
     ctx = CheckContext(
         domain="example.com",
         hostname=hostname,

@@ -318,7 +318,7 @@ def test_the_required_rules_exist_with_their_documented_severities() -> None:
     assert RULES["LOCATION_OUTSIDE_EU_CH"].severities == ("medium", "high")
     assert RULES["PUBLIC_BREACH_HISTORY"].severities == ("medium", "high")
     assert RULES["TLS_INVALID"].severities == ("medium", "high")
-    assert RULES["CVE_OBSERVED"].severities == ("informational",)
+    assert RULES["CVE_OBSERVED"].severities == ("informational", "low", "medium", "high")
 
 
 # ------------------------------------------------------------------------------ the whole set

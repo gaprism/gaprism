@@ -64,11 +64,18 @@
   {% if f.vulnerabilities %}
   <h3 class="mt-4 text-sm">{{ ngettext('%(num)s CVE reported', '%(num)s CVEs reported', f.vulnerabilities|length) }}</h3>
   <p class="text-xs text-muted">{{ _('The provider derives these from software versions it read; they are leads to verify, not confirmed vulnerabilities.') }}</p>
+  {% set xd = f.exploit_data %}
+  <p class="text-xs text-muted">
+    {% if xd and xd.ranked_by != 'none' %}{{ _('Listed first when known to be exploited (CISA KEV, as of %(kev)s) or likely to be (EPSS, as of %(epss)s).', kev=xd.kev_as_of or '—', epss=xd.epss_as_of or '—') }}{% if xd.stale %} {{ _('This data is out of date: run `flask datasets update`.') }}{% endif %}
+    {% else %}{{ _('Not ranked: the exploitation data (CISA KEV, EPSS) is not installed. Run `flask datasets update`.') }}{% endif %}
+  </p>
   <ul class="mt-2 grid gap-1 text-sm">
     {% for v in f.vulnerabilities[:25] %}
     <li>
       <a class="link font-mono" href="https://nvd.nist.gov/vuln/detail/{{ v.id }}" rel="noopener noreferrer">{{ v.id }}</a>
       {% if v.cvss is not none %}<span class="text-muted">· CVSS {{ v.cvss }}</span>{% endif %}
+      {% if v.epss %}<span class="text-muted">· EPSS {{ epss_percent(v.epss.score) }}</span>{% endif %}
+      {% if v.kev %} {{ badge(_('known exploited (CISA KEV)'), 'high') }}{% if v.kev.ransomware %} {{ badge(_('used in ransomware'), 'critical') }}{% endif %}{% endif %}
       {% if v.verified %} {{ badge(_('verified by Shodan'), 'info') }}{% endif %}
       {% if v.summary %}<div class="text-xs text-muted">{{ v.summary|truncate(180) }}</div>{% endif %}
     </li>

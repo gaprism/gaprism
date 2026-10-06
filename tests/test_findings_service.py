@@ -651,6 +651,17 @@ def test_lists_and_codes_in_messages_are_rendered_readably() -> None:
     assert findings_service.render_value("ending", "no all term") == "no all term"
 
 
+def test_exploitation_data_is_rendered_as_words_and_percent() -> None:
+    assert findings_service.render_value("max_epss", 0.97312) == "97.3 %"
+    assert findings_service.render_value("max_epss", 0.99999) == "> 99.9 %"  # never 100 %
+    assert findings_service.render_value("max_epss", None) == "—"
+    assert findings_service.render_value("ranked_by", "kev_epss") == "CISA KEV and EPSS"
+    assert "EPSS is not installed" in findings_service.render_value("ranked_by", "kev")
+    assert "KEV catalogue is not installed" in findings_service.render_value("ranked_by", "epss")
+    assert findings_service.render_value("ranked_by", "none").startswith("not ranked")
+    assert findings_service.render_value("ranked_by", "anything else").startswith("not ranked")
+
+
 def test_a_finding_of_a_rule_that_no_longer_exists_still_shows(db_session: Session) -> None:
     scan, _ = populated_scan(db_session)
     ghost = Finding(

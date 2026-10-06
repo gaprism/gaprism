@@ -22,6 +22,12 @@ Data the application downloads or queries (not part of this repository)
   `flask datasets update`; the attribution is shown in the footer, on the IP location page, in the
   report and in the JSON export, and must stay wherever the data is shown.
 - Public breaches: Have I Been Pwned, https://haveibeenpwned.com, CC BY 4.0.
+- Known exploited vulnerabilities: the Known Exploited Vulnerabilities Catalog of CISA,
+  https://www.cisa.gov/known-exploited-vulnerabilities-catalog, which CISA publishes for
+  anyone to use. Installed on request by `flask datasets update`.
+- Exploit prediction scores: the Exploit Prediction Scoring System (EPSS), FIRST.Org, Inc.,
+  https://www.first.org/epss/, free to use; the application names EPSS wherever it shows a
+  score. Installed on request by `flask datasets update`.
 - Everything else is queried, not redistributed. Its terms are listed in docs/checks-catalog.md
   (sections 3 and 5); the Shodan InternetDB, for one, is free for non-commercial use only.
 

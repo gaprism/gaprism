@@ -86,12 +86,30 @@ def jsonable(value: Any, depth: int = 0) -> Any:
     return str(value)[:MAX_STRING]
 
 
+_RANKED_BY = {"kev_epss": 2, "kev": 1, "epss": 1}
+
+
+def _informed(entry: Mapping[str, Any]) -> tuple[int, str]:
+    """How much a stored entry knew about the exploitation of its CVEs: ranked by both lists, one
+    or none, then how recent the newer list was. Results from before that data existed know
+    nothing."""
+    data = (entry.get("facts") or {}).get("exploit_data")
+    if not isinstance(data, Mapping):
+        return 0, ""
+    dates = (str(data.get("kev_as_of") or ""), str(data.get("epss_as_of") or ""))
+    return _RANKED_BY.get(str(data.get("ranked_by")), 0), max(dates)
+
+
 def ip_facts(hosts: Sequence[HostFacts]) -> list[IpFacts]:
     """One ``IpFacts`` per public address that ports data exists for, sorted by address.
 
-    The same address shows up in the ports result of every host that resolves to it (cached, so
-    identical). It is shared infrastructure as soon as any host's result says so, and attributed to
-    a host name as soon as the provider lists one.
+    The same address shows up in the ports result of every host that resolves to it (the provider's
+    answer is cached, so identical). It is shared infrastructure as soon as any host's result says
+    so, and attributed to a host name as soon as the provider lists one. The entries differ in one
+    thing only: what was known about the exploitation of the CVEs when each host was checked (the
+    data can be installed or updated while a scan runs). The best informed entry speaks for the
+    address, so a host that was checked early cannot hide what a later one found; with no
+    difference the first host (by name) does.
     """
     by_ip: dict[str, list[tuple[HostFacts, Mapping[str, Any], str]]] = {}
     for host in sorted(hosts, key=lambda h: h.hostname):
@@ -112,7 +130,7 @@ def ip_facts(hosts: Sequence[HostFacts]) -> list[IpFacts]:
             if "hostname_supported" in attributions
             else "ip_only"
         )
-        facts = rows[0][1]["facts"]
+        facts = max(rows, key=lambda row: _informed(row[1]))[1]["facts"]
         result.append(
             IpFacts(
                 ip=ip,

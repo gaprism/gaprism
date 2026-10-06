@@ -24,6 +24,15 @@ CT_SOURCES = {
 # The optional lookups of EXTERNAL_DOMAIN_LOOKUPS, in the order they are listed.
 OPTIONAL_LOOKUPS = ("rdap", "hsts_preload", "hibp")
 
+# Where `flask datasets update` downloads public files from (the IP location databases, with a
+# mirror as a fallback, and the exploitation data). Nothing about an assessment is sent there.
+DATASET_DOWNLOADS = (
+    "download.db-ip.com",
+    "cdn.jsdelivr.net",
+    "www.cisa.gov",
+    "epss.empiricalsecurity.com",
+)
+
 
 @dataclass(frozen=True)
 class Recipient:

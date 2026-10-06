@@ -163,5 +163,22 @@ def test_the_deploy_doc_names_every_recipient_and_its_setting() -> None:
     rows = [*described().rows, *described(SHODAN_API_KEY="a-key").rows]
     missing = {name for row in rows for name in (*row.hosts, row.setting) if name not in section}
     assert not missing, f"docs/deploy.md does not mention: {sorted(missing)}"
+    not_named = [host for host in disclosure.DATASET_DOWNLOADS if host not in section]
+    assert not not_named, f"the downloads of `datasets update` are not in the doc: {not_named}"
     for config_key in ("CTLOGS_API_KEY", "CERTSPOTTER_TOKEN", "BLOCKED_DOMAINS"):
         assert config_key in section
+
+
+def test_the_hosts_that_datasets_update_contacts_are_the_ones_listed() -> None:
+    """The list the doc is checked against must be what the code downloads from."""
+    from urllib.parse import urlsplit
+
+    from app.service import exploits
+    from app.service.geo import datasets
+
+    urls = [exploits.KEV_URL, exploits.EPSS_URL]
+    for spec in datasets.SPECS:
+        urls.append(spec.official)
+        urls.extend(spec.mirrors)
+    hosts = {urlsplit(url).hostname for url in urls}
+    assert hosts == set(disclosure.DATASET_DOWNLOADS)

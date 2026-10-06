@@ -14,6 +14,7 @@ from app.models import Assessment
 from app.models.base import utc_now
 from app.rules import RULES
 from app.service import audit as audit_service
+from app.service import exploits as exploits_service
 from app.service import findings as findings_service
 from app.service import geo as geo_service
 from app.service import scans as scan_service
@@ -26,7 +27,15 @@ def _megabytes(size: int | None) -> str:
 
 
 def _attribution() -> str:
-    return f"Data: {geo_service.ATTRIBUTION} ({geo_service.LICENCE}), {geo_service.ATTRIBUTION_URL}"
+    return (
+        f"Data: {geo_service.ATTRIBUTION} ({geo_service.LICENCE}), {geo_service.ATTRIBUTION_URL}; "
+        f"{exploits_service.KEV_ATTRIBUTION}; {exploits_service.EPSS_ATTRIBUTION}"
+    )
+
+
+def _dataset_date(kind: str) -> str:
+    """What the date of a dataset is called: a database is built, a release is as of."""
+    return "build" if kind in ("city", "asn") else "as of"
 
 
 def register_cli_commands(app: Flask) -> None:
@@ -34,7 +43,7 @@ def register_cli_commands(app: Flask) -> None:
 
     @app.cli.group(name="datasets")
     def datasets_group() -> None:
-        """IP location data (DB-IP Lite, installed offline)."""
+        """IP location (DB-IP Lite) and exploitation data (CISA KEV, EPSS), installed offline."""
 
     @datasets_group.command(name="status")
     def datasets_status() -> None:
@@ -42,7 +51,7 @@ def register_cli_commands(app: Flask) -> None:
         directory = Path(app.config["DATASETS_DIR"])
         click.echo(f"Directory: {directory}")
         missing = False
-        for item in geo_service.dataset_status(directory):
+        for item in [*geo_service.dataset_status(directory), *exploits_service.status(directory)]:
             if not item.present:
                 missing = True
                 click.echo(f"  {item.kind}: {item.problem}")
@@ -50,7 +59,7 @@ def register_cli_commands(app: Flask) -> None:
             age = f"{item.age_days} days old" + (
                 " - STALE, run `flask datasets update`" if item.stale else ""
             )
-            click.echo(f"  {item.kind}: build {item.build} ({age})")
+            click.echo(f"  {item.kind}: {_dataset_date(item.kind)} {item.build} ({age})")
             click.echo(f"      source: {item.source or 'unknown'}")
             click.echo(f"      sha256: {item.sha256 or 'unknown'}")
         if missing:
@@ -62,7 +71,8 @@ def register_cli_commands(app: Flask) -> None:
         "--force", is_flag=True, help="Download again even if this month's build is installed."
     )
     def datasets_update(force: bool) -> None:
-        """Download and install the current DB-IP Lite city and ASN databases (about 65 MB)."""
+        """Download and install the DB-IP Lite city and ASN databases (about 65 MB) and the
+        CISA KEV and EPSS exploitation data (about 5 MB; both change daily)."""
         directory = Path(app.config["DATASETS_DIR"])
         click.echo(f"Installing into {directory} (this can take a minute)...")
         with httpx.Client(
@@ -71,7 +81,10 @@ def register_cli_commands(app: Flask) -> None:
             headers={"User-Agent": str(app.config["USER_AGENT"])},
             trust_env=False,
         ) as client:
-            reports = geo_service.update_datasets(directory, client, force=force)
+            reports = [
+                *geo_service.update_datasets(directory, client, force=force),
+                *exploits_service.update(directory, client, force=force),
+            ]
         failed = False
         for report in reports:
             if report.status == "failed":

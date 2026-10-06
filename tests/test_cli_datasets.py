@@ -12,6 +12,7 @@ import pytest
 from flask import Flask
 from flask.testing import FlaskCliRunner
 
+from tests.exploit_helpers import epss_gz, kev_json, small_files  # noqa: F401
 from tests.geo_helpers import gzipped, install_databases
 
 TODAY = datetime.datetime.now(datetime.UTC).date()
@@ -49,8 +50,11 @@ def test_status_says_what_is_missing_and_how_to_fix_it(
     assert result.exit_code == 0, result.output
     assert f"Directory: {datasets_dir}" in result.output
     assert "city: not installed" in result.output and "asn: not installed" in result.output
+    assert "kev: not installed" in result.output and "epss: not installed" in result.output
     assert "Run `flask datasets update`" in result.output
     assert "IP geolocation by DB-IP.com (CC BY 4.0), https://db-ip.com" in result.output
+    assert "Known Exploited Vulnerabilities Catalog, CISA" in result.output
+    assert "Exploit Prediction Scoring System (EPSS), FIRST.Org, Inc." in result.output
 
 
 def test_status_shows_build_age_and_staleness(
@@ -63,7 +67,8 @@ def test_status_shows_build_age_and_staleness(
     assert "source: unknown" in result.output  # installed by hand: no manifest entry
 
 
-def test_update_installs_the_databases_and_a_second_run_finds_them_current(
+@pytest.mark.usefixtures("small_files")
+def test_update_installs_the_data_and_a_second_run_finds_it_current(
     cli_runner: FlaskCliRunner,
     datasets_dir: Path,
     tmp_path: Path,
@@ -73,27 +78,39 @@ def test_update_installs_the_databases_and_a_second_run_finds_them_current(
     payloads = {
         "city": gzipped(source / "dbip-city-lite.mmdb"),
         "asn": gzipped(source / "dbip-asn-lite.mmdb"),
+        "kev": kev_json(TODAY),
+        "epss": epss_gz(tmp_path / "epss.csv.gz", TODAY).read_bytes(),
     }
 
     def handler(request: httpx.Request) -> httpx.Response:
-        kind = "city" if "city" in str(request.url) else "asn"
+        url = str(request.url)
+        if "known_exploited" in url:
+            kind = "kev"
+        elif "epss_scores" in url:
+            kind = "epss"
+        else:
+            kind = "city" if "city" in url else "asn"
         return httpx.Response(200, content=payloads[kind])
 
     requested = serve(monkeypatch, handler)
     first = cli_runner.invoke(args=["datasets", "update"])
     assert first.exit_code == 0, first.output
-    assert "city: updated" in first.output and "asn: updated" in first.output
-    assert (datasets_dir / "dbip-city-lite.mmdb").exists() and (
-        datasets_dir / "datasets.json"
-    ).exists()
-    assert len(requested) == 2
+    for kind in ("city", "asn", "kev", "epss"):
+        assert f"{kind}: updated" in first.output
+    assert (datasets_dir / "dbip-city-lite.mmdb").exists() and (datasets_dir / "kev.json").exists()
+    assert (datasets_dir / "epss.sqlite").exists() and (datasets_dir / "datasets.json").exists()
+    assert len(requested) == 4
 
     second = cli_runner.invoke(args=["datasets", "update"])
     assert second.exit_code == 0, second.output
-    assert second.output.count("already current") == 2 and len(requested) == 2  # nothing fetched
+    assert second.output.count("already current") == 4 and len(requested) == 4  # nothing fetched
 
     forced = cli_runner.invoke(args=["datasets", "update", "--force"])
-    assert forced.output.count("updated") == 2 and len(requested) == 4
+    assert forced.output.count("updated") == 4 and len(requested) == 8
+
+    status = cli_runner.invoke(args=["datasets", "status"]).output
+    assert f"kev: as of {TODAY.isoformat()}" in status
+    assert f"epss: as of {TODAY.isoformat()}" in status
 
 
 def test_a_failed_download_is_reported_and_the_exit_code_says_so(
@@ -103,4 +120,5 @@ def test_a_failed_download_is_reported_and_the_exit_code_says_so(
     result = cli_runner.invoke(args=["datasets", "update"])
     assert result.exit_code == 1
     assert "city: FAILED" in result.output and "http_503" in result.output
+    assert "kev: FAILED" in result.output and "epss: FAILED" in result.output
     assert "At least one database could not be installed." in result.output

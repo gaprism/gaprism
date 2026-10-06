@@ -27,6 +27,7 @@ from app.service import assessments as assessment_service
 from app.service import audit as audit_service
 from app.service import decisions as decision_service
 from app.service import disclosure as disclosure_service
+from app.service import exploits as exploit_service
 from app.service import findings as findings_service
 from app.service import host_view as host_view_service
 from app.service import scans as scan_service
@@ -47,6 +48,7 @@ assessments_bp.add_app_template_global(findings_service.attribution_label, "attr
 assessments_bp.add_app_template_global(findings_service.status_label, "status_label")
 assessments_bp.add_app_template_global(host_view_service.check_title, "check_title")
 assessments_bp.add_app_template_global(decision_service.review_window, "review_window")
+assessments_bp.add_app_template_global(exploit_service.epss_percent, "epss_percent")
 
 
 def _panel_context(assessment: Assessment) -> dict[str, Any]:

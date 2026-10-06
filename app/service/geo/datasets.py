@@ -232,7 +232,7 @@ def read_manifest(directory: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _write_manifest(directory: Path, manifest: Mapping[str, Any]) -> None:
+def write_manifest(directory: Path, manifest: Mapping[str, Any]) -> None:
     descriptor, name = tempfile.mkstemp(dir=directory, prefix=".manifest-", suffix=".tmp")
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as out:
@@ -303,7 +303,7 @@ def update_datasets(
         for spec in SPECS
         if not kinds or spec.kind in kinds
     ]
-    _write_manifest(directory, manifest)
+    write_manifest(directory, manifest)
     return reports
 
 

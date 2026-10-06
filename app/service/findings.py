@@ -51,6 +51,7 @@ from app.service.decisions import (
     load_decisions,
     with_decisions,
 )
+from app.service.exploits import epss_percent
 from app.service.host_view import problem_label, tls_failure_label
 
 log = logging.getLogger(__name__)
@@ -457,11 +458,29 @@ def _ending_label(value: str) -> str:
     return _("no all term") if value == "no all term" else value
 
 
+def _ranked_by_label(code: str) -> str:
+    labels = {
+        "kev_epss": _("CISA KEV and EPSS"),
+        "kev": _("CISA KEV only (EPSS is not installed)"),
+        "epss": _("EPSS only (the KEV catalogue is not installed)"),
+    }
+    return labels.get(code) or _("not ranked: the exploitation data is not installed")
+
+
+def _epss_label(code: str) -> str:
+    try:
+        return epss_percent(float(code))
+    except ValueError:
+        return code
+
+
 # Parameter values that are codes get translated before they go into a sentence.
 TRANSLATORS = {
     "failures": _failure_label,
     "problems": problem_label,
     "ending": _ending_label,
+    "ranked_by": _ranked_by_label,
+    "max_epss": _epss_label,
 }
 
 

@@ -24,7 +24,7 @@ Edit `.env`: set `POSTGRES_PASSWORD` and the four secrets `SECRET_KEY`, `SECURIT
 ```bash
 docker compose up -d --build                       # build the image, start database, web and worker
 docker compose run --rm cli flask users create-admin    # the first account
-docker compose run --rm cli flask datasets update       # IP location data, about 65 MB
+docker compose run --rm cli flask datasets update       # IP location data (about 65 MB) and exploitation data (about 5 MB)
 ```
 
 Then open <http://localhost:8080>. The first sign-in asks the user to enrol an authenticator app (`REQUIRE_MFA`, on by default in production).
@@ -86,11 +86,13 @@ docker compose down -v                    # remove the volumes as well: THE DATA
 
 An upgrade runs the migrations first; the web app and the worker start only when they have succeeded. Rebuild with `--pull` now and then to pick up security fixes of the base images.
 
-**Location data** (DB-IP Lite) is published monthly. Without it the IP check says so and names the command; to keep it current, run the update monthly, for example from cron (`-T` because cron has no terminal):
+**Location data** (DB-IP Lite) is published monthly and the **exploitation data** (CISA's Known Exploited Vulnerabilities catalogue and FIRST's EPSS scores, which rank the CVEs a scan reports) changes every day. Without the first the IP check says so and names the command; without the second the CVE findings stay Informational and say that they were not ranked. One command updates all four files and leaves a download that is less than twelve hours old alone, so a daily run from cron keeps both current (`-T` because cron has no terminal):
 
 ```cron
-0 4 2 * *  cd /srv/web-due-diligence && docker compose run --rm -T cli flask datasets update
+0 4 * * *  cd /srv/web-due-diligence && docker compose run --rm -T cli flask datasets update
 ```
+
+`flask datasets status` shows what is installed, how old it is and where it came from; data older than a week is flagged on the host page and in the findings.
 
 **Backup** the database and the settings together:
 
@@ -179,7 +181,7 @@ A scan is not silent. This is everything it sends to somebody else; the page for
 | `hstspreload.org` | the domain name | once per scan, cached 24 hours | `EXTERNAL_DOMAIN_LOOKUPS` (`hsts_preload`) |
 | Have I Been Pwned (`haveibeenpwned.com`) | the domain name | once per scan | `EXTERNAL_DOMAIN_LOOKUPS` (`hibp`) |
 
-Besides the scan, `flask datasets update` downloads the IP location files from `download.db-ip.com` (with a jsDelivr mirror as a fallback); nothing about an assessment is sent.
+Besides the scan, `flask datasets update` downloads public files: the IP location databases from `download.db-ip.com` (with a jsDelivr mirror, `cdn.jsdelivr.net`, as a fallback), the Known Exploited Vulnerabilities catalogue from `www.cisa.gov` and the EPSS scores from `epss.empiricalsecurity.com`, where FIRST publishes them. Nothing about an assessment is sent: the CVEs a scan reports are looked up in the files on your own disk, so who runs which software never leaves your network.
 
 With `EXTERNAL_DOMAIN_LOOKUPS=none` and `PORTS_PROVIDER=off`, the only outsiders who learn the domain are the certificate-transparency sources and the DNS resolvers, and the assessed servers see the checks. The three optional lookups are on by default because their facts (expiry and locks, HSTS preload, breach history) are part of the answer; switch them off when the name of the assessed domain must not reach anybody else. A per-assessment switch for that is on the roadmap's backlog.
 
