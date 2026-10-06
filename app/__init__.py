@@ -23,7 +23,7 @@ from app.i18n import init_i18n
 from app.logging_redaction import install_log_redaction
 from app.models.auth import Role, User
 from app.service.auth.rate_limit import register_auth_rate_limit
-from app.web import register_error_pages, register_security_headers
+from app.web import register_error_pages, register_proxy_fix, register_security_headers
 
 
 def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
@@ -70,6 +70,7 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
     )
 
     app.config.from_object(config_class)
+    register_proxy_fix(app)
 
     # Initialize extensions
     db.init_app(app)

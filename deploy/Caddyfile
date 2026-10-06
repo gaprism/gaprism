@@ -1,0 +1,14 @@
+# Reverse proxy for the web app (docker compose --profile proxy up -d).
+#
+# SITE_ADDRESS is a host name that points at this machine with ports 80 and 443 reachable from the
+# internet: Caddy then fetches and renews a certificate by itself. `localhost` (the default) uses
+# Caddy's own local certificate authority, which browsers do not trust: fine for a trial. On an
+# internal network without a public name, use `tls internal` below or your own proxy (docs/deploy.md).
+#
+# Caddy sends X-Forwarded-For with the address it saw (replacing what a client may have sent), so
+# set TRUSTED_PROXY_COUNT=1 in .env: the sign-in limit then counts failures per client.
+{$SITE_ADDRESS:localhost} {
+	# tls internal
+	reverse_proxy web:8000
+	header -Server
+}

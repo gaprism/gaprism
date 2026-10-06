@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+
 from flask import Flask, render_template, request
 from werkzeug.exceptions import HTTPException, TooManyRequests
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.wrappers import Response
 
 from app.i18n import gettext as _
+
+log = logging.getLogger(__name__)
 
 # No inline scripts or styles: everything is served from our own origin.
 CONTENT_SECURITY_POLICY = (
@@ -32,6 +37,38 @@ _ERROR_TEXTS: dict[int, tuple[str, str]] = {
     429: ("Too many attempts", "Sign-in is paused after repeated failed attempts."),
 }
 _FALLBACK_ERROR = ("Something went wrong", "The request could not be completed.")
+
+
+def register_proxy_fix(app: Flask) -> None:
+    """Believe the forwarding headers of the reverse proxies in front of the app, and no one else's.
+
+    ``TRUSTED_PROXY_COUNT`` is how many proxies append to ``X-Forwarded-For``: that many entries
+    from the right are taken, so a client that sends the header itself cannot pick its address
+    (its own entries stand to the left of the proxies'). The address matters because the sign-in
+    rate limit counts failures per address; without this every client behind a proxy would share
+    the proxy's address and five failures from anybody would block everybody. With 0 (the default)
+    the headers are ignored, which is right when clients connect directly.
+    """
+    hops = int(app.config["TRUSTED_PROXY_COUNT"])
+    if hops:
+        # Only the client address and the scheme; the Host header is never taken from a proxy.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=hops, x_proto=hops)  # type: ignore[method-assign]
+        return
+
+    warned = False
+
+    @app.before_request
+    def warn_about_untrusted_proxy() -> None:
+        # A forwarding header with nobody trusted is a proxy nobody told the app about: sign-ins
+        # of all clients would be counted as one address. Say so once, never log the header.
+        nonlocal warned
+        if not warned and "X-Forwarded-For" in request.headers:
+            warned = True
+            log.warning(
+                "A request carries X-Forwarded-For but TRUSTED_PROXY_COUNT is 0, so the "
+                "forwarded client address is ignored and the sign-in limit sees the proxy's "
+                "address for every client. Behind one reverse proxy set TRUSTED_PROXY_COUNT=1."
+            )
 
 
 def register_security_headers(app: Flask) -> None:

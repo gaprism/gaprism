@@ -1,0 +1,5 @@
+# Files that run inside containers keep Unix line endings whatever the checkout is configured to do.
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+docker-compose.yml text eol=lf
+deploy/* text eol=lf

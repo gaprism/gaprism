@@ -1,0 +1,159 @@
+# Web Due Diligence: the web app, the scan worker and PostgreSQL, plus an optional HTTPS proxy.
+# Quickstart, upgrades, backups and security notes: docs/deploy.md
+#
+#   cp .env.example .env          # then fill in POSTGRES_PASSWORD and the four secrets
+#   docker compose up -d --build
+#   docker compose run --rm cli flask users create-admin
+#   docker compose run --rm cli flask datasets update
+
+name: web-due-diligence
+
+# What every container of the application shares (one image, three ways to start it).
+x-app: &app
+  build: .
+  image: web-due-diligence:local
+  env_file: .env
+  environment: &app-environment
+    FLASK_ENV: production
+    # The compose database; whatever .env says about DATABASE_URL (it is for running without
+    # Docker) is replaced. Use a password without characters that need escaping in a URL (hex).
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-due_diligence}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-due_diligence}
+    DB_SCHEMA: ""
+    DATASETS_DIR: /data/datasets
+  init: true
+  restart: unless-stopped
+  # Nothing in the image is writable: the code is read-only, /tmp is memory, /data is a volume.
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 512
+  # backend has no route to the internet; default is the network with the way out.
+  networks: [backend, default]
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-due_diligence}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-due_diligence}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    # Only the application reaches the database, and the database reaches nothing.
+    networks: [backend]
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+
+  # Brings the schema up to date before the application starts (and again after every upgrade).
+  migrate:
+    <<: *app
+    command: ["flask", "db", "upgrade"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+
+  web:
+    <<: *app
+    environment:
+      <<: *app-environment
+      WEB_CONCURRENCY: ${WEB_WORKERS:-2}
+      GUNICORN_CMD_ARGS: --threads ${WEB_THREADS:-4}
+    # Loopback only: put an HTTPS proxy in front (docs/deploy.md; `--profile proxy` adds one).
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:8000"
+    # The databases are read here (the page of a scan says when they are missing).
+    volumes:
+      - datasets:/data:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 35s
+    mem_limit: 512m
+
+  # Runs the checks of the scans the web app queues. More than one can run:
+  # docker compose up -d --scale worker=2
+  worker:
+    <<: *app
+    command: ["flask", "worker"]
+    volumes:
+      - datasets:/data:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # Ctrl-C for the worker: it stops claiming work and lets running checks finish. What is cut
+    # short is picked up again by the next worker.
+    stop_signal: SIGINT
+    stop_grace_period: 30s
+    mem_limit: 1g
+
+  # One-off commands, never started by `up`:
+  #   docker compose run --rm cli flask users create-admin
+  #   docker compose run --rm cli flask datasets update      # about 65 MB, then monthly
+  cli:
+    <<: *app
+    profiles: [tools]
+    command: ["flask", "--help"]
+    volumes:
+      - datasets:/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # HTTPS in front of the web app: docker compose --profile proxy up -d
+  # (set SITE_ADDRESS, and TRUSTED_PROXY_COUNT=1 in .env).
+  proxy:
+    image: caddy:2-alpine
+    profiles: [proxy]
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+
+networks:
+  backend:
+    internal: true
+
+volumes:
+  pgdata:
+  datasets:
+  caddy_data:
+  caddy_config:

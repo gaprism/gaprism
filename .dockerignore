@@ -1,28 +1,38 @@
-# Exclude node_modules directory
-node_modules
+# What the image build gets to see. Keep secrets and local data out of the build context: a
+# COPY can only copy what is in it, so a file listed here can never end up in an image layer.
 
-# Exclude all log files
-*.log
+# Secrets and settings (the template .env.example stays)
+.env
+.env.*
+!.env.example
 
-# Exclude environment files
+# Local data: IP location databases, evidence, scratch files
+var
+tmp
+*.mmdb
+*.mmdb.gz
+
+# Dependencies and caches (the Dockerfile installs its own)
 .venv
-.env.local
+node_modules
+__pycache__
+*.py[cod]
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
 
-# Ignore build directories
-/build
-/dist
-
-# Include only the package.json file from the root directory
-!package.json
-
-/compose/data/pg_data
-/compose/data/
+# Version control, CI and editor or agent tooling
 .git
-.gitignore
-config/.env
-config/.env.sample
-__pycache__/
-*.pyc
-node_modules/
-data
-/scripts
+.github
+.idea
+.vscode
+.junie
+.aiassistant
+.claude
+
+# Not needed to run the application
+tests
+docs
+*.log

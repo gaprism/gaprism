@@ -37,6 +37,7 @@ _COUNTRY_CODE = re.compile(r"[A-Z]{2}")
 # Values of PORTS_PROVIDER: `auto` is the Shodan host API when a key is set, else InternetDB.
 PORTS_PROVIDERS = ("auto", "shodan", "internetdb", "off")
 MAX_PORTS_CACHE_HOURS = 30 * 24  # the worker deletes cache entries after 30 days
+MAX_TRUSTED_PROXIES = 5  # reverse proxies in front of the app that TRUSTED_PROXY_COUNT may name
 
 
 class BaseConfig:
@@ -94,6 +95,12 @@ class BaseConfig:
     AUTH_RATE_LIMIT_KEY: str = ""
     AUTH_RATE_LIMIT_FAILURES: int = 5
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 15 * 60
+
+    # How many reverse proxies stand between the clients and the app. 0 = none: the address of
+    # the connection is the client's, and X-Forwarded-* headers are ignored. Behind N proxies that
+    # each append to X-Forwarded-For, the N-th entry from the right is the client, which the
+    # sign-in rate limit needs to tell clients apart (see docs/deploy.md).
+    TRUSTED_PROXY_COUNT: int = 0
 
     # Database
     SQLALCHEMY_DATABASE_URI: str = ""
@@ -292,6 +299,16 @@ def validate_config(config_obj: Any) -> None:
                 "EGRESS_DNS_RESOLVERS must list IP addresses (or 'system' for the system resolver)."
             ) from exc
 
+    proxies = getattr(config_obj, "TRUSTED_PROXY_COUNT", 0)
+    if (
+        not isinstance(proxies, int)
+        or isinstance(proxies, bool)
+        or not 0 <= proxies <= MAX_TRUSTED_PROXIES
+    ):
+        raise ConfigurationError(
+            f"TRUSTED_PROXY_COUNT must be an integer from 0 to {MAX_TRUSTED_PROXIES}."
+        )
+
     if not isinstance(auth_rate_limit_failures, int) or auth_rate_limit_failures <= 0:
         raise ConfigurationError("AUTH_RATE_LIMIT_FAILURES must be a positive integer.")
     if not isinstance(auth_rate_limit_window, int) or auth_rate_limit_window <= 0:
@@ -346,6 +363,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "AUTH_RATE_LIMIT_KEY": "AUTH_RATE_LIMIT_KEY",
             "AUTH_RATE_LIMIT_FAILURES": "AUTH_RATE_LIMIT_FAILURES",
             "AUTH_RATE_LIMIT_WINDOW_SECONDS": "AUTH_RATE_LIMIT_WINDOW_SECONDS",
+            "TRUSTED_PROXY_COUNT": "TRUSTED_PROXY_COUNT",
             "SQLALCHEMY_DATABASE_URI": "TEST_DATABASE_URL"
             if config_class.TESTING
             else "DATABASE_URL",
