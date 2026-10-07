@@ -23,7 +23,7 @@ from app.i18n import gettext as _
 from app.i18n import ngettext
 from app.models import Assessment, CheckResult, Host, Scan
 
-CHECK_ORDER = ("dns", "ip", "ports", "tls", "http")
+CHECK_ORDER = ("dns", "ip", "ports", "tls", "http", "takeover")
 # The checks of the domain itself (they run once per scan), in display order.
 DOMAIN_CHECK_ORDER = (
     "email",
@@ -46,6 +46,7 @@ CHECK_TITLES = {
     "ports": N_("Open ports and CVEs"),
     "tls": N_("TLS certificate"),
     "http": N_("HTTP"),
+    "takeover": N_("Subdomain takeover"),
     "email": N_("Email security"),
     "registration": N_("Domain registration"),
     "domain_dns": N_("Name servers and CAA"),
@@ -120,6 +121,11 @@ HELP = {
     "missing_api_key": N_(
         "PORTS_PROVIDER is set to shodan but SHODAN_API_KEY is empty. Add the key to `.env`, "
         "or set PORTS_PROVIDER=auto to use the keyless InternetDB, and scan again."
+    ),
+    "tls_verification_failed": N_(
+        "The host answered over HTTPS with a certificate that could not be verified (one for "
+        "another name, for example). This tool never turns certificate verification off, so the "
+        "page could not be read."
     ),
     "invalid_key": N_("Shodan rejected the API key. Check SHODAN_API_KEY in `.env`."),
     "membership_required": N_(
@@ -426,12 +432,29 @@ def _http_cell(data: Mapping[str, Any]) -> CheckCell:
     return CheckCell("ok", tone, str(status))
 
 
+def _takeover_cell(data: Mapping[str, Any]) -> CheckCell:
+    candidates = [c for c in data.get("candidates", []) if isinstance(c, Mapping)]
+    flagged = [c for c in candidates if c.get("verdict") in ("unclaimed", "claimable")]
+    if flagged:
+        return CheckCell(
+            "ok", "high", _("Can be taken over: %(service)s", service=flagged[0].get("name"))
+        )
+    if not candidates:
+        return CheckCell("ok", "muted", _("No alias for a hosted service"))
+    if any(c.get("verdict") == "not_tested" for c in candidates):
+        return CheckCell("ok", "medium", _("Alias for a hosted service, not fully tested"))
+    return CheckCell(
+        "ok", "ok", _("Alias for %(service)s, in use", service=candidates[0].get("name"))
+    )
+
+
 _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "dns": _dns_cell,
     "ip": _ip_cell,
     "ports": _ports_cell,
     "tls": _tls_cell,
     "http": _http_cell,
+    "takeover": _takeover_cell,
     "email": _email_cell,
     "registration": _registration_cell,
     "domain_dns": _domain_dns_cell,

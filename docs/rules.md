@@ -60,6 +60,7 @@ this file. Wording changes keep the rule's version; a change in *what* it flags 
 | [`COOKIE_INSECURE`](#cookie_insecure) | Medium | Session cookie without protection flags |
 | [`SERVER_VERSION_DISCLOSED`](#server_version_disclosed) | Informational | Software version disclosed |
 | [`DANGLING_CNAME`](#dangling_cname) | Medium | Alias points nowhere |
+| [`TAKEOVER_LIKELY`](#takeover_likely) | High | Alias may be taken over |
 | [`DNS_PRIVATE_ADDRESS`](#dns_private_address) | Low | Public name points to a private address |
 | [`LOCATION_OUTSIDE_EU_CH`](#location_outside_eu_ch) | High or Medium | Host located outside the allowed area |
 | [`RISKY_PORT_EXPOSED`](#risky_port_exposed) | High or Medium | Risky service reachable from the internet |
@@ -233,15 +234,27 @@ Run once per host of the scan, over what that host's checks collected.
 
 ### `DANGLING_CNAME`
 
-**Alias points nowhere** · Medium · reads the `dns` check · version 1
+**Alias points nowhere** · Medium · reads the `dns`, `takeover` checks · version 2
 
-*Fires when:* The CNAME chain of the host ends in a name that does not exist. Whether the target can really be claimed is not checked (a takeover test comes later), so confidence is low.
+*Fires when:* The CNAME chain of the host ends in a name that does not exist. Whether anyone can claim that name is not known for a service the takeover check does not list, so confidence is low. When the name belongs to a service where anyone can register it (Azure, Elastic Beanstalk, ...), TAKEOVER_LIKELY reports it instead, and this rule stays silent.
 
 *Says:* {host} is an alias for {target}, which does not exist; if the target can be claimed, the name can be taken over.
 
 *Advice:* Remove the alias, or check that the target cannot be registered by someone else.
 
 *Facts shown:* Missing target
+
+### `TAKEOVER_LIKELY`
+
+**Alias may be taken over** · High · reads the `takeover`, `dns` checks · version 1
+
+*Fires when:* The host is an alias (CNAME) for a hosted service whose names a stranger can claim (GitHub Pages, Heroku, Amazon S3, Netlify, Vercel, Surge, Pantheon, Tilda, Azure, Elastic Beanstalk, Discourse), and the name behind the alias shows as unclaimed: the target does not exist and the service lets anyone register it, or the service answers the host with its own page for a name nobody has claimed (the status and the text the service shows for it). Whoever claims the name serves content on the vendor's host name, so the severity is High either way. Confidence is High when anyone may claim the name and the page was seen, Medium when the service checks something first (an account, a verified domain) or when only the missing name was seen. Nothing is claimed or tried beyond the request a visitor sends; a page that could not be read is no finding (the check says that it did not test).
+
+*Says:* {host} is an alias for {target} at {service}, and the name behind it looks unclaimed: {takeover_how}.
+
+*Advice:* Remove the DNS record if the alias is no longer needed, or create the resource at the service again before somebody else does. Ask the vendor how its aliases are reviewed when a service is switched off.
+
+*Facts shown:* Service, Alias for, How it shows, HTTP status, The page says, Can a stranger claim the name?, Also an alias for
 
 ### `DNS_PRIVATE_ADDRESS`
 

@@ -239,6 +239,7 @@
       <li>{{ _('IP location and network: where an address is announced and which network it belongs to, from offline databases.') }}{% for kind, build in m.location_databases %}{% if loop.first %} ({% endif %}{{ kind }} {{ build }}{% if not loop.last %}, {% else %}){% endif %}{% endfor %}</li>
       <li>{{ _('Open ports and CVE identifiers: what an internet-wide scanner last saw on the addresses; nothing is scanned from here.') }}{% if m.ports_providers %} ({{ m.ports_providers|join(', ') }}){% endif %}</li>
       <li>{{ _('TLS certificate and HTTP: one handshake and two requests per host (HTTPS and plain HTTP), our own User-Agent, no credentials, ports 443 and 80 only.') }}</li>
+      <li>{{ _('Subdomain takeover: a host that is an alias for a hosted service is asked for its home page once or twice more, to see whether the service shows its page for an unclaimed name; an alias for a name that does not exist is judged from DNS alone. Nothing is claimed.') }}</li>
       <li>{{ _('Domain: email security (SPF, DMARC, DKIM, MTA-STS), registration (RDAP), name servers and CAA, security.txt, HSTS preload status and public breaches.') }}</li>
     </ul>
 

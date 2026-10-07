@@ -28,7 +28,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.checks import DISCOVERY_KEY
+from app.checks import DISCOVERY_KEY, takeover_services
 from app.i18n import gettext as _
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
@@ -371,9 +371,27 @@ def attributions_for(
                 _("TLS certificate, HTTP response headers, security.txt and the MTA-STS policy"),
                 _(
                     "Standard requests: a TLS handshake and two HTTP requests per host, our own "
-                    "User-Agent, no credentials, only ports 80 and 443."
+                    "User-Agent, no credentials, only ports 80 and 443. A host that is an alias "
+                    "for a hosted service is asked for its home page once or twice more."
                 ),
                 None,
+            )
+        )
+    if takeover_services.SOURCE in used:
+        found.append(
+            Attribution(
+                "takeover",
+                "can-i-take-over-xyz (EdOverflow and contributors)",
+                _(
+                    "Which hosted services show which page for a name nobody has claimed, to "
+                    "recognise aliases that could be taken over"
+                ),
+                _(
+                    "CC BY 4.0, adapted: only services that were seen to behave that way again "
+                    "are kept, and the texts are the ones the services show today. The list is "
+                    "part of the program; nothing about the assessment was sent for it."
+                ),
+                takeover_services.SOURCE_URL,
             )
         )
     if "dbip" in used:

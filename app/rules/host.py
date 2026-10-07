@@ -431,22 +431,27 @@ def server_version_disclosed(host: HostFacts, settings: RuleSettings) -> Iterato
 
 @host_rule(
     "DANGLING_CNAME",
+    version=2,
     title=N_("Alias points nowhere"),
     summary=N_(
         "%(host)s is an alias for %(target)s, which does not exist; if the target can be "
         "claimed, the name can be taken over."
     ),
     advice=N_("Remove the alias, or check that the target cannot be registered by someone else."),
-    trigger="The CNAME chain of the host ends in a name that does not exist. Whether the target "
-    "can really be claimed is not checked (a takeover test comes later), so confidence is low.",
+    trigger="The CNAME chain of the host ends in a name that does not exist. Whether anyone can "
+    "claim that name is not known for a service the takeover check does not list, so confidence "
+    "is low. When the name belongs to a service where anyone can register it (Azure, Elastic "
+    "Beanstalk, ...), TAKEOVER_LIKELY reports it instead, and this rule stays silent.",
     severities=("medium",),
-    checks=("dns",),
+    checks=("dns", "takeover"),
     labels={"target": N_("Missing target")},
 )
 def dangling_cname(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
     dns = host.ok("dns")
     if dns is None or not dns.data.get("dangling_cname"):
         return
+    if _takeovers(host, ("claimable",)):
+        return  # a service whose names anyone can register: the takeover finding says more
     yield Draft(
         _subject(host),
         "medium",
@@ -454,6 +459,87 @@ def dangling_cname(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
         "hostname_supported",
         {"host": host.hostname, "target": dns.data.get("canonical_name")},
         (dns.id,),
+        host.id,
+    )
+
+
+def _takeovers(host: HostFacts, verdicts: tuple[str, ...]) -> list[dict[str, Any]]:
+    """The candidates of the host's takeover check that ended in one of ``verdicts``."""
+    takeover = host.ok("takeover")
+    if takeover is None:
+        return []
+    return [
+        candidate
+        for candidate in takeover.data.get("candidates", [])
+        if isinstance(candidate, dict) and candidate.get("verdict") in verdicts
+    ]
+
+
+@host_rule(
+    "TAKEOVER_LIKELY",
+    title=N_("Alias may be taken over"),
+    summary=N_(
+        "%(host)s is an alias for %(target)s at %(service)s, and the name behind it looks "
+        "unclaimed: %(takeover_how)s."
+    ),
+    advice=N_(
+        "Remove the DNS record if the alias is no longer needed, or create the resource at the "
+        "service again before somebody else does. Ask the vendor how its aliases are reviewed "
+        "when a service is switched off."
+    ),
+    trigger="The host is an alias (CNAME) for a hosted service whose names a stranger can claim "
+    "(GitHub Pages, Heroku, Amazon S3, Netlify, Vercel, Surge, Pantheon, Tilda, Azure, Elastic "
+    "Beanstalk, Discourse), and the name behind the alias shows as unclaimed: the target does "
+    "not exist and the service lets anyone register it, or the service answers the host with its "
+    "own page for a name nobody has claimed (the status and the text the service shows for it). "
+    "Whoever claims the name serves content on the vendor's host name, so the severity is High "
+    "either way. Confidence is High when anyone may claim the name and the page was seen, Medium "
+    "when the service checks something first (an account, a verified domain) or when only the "
+    "missing name was seen. Nothing is claimed or tried beyond the request a visitor sends; a "
+    "page that could not be read is no finding (the check says that it did not test).",
+    severities=("high",),
+    checks=("takeover", "dns"),  # the first one is where the finding's evidence link points
+    labels={
+        "service": N_("Service"),
+        "target": N_("Alias for"),
+        "takeover_how": N_("How it shows"),
+        "status": N_("HTTP status"),
+        "signature": N_("The page says"),
+        "takeover_claim": N_("Can a stranger claim the name?"),
+        "also": N_("Also an alias for"),
+    },
+)
+def takeover_likely(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    takeover = host.ok("takeover")
+    dns = host.ok("dns")
+    flagged = _takeovers(host, ("unclaimed", "claimable"))
+    if takeover is None or dns is None or not flagged:
+        return
+
+    def strength(candidate: dict[str, Any]) -> tuple[int, str]:
+        sure = candidate.get("verdict") == "unclaimed" and candidate.get("claim") == "open"
+        return (0 if sure else 1, str(candidate.get("name", "")))
+
+    ordered = sorted(flagged, key=strength)
+    first = ordered[0]
+    confidence: Confidence = "high" if strength(first)[0] == 0 else "medium"
+    others = [str(candidate.get("name", "")) for candidate in ordered[1:]]
+    yield Draft(
+        _subject(host),
+        "high",
+        confidence,
+        "hostname_supported",
+        {
+            "host": host.hostname,
+            "service": first.get("name"),
+            "target": first.get("target"),
+            "takeover_how": first.get("how"),
+            "takeover_claim": first.get("claim"),
+            "status": first.get("status"),
+            "signature": first.get("signature"),
+            "also": others or None,
+        },
+        (dns.id, takeover.id),
         host.id,
     )
 

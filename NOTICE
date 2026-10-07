@@ -14,6 +14,12 @@ Included in this repository
   app/static/licenses/tailwindcss.txt.
 - Inter typeface (https://github.com/rsms/inter), SIL Open Font License 1.1, Copyright (c) 2016 The
   Inter Project Authors: app/static/fonts/; licence text in app/static/fonts/LICENSE.txt.
+- can-i-take-over-xyz (https://github.com/EdOverflow/can-i-take-over-xyz), EdOverflow and
+  contributors, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/): the list of hosted
+  services and of the pages they show for a name nobody has claimed, adapted in
+  app/checks/takeover_services.py (only services seen to behave that way again are kept, the
+  CNAME targets are written out and the texts are the ones the services show today; the header of
+  that file says so). The host page, the report and the JSON export name it.
 
 Data the application downloads or queries (not part of this repository)
 

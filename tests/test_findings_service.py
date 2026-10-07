@@ -701,3 +701,51 @@ def test_the_findings_commands(db_session: Session, cli_runner: FlaskCliRunner) 
 
     nothing = cli_runner.invoke(args=["findings", "evaluate", "--domain", "unknown.example"])
     assert "No finished scan to evaluate." in nothing.output
+
+
+def test_a_takeover_finding_reads_as_a_sentence_with_its_facts(db_session: Session) -> None:
+    from tests.checks.test_takeover_check import GITHUB_UNCLAIMED, HOST, Web, dns, html
+    from tests.checks.test_takeover_check import run as run_takeover
+
+    scan = new_scan(db_session, "vendor.example")
+    previous = dns("vendor.github.io")
+    unclaimed = run_takeover(Web({("http", HOST): html(404, GITHUB_UNCLAIMED)}), previous)
+    add_host(db_session, scan, HOST, {"dns": previous, "takeover": unclaimed})
+    findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
+    db_session.commit()
+
+    (row,) = [r for r in stored(db_session, scan) if r.rule_id == "TAKEOVER_LIKELY"]
+    assert (row.severity, row.confidence) == ("high", "medium")  # GitHub checks something first
+    view = findings_service.describe(row)
+    assert view.title == "Alias may be taken over"
+    assert view.message == (
+        "shop.vendor.example is an alias for vendor.github.io at GitHub Pages, and the name "
+        'behind it looks unclaimed: the service shows its "nothing here" page for the name.'
+    )
+    assert ("Service", "GitHub Pages") in view.facts and ("HTTP status", "404") in view.facts
+    assert ("The page says", "There isn't a GitHub Pages site here.") in view.facts
+    claim = ("Can a stranger claim the name?", "It depends on checks the service makes")
+    assert claim in view.facts
+    assert view.evidence == findings_service.EvidenceLink(row.host_id, "takeover")  # the details
+    assert view.advice
+
+
+def test_a_missing_name_that_anyone_can_register_replaces_the_dangling_alias_finding(
+    db_session: Session,
+) -> None:
+    from tests.checks.test_takeover_check import HOST, Web, dns
+    from tests.checks.test_takeover_check import run as run_takeover
+
+    scan = new_scan(db_session, "vendor.example")
+    previous = dns("vendor.azurewebsites.net", addresses=(), dangling=True)
+    outcome = run_takeover(Web(), previous)
+    add_host(db_session, scan, HOST, {"dns": previous, "takeover": outcome})
+    findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
+    db_session.commit()
+
+    assert {r.rule_id for r in stored(db_session, scan)} == {"TAKEOVER_LIKELY"}  # one problem
+    (row,) = stored(db_session, scan)
+    view = findings_service.describe(row)
+    assert ("How it shows", "the name does not exist and anyone can register it") in view.facts
+    assert ("Can a stranger claim the name?", "Yes, anyone can register it") in view.facts
+    assert "HTTP status" not in {label for label, _ in view.facts}  # nothing was asked of the host

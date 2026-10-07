@@ -26,6 +26,7 @@ from app.checks.ip import IpCheck
 from app.checks.ports import PortsCheck
 from app.checks.registration import RegistrationCheck
 from app.checks.securitytxt import SecurityTxtCheck
+from app.checks.takeover import TakeoverCheck
 from app.checks.tls import TlsCheck
 
 REGISTRY: dict[str, Check] = {
@@ -37,6 +38,7 @@ REGISTRY: dict[str, Check] = {
         PortsCheck(),
         TlsCheck(),
         HttpCheck(),
+        TakeoverCheck(),
         EmailCheck(),
         RegistrationCheck(),
         DomainDnsCheck(),

@@ -1,0 +1,54 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set verdicts = {
+  'unclaimed': (_('Unclaimed'), 'high'),
+  'claimable': (_('Name does not exist'), 'high'),
+  'in_use': (_('In use'), 'ok'),
+  'not_tested': (_('Not tested'), 'medium')} %}
+{% if not d.aliases %}
+<p class="text-sm">{{ _('This host is not an alias (it has no CNAME record), so there is no hosted service whose name could be taken over through it.') }}</p>
+{% else %}
+<div class="table-scroll mb-3">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('The alias chain of this host') }}</caption>
+    <thead><tr><th scope="col">{{ _('Name') }}</th><th scope="col">{{ _('Alias for') }}</th></tr></thead>
+    <tbody>
+      {% for alias in d.aliases %}<tr><td><bdi class="font-mono break-all">{{ alias.name }}</bdi></td><td><bdi class="font-mono break-all">{{ alias.target }}</bdi></td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if not d.candidates %}
+<p class="text-sm">{{ _('None of these targets belongs to a hosted service that this check knows, so nothing was tested. A dangling alias for any other name is reported by the DNS check.') }}</p>
+{% endif %}
+{% for c in d.candidates %}
+{% set verdict = verdicts.get(c.verdict, (c.verdict, 'muted')) %}
+<div class="mt-3">
+  <h3 class="text-sm">{{ c.name }} {{ badge(verdict[0], verdict[1]) }}</h3>
+  <p class="mt-1 text-sm">
+    {% if c.verdict == 'unclaimed' %}
+      {{ _('The service answered this host with its page for a name that nobody has claimed (HTTP %(status)s: "%(signature)s").', status=c.status, signature=c.signature) }}
+    {% elif c.verdict == 'claimable' %}
+      {{ _('The alias ends in %(target)s, which does not exist. The service lets anyone register names in that space, so a stranger could register it and serve content under this host.', target=c.target) }}
+    {% elif c.verdict == 'in_use' and c.how == 'dns' %}
+      {{ _('%(target)s exists, so the alias does not point at a free name.', target=c.target) }}
+    {% elif c.verdict == 'in_use' %}
+      {{ _('The service answered with something other than its page for an unclaimed name (HTTP %(status)s). That the page was not seen is not a guarantee that the name is claimed.', status=c.status) }}
+    {% else %}
+      {{ _('This host could not be tested: %(reason)s.', reason=reason_label(c.error)) }}
+      {% if c.error == 'tls_verification_failed' %}{{ _('The service sent the visitor to HTTPS and presented a certificate for another name. This tool never turns certificate verification off, so the page cannot be read.') }}{% endif %}
+    {% endif %}
+    {% if c.verdict in ('unclaimed', 'claimable') %}
+      {% if c.claim == 'open' %}{{ _('Anyone can register the name at this service.') }}{% else %}{{ _('Whether a stranger can claim the name depends on checks the service makes.') }}{% endif %}
+    {% endif %}
+  </p>
+  <p class="text-xs text-muted">{{ _('Alias for') }} <bdi class="font-mono break-all">{{ c.target }}</bdi>{% if c.url %} · {{ _('asked') }} <bdi class="font-mono break-all">{{ c.url }}</bdi>{% endif %}</p>
+</div>
+{% endfor %}
+{% if d.candidates_cut %}<p class="mt-2 text-xs text-muted">{{ ngettext('%(num)s more service in the chain was not looked at.', '%(num)s more services in the chain were not looked at.', d.candidates_cut) }}</p>{% endif %}
+{% endif %}
+<p class="mt-4 text-xs text-muted">
+  {{ _('The check asks for the home page like any visitor and claims nothing. It cannot see services that are not on its list, an abandoned name that is not reached through a CNAME (a delegated zone, a record for an address), or a page that a service only shows over HTTPS with a certificate for another name.') }}
+  {{ _('The list of services and of the pages they show for an unclaimed name is adapted from') }}
+  <a class="link" href="https://github.com/EdOverflow/can-i-take-over-xyz" rel="noopener noreferrer">can-i-take-over-xyz</a>
+  (<a class="link" href="https://creativecommons.org/licenses/by/4.0/" rel="noopener noreferrer">CC BY 4.0</a>) {{ _('and was checked again on %(date)s.', date=d.fingerprints) }}
+</p>

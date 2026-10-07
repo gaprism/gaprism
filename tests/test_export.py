@@ -453,6 +453,39 @@ def test_a_scan_credits_the_lists_that_its_ports_results_were_ranked_with(
     assert "cisa_kev" in keys and "first_epss" in keys
 
 
+def test_the_ruleset_of_the_takeover_check_is_credited_with_its_licence() -> None:
+    used = {"http-probe", "can-i-take-over-xyz"}
+    found = {a.key: a for a in export_service.attributions_for(used, {})}
+    assert list(found) == ["target", "takeover"]
+    credit = found["takeover"]
+    assert credit.url == "https://github.com/EdOverflow/can-i-take-over-xyz"
+    assert "EdOverflow" in credit.name and "CC BY 4.0" in credit.terms
+    assert "adapted" in credit.terms
+    assert "once or twice more" in found["target"].terms  # the extra request is disclosed
+
+
+def test_a_scan_that_ran_the_takeover_check_credits_its_ruleset(db_session: Session) -> None:
+    scan, _ = evaluated(db_session)
+    assert "takeover" not in {a.key for a in build(db_session, scan).attributions}
+    row = db_session.scalars(
+        select(CheckResult).where(CheckResult.scan_id == scan.id, CheckResult.host_id.is_not(None))
+    ).first()
+    assert row is not None
+    db_session.add(
+        CheckResult(
+            scan_id=scan.id,
+            host_id=row.host_id,
+            check_key="takeover",
+            status="ok",
+            data={"aliases": [], "candidates": [], "candidates_cut": 0, "fingerprints": "x"},
+            source="can-i-take-over-xyz",
+            collected_at=row.collected_at,
+        )
+    )
+    db_session.commit()
+    assert "takeover" in {a.key for a in build(db_session, scan).attributions}
+
+
 def test_a_scan_that_used_shodan_and_no_third_party_names_only_what_it_used() -> None:
     assert [a.key for a in export_service.attributions_for({"shodan"}, {})] == ["shodan"]
     assert export_service.attributions_for(set(), {}) == ()

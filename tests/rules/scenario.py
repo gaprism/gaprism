@@ -29,6 +29,12 @@ from tests.checks.test_securitytxt_check import GITHUB as SECURITY_TXT
 from tests.checks.test_securitytxt_check import WELL_KNOWN, Web
 from tests.checks.test_securitytxt_check import run as run_security
 from tests.checks.test_securitytxt_check import text as security_text
+from tests.checks.test_takeover_check import GITHUB_UNCLAIMED
+from tests.checks.test_takeover_check import HOST as TAKEOVER_HOST
+from tests.checks.test_takeover_check import Web as TakeoverWeb
+from tests.checks.test_takeover_check import dns as takeover_dns
+from tests.checks.test_takeover_check import html as takeover_html
+from tests.checks.test_takeover_check import run as run_takeover
 from tests.rules.helpers import DOMAIN, domain_facts, expired, host, http_only, tls, web
 
 T = TypeVar("T")
@@ -114,6 +120,19 @@ def hosts() -> list[Any]:
         ),
         # only a CDN edge outside the area
         host(f"cdn.{DOMAIN}", ip=located(cloudflare())),
+    ]
+
+
+@cached
+def takeover_hosts() -> list[Any]:
+    """Aliases for hosted services: a page that says nobody has claimed the name, and a name that
+    does not exist where anyone may register it."""
+    unclaimed = takeover_dns("vendor.github.io")
+    page = TakeoverWeb({("http", TAKEOVER_HOST): takeover_html(404, GITHUB_UNCLAIMED)})
+    missing = takeover_dns("vendor.azurewebsites.net", addresses=(), dangling=True)
+    return [
+        host(f"shop.{DOMAIN}", dns=unclaimed, takeover=run_takeover(page, unclaimed)),
+        host(f"old.{DOMAIN}", dns=missing, takeover=run_takeover(TakeoverWeb(), missing)),
     ]
 
 
@@ -212,4 +231,5 @@ def scans() -> list[ScanFacts]:
         ScanFacts(DOMAIN, hosts(), domain_facts(**domain_with_gaps()).results),
         ScanFacts(DOMAIN, [], domain_facts(**domain_with_weak_records()).results),
         ScanFacts(DOMAIN, [], domain_facts(**domain_with_broken_records()).results),
+        ScanFacts(DOMAIN, takeover_hosts(), {}),
     ]

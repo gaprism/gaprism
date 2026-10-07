@@ -49,6 +49,14 @@ from tests.checks.test_securitytxt_check import GITHUB as SECURITY_TXT
 from tests.checks.test_securitytxt_check import WELL_KNOWN, Web
 from tests.checks.test_securitytxt_check import run as run_security
 from tests.checks.test_securitytxt_check import text as security_text
+from tests.checks.test_takeover_check import GITHUB_UNCLAIMED, ORDINARY_SITE
+from tests.checks.test_takeover_check import HOST as TAKEOVER_HOST
+from tests.checks.test_takeover_check import Web as TakeoverWeb
+from tests.checks.test_takeover_check import dns as takeover_dns
+from tests.checks.test_takeover_check import html as takeover_html
+from tests.checks.test_takeover_check import redirect as takeover_redirect
+from tests.checks.test_takeover_check import run as run_takeover
+from tests.checks.test_takeover_check import tls_failure as takeover_tls_failure
 from tests.checks.test_tls_check import no_certificate, probe_result
 from tests.exploit_helpers import FakeExploits, listed, scored
 from tests.helpers import create_assessment, create_user, login_as
@@ -1736,3 +1744,79 @@ def test_an_unreadable_certificate_is_named_as_that(signed_in: Any, db_session: 
     unreadable = outcome_from_probe(no_certificate("CERTIFICATE_UNREADABLE"))
     host = add_host(db_session, scan, WEB_HOST, {**healthy(), "tls": unreadable})
     assert "The certificate could not be read" in host_page(client, assessment, host)
+
+
+# ------------------------------------------------------------------------------ subdomain takeover
+
+
+def takeover_results(web: TakeoverWeb, *targets: str, **dns_fields: Any) -> dict[str, CheckOutcome]:
+    """The DNS answer for an alias and what the real takeover check made of it."""
+    previous = takeover_dns(*targets, **dns_fields)
+    return {"dns": previous, "takeover": run_takeover(web, previous)}
+
+
+def test_the_takeover_section_shows_an_alias_whose_name_nobody_has_claimed(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    web = TakeoverWeb({("http", TAKEOVER_HOST): takeover_html(404, GITHUB_UNCLAIMED)})
+    host = add_host(db_session, scan, TAKEOVER_HOST, takeover_results(web, "vendor.github.io"))
+    body = host_page(client, assessment, host)
+    assert "Subdomain takeover" in body and "Can be taken over: GitHub Pages" in body
+    assert "Unclaimed" in body and "nobody has claimed (HTTP 404" in body
+    assert "There isn&#39;t a GitHub Pages site here." in body  # the signature, escaped
+    assert "depends on checks the service makes" in body  # GitHub is a conditional claim
+    assert f"http://{TAKEOVER_HOST}/" in body and "vendor.github.io" in body
+    assert "can-i-take-over-xyz" in body and "CC BY 4.0" in body  # the licence asks for this
+    assert "Site not found" not in body  # the page itself was never stored
+
+
+def test_the_takeover_section_shows_a_name_that_does_not_exist_and_anyone_can_register(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    results = takeover_results(
+        TakeoverWeb(), "vendor.azurewebsites.net", addresses=(), dangling=True
+    )
+    host = add_host(db_session, scan, TAKEOVER_HOST, results)
+    body = host_page(client, assessment, host)
+    assert "Can be taken over: Microsoft Azure" in body and "Name does not exist" in body
+    assert "which does not exist" in body and "Anyone can register the name" in body
+
+
+def test_the_takeover_section_says_in_use_without_claiming_more_than_it_saw(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    web = TakeoverWeb({("http", TAKEOVER_HOST): takeover_html(200, ORDINARY_SITE)})
+    host = add_host(db_session, scan, TAKEOVER_HOST, takeover_results(web, "vendor.github.io"))
+    body = host_page(client, assessment, host)
+    assert "In use" in body and "Alias for GitHub Pages, in use" in body
+    assert "is not a guarantee that the name is claimed" in body
+    assert "Can be taken over" not in body
+
+
+def test_the_takeover_section_says_why_a_page_could_not_be_read(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    web = TakeoverWeb(
+        {
+            ("http", TAKEOVER_HOST): takeover_redirect(f"https://{TAKEOVER_HOST}/"),
+            ("https", TAKEOVER_HOST): takeover_tls_failure(),
+        }
+    )
+    host = add_host(db_session, scan, TAKEOVER_HOST, takeover_results(web, "vendor.github.io"))
+    body = host_page(client, assessment, host)
+    assert "Certificate not trusted" in body  # the reason of the failed check
+    assert "never turns certificate verification off" in body
+    assert "In use" not in body  # a page that was not read is not "in use"
+
+
+def test_the_takeover_section_of_a_host_that_is_not_an_alias_says_so(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(db_session, scan, TAKEOVER_HOST, takeover_results(TakeoverWeb()))
+    body = host_page(client, assessment, host)
+    assert "This host is not an alias" in body and "No alias for a hosted service" in body

@@ -474,6 +474,22 @@ def _epss_label(code: str) -> str:
         return code
 
 
+def _takeover_how_label(code: str) -> str:
+    labels = {
+        "page": _('the service shows its "nothing here" page for the name'),
+        "dns": _("the name does not exist and anyone can register it"),
+    }
+    return labels.get(code) or code
+
+
+def _takeover_claim_label(code: str) -> str:
+    labels = {
+        "open": _("Yes, anyone can register it"),
+        "conditional": _("It depends on checks the service makes"),
+    }
+    return labels.get(code) or code
+
+
 # Parameter values that are codes get translated before they go into a sentence.
 TRANSLATORS = {
     "failures": _failure_label,
@@ -481,6 +497,8 @@ TRANSLATORS = {
     "ending": _ending_label,
     "ranked_by": _ranked_by_label,
     "max_epss": _epss_label,
+    "takeover_how": _takeover_how_label,
+    "takeover_claim": _takeover_claim_label,
 }
 
 
