@@ -422,6 +422,18 @@ def test_the_reputation_check_is_a_gap_when_it_failed_and_not_when_it_was_switch
     assert summary.fully_checked(no_verdict)  # asked, and the resolvers could not say: an answer
 
 
+def test_the_blocklists_check_is_a_gap_when_it_could_not_look_not_when_off() -> None:
+    switched_off = checks_of(dns=DNS_OK, blocklists=CheckOutcome("skipped", "disabled"))
+    missing = checks_of(dns=DNS_OK, blocklists=CheckOutcome("unavailable", "blocklists_missing"))
+    unreadable = checks_of(
+        dns=DNS_OK, blocklists=CheckOutcome("unavailable", "blocklists_unreadable")
+    )
+    looked = checks_of(dns=DNS_OK, blocklists=CheckOutcome("ok", data={"names": []}))
+    assert summary.fully_checked(switched_off) and summary.fully_checked(looked)
+    assert not summary.fully_checked(missing)  # not installed: nothing was looked up, a gap
+    assert not summary.fully_checked(unreadable)
+
+
 def test_what_discovery_saw_and_left_out() -> None:
     discovery = {
         "counts": {"names_seen": 148, "out_of_scope": 9},

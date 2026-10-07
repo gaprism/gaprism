@@ -33,6 +33,12 @@ EXTERNAL_LOOKUP_DEFAULTS = ("rdap", "hsts_preload", "hibp")
 # addresses.
 REPUTATION_RESOLVER_KEYS = ("quad9", "cloudflare")
 
+# Offline blocklists of hosts and addresses that serve malware or phishing: `flask datasets update`
+# downloads them and the blocklists check matches them on this machine. BLOCKLIST_PROVIDERS lists
+# the ones to download and use (`none` switches the check off); app/service/blocklists.py knows
+# where each comes from (URLhaus and Feodo Tracker of abuse.ch, Phishing.Database).
+BLOCKLIST_PROVIDER_KEYS = ("urlhaus", "phishing", "feodo")
+
 # Where the assessed hosts may be located (ISO 3166-1 alpha-2, upper case): the EU-27, the EEA
 # (IS, LI, NO) and CH. Hosts outside this area raise LOCATION_OUTSIDE_EU_CH (see docs/rules.md).
 DEFAULT_DATA_LOCATION_ALLOWED = (
@@ -169,6 +175,11 @@ class BaseConfig:
     # Security DNS resolvers asked whether they block a host (see REPUTATION_RESOLVER_KEYS). Every
     # host name of a scan is sent to each of them; a plain DNS question, like the DNS check's.
     REPUTATION_RESOLVERS: ClassVar[list[str]] = list(REPUTATION_RESOLVER_KEYS)
+
+    # Blocklists of malware, phishing and botnet hosts (see BLOCKLIST_PROVIDER_KEYS), downloaded by
+    # `flask datasets update` and matched on this machine: nothing about an assessment is sent
+    # anywhere. A provider that is left out is neither downloaded nor looked at.
+    BLOCKLIST_PROVIDERS: ClassVar[list[str]] = list(BLOCKLIST_PROVIDER_KEYS)
 
     # Ports and CVEs that Shodan has observed on a host's addresses. `auto` uses the Shodan host
     # API when SHODAN_API_KEY is set and the keyless InternetDB (free for non-commercial use only)
@@ -313,6 +324,14 @@ def validate_config(config_obj: Any) -> None:
             f"REPUTATION_RESOLVERS may list {', '.join(REPUTATION_RESOLVER_KEYS)} "
             f"(or 'none'); unknown: {', '.join(unknown_resolvers)}."
         )
+    unknown_blocklists = sorted(
+        set(getattr(config_obj, "BLOCKLIST_PROVIDERS", [])) - set(BLOCKLIST_PROVIDER_KEYS)
+    )
+    if unknown_blocklists:
+        raise ConfigurationError(
+            f"BLOCKLIST_PROVIDERS may list {', '.join(BLOCKLIST_PROVIDER_KEYS)} "
+            f"(or 'none'); unknown: {', '.join(unknown_blocklists)}."
+        )
     if getattr(config_obj, "PORTS_PROVIDER", "") not in PORTS_PROVIDERS:
         raise ConfigurationError(f"PORTS_PROVIDER must be one of {', '.join(PORTS_PROVIDERS)}.")
     for name in (
@@ -432,6 +451,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "BREACH_RECENT_MONTHS": "BREACH_RECENT_MONTHS",
             "EXTERNAL_DOMAIN_LOOKUPS": "EXTERNAL_DOMAIN_LOOKUPS",
             "REPUTATION_RESOLVERS": "REPUTATION_RESOLVERS",
+            "BLOCKLIST_PROVIDERS": "BLOCKLIST_PROVIDERS",
             "PORTS_PROVIDER": "PORTS_PROVIDER",
             "SHODAN_API_KEY": "SHODAN_API_KEY",
             "SHODAN_RATE_PER_SECOND": "SHODAN_RATE_PER_SECOND",
@@ -476,6 +496,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             values["EXTERNAL_DOMAIN_LOOKUPS"] = []  # an empty line cannot say "none"
         if values["REPUTATION_RESOLVERS"] == ["none"]:
             values["REPUTATION_RESOLVERS"] = []
+        if values["BLOCKLIST_PROVIDERS"] == ["none"]:
+            values["BLOCKLIST_PROVIDERS"] = []
         values["PORTS_PROVIDER"] = str(values["PORTS_PROVIDER"]).strip().lower()
         values["SHODAN_API_KEY"] = str(values["SHODAN_API_KEY"]).strip()
     values["SECURITY_TOTP_SECRETS"] = {"1": values["MFA_ENCRYPTION_KEY"]}

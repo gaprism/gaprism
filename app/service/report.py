@@ -10,6 +10,7 @@ from app.checks.observatory import SOURCE as OBSERVATORY_SOURCE
 from app.checks.reputation import SECURITY_RESOLVERS
 from app.checks.reputation import SOURCE as SECURITY_SOURCE
 from app.i18n import gettext as _
+from app.service.blocklists import PROVIDERS as BLOCKLIST_PROVIDERS
 from app.service.export import (
     CT_SOURCE_NAMES,
     ExportData,
@@ -73,6 +74,7 @@ class Method:
     location_databases: tuple[tuple[str, str], ...]  # (type, build date)
     resolvers: str | None
     security_resolvers: tuple[str, ...]  # the security DNS resolvers every host name went to
+    blocklists: tuple[str, ...]  # the blocklists that were looked in, each with the day it is from
     observatory: bool  # the domain name went to Mozilla's HTTP Observatory
     switched_off: tuple[str, ...]  # titles of the checks the installation switched off
     evaluated_at: str | None
@@ -140,6 +142,7 @@ def _method(data: ExportData) -> Method:
     databases: list[tuple[str, str]] = []
     resolvers: str | None = None
     security: tuple[str, ...] = ()
+    lists: dict[str, tuple[str, str]] = {}  # key -> (name, the oldest day it was downloaded)
     for host in data.hosts:
         for check in host.checks:
             if check.key == "ports" and check.source in PORT_PROVIDERS:
@@ -156,6 +159,13 @@ def _method(data: ExportData) -> Method:
                 check.key == "dns" and resolvers is None and (check.source or "").startswith("dns:")
             ):
                 resolvers = (check.source or "").split(":", 1)[1] or None
+            elif check.key == "blocklists" and check.status == "ok":
+                for feed in check.data.get("feeds", []):
+                    if not isinstance(feed, dict) or feed.get("key") not in BLOCKLIST_PROVIDERS:
+                        continue
+                    key, day = str(feed["key"]), str(feed.get("as_of") or "")
+                    if key not in lists or day < lists[key][1]:
+                        lists[key] = (str(feed.get("name") or key), day)
             elif (
                 check.key == "reputation"
                 and not security
@@ -183,6 +193,9 @@ def _method(data: ExportData) -> Method:
         location_databases=tuple(databases),
         resolvers=resolvers,
         security_resolvers=security,
+        blocklists=tuple(
+            f"{lists[key][0]} ({lists[key][1]})" for key in BLOCKLIST_PROVIDERS if key in lists
+        ),
         observatory=asked_mozilla,
         switched_off=tuple(check_title(key) for key in sorted(off, key=_order)),
         evaluated_at=data.findings_info.get("evaluated_at"),

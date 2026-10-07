@@ -807,6 +807,200 @@ def host_blocked_by_security_dns(host: HostFacts, settings: RuleSettings) -> Ite
     )
 
 
+# ------------------------------------------------------------------------------ blocklists
+
+# Lists about these kinds say that the server is being used for the attack itself.
+SERVER_KINDS = frozenset({"malware", "botnet"})
+
+
+def _listing_sources(blocklists: Result, listed: list[list[str]]) -> tuple[list[str], list[str]]:
+    """(the lists that name something, what they are about) for ``listed`` (the providers that
+    list each thing), in the order the check consulted them; each list with its date."""
+    keys = {key for providers in listed for key in providers}
+    feeds = [
+        feed
+        for feed in blocklists.data.get("feeds", [])
+        if isinstance(feed, dict) and feed.get("key") in keys
+    ]
+    names = [f"{feed.get('name')} ({feed.get('as_of')})" for feed in feeds]
+    kinds: list[str] = []
+    for feed in feeds:
+        if feed.get("kind") and str(feed["kind"]) not in kinds:
+            kinds.append(str(feed["kind"]))
+    return names, kinds
+
+
+def _evidence(blocklists: Result, host: HostFacts) -> tuple[str, ...]:
+    dns = host.ok("dns")
+    return (blocklists.id,) if dns is None else (blocklists.id, dns.id)
+
+
+def _listed_names(blocklists: Result, role: str) -> list[dict[str, Any]]:
+    return [
+        row
+        for row in blocklists.data.get("names", [])
+        if isinstance(row, dict) and row.get("role") == role and row.get("listed_on")
+    ]
+
+
+@host_rule(
+    "HOST_ON_BLOCKLIST",
+    title=N_("Host name on a blocklist"),
+    summary=N_("%(host)s is listed by %(lists)s for %(listed_for)s."),
+    advice=N_(
+        "Find out what the host serves and who controls it: a compromised site, a taken-over "
+        "subdomain or a phishing page under the vendor's name are all possible. Ask the vendor "
+        "whether they know and what they did about it. A listing can be out of date or mistaken; "
+        "the maintainers of the list have a way to ask for a review."
+    ),
+    trigger="The host's own name is on a list that `flask datasets update` installed: the "
+    "abuse.ch URLhaus host file (hosts of malware URLs that are active or were added in the last "
+    "48 hours) or the Phishing.Database list of phishing hosts that still answered when they were "
+    "tested. High, with Medium confidence: a list is a third party's classification, a host name "
+    "can be listed because of one page of a site, and an entry can outlive the problem until the "
+    "list is updated. The finding names each list with the day it was downloaded. A list that is "
+    "not installed or cannot be read gives the rule nothing to read, and a name that is not "
+    "listed is no proof that it is clean: the lists hold only what their maintainers have seen.",
+    severities=("high",),
+    checks=("blocklists", "dns"),
+    labels={
+        "lists": N_("Listed by"),
+        "listed_for": N_("Listed for"),
+    },
+)
+def host_on_blocklist(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    blocklists = host.ok("blocklists")
+    if blocklists is None:
+        return
+    own = _listed_names(blocklists, "host")
+    if not own:
+        return
+    lists, kinds = _listing_sources(blocklists, [list(row["listed_on"]) for row in own])
+    if not lists:  # a listing that names no list that was consulted is not to be believed
+        return
+    yield Draft(
+        _subject(host),
+        "high",
+        "medium",
+        "hostname_supported",
+        {"host": host.hostname, "lists": lists, "listed_for": kinds},
+        _evidence(blocklists, host),
+        host.id,
+    )
+
+
+@host_rule(
+    "ALIAS_ON_BLOCKLIST",
+    title=N_("Alias of a blocklisted host"),
+    summary=N_(
+        "%(host)s is an alias for %(listed)s, which is listed by %(lists)s for %(listed_for)s."
+    ),
+    advice=N_(
+        "Ask the vendor why the name points there. An alias to a host that serves malware or "
+        "phishing is either a leftover that someone else has since taken over, or a sign that the "
+        "vendor's DNS was changed. Remove the alias if nothing needs it. What the listed host "
+        "serves under this name is not known."
+    ),
+    trigger="A name that the host is an alias for (a CNAME target) is on a list that `flask "
+    "datasets update` installed, while the host's own name is not. Medium, with Medium "
+    "confidence: the list names the target, and a server often answers differently under another "
+    "name, so what the vendor's host serves is not known. A list that is not installed or cannot "
+    "be read gives the rule nothing to read, and a name that is not listed is no proof that it is "
+    "clean.",
+    severities=("medium",),
+    checks=("blocklists", "dns"),
+    labels={
+        "listed": N_("Listed alias"),
+        "lists": N_("Listed by"),
+        "listed_for": N_("Listed for"),
+    },
+)
+def alias_on_blocklist(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    blocklists = host.ok("blocklists")
+    if blocklists is None or _listed_names(blocklists, "host"):
+        return  # (the host itself being listed is the bigger finding)
+    aliases = _listed_names(blocklists, "alias")
+    if not aliases:
+        return
+    lists, kinds = _listing_sources(blocklists, [list(row["listed_on"]) for row in aliases])
+    if not lists:
+        return
+    yield Draft(
+        _subject(host),
+        "medium",
+        "medium",
+        "hostname_supported",
+        {
+            "host": host.hostname,
+            "listed": [str(row["name"]) for row in aliases],
+            "lists": lists,
+            "listed_for": kinds,
+        },
+        _evidence(blocklists, host),
+        host.id,
+    )
+
+
+@host_rule(
+    "HOST_ADDRESS_ON_BLOCKLIST",
+    title=N_("Address on a blocklist"),
+    summary=N_(
+        "%(host)s resolves to %(addresses)s, which is listed by %(lists)s for %(listed_for)s."
+    ),
+    advice=N_(
+        "Find out whether the address is the vendor's own server or shared with others. An "
+        "address that a botnet or malware list names can mean that the server behind it is "
+        "compromised; one on a phishing list may belong to a neighbour on shared hosting. Ask "
+        "the vendor to look at the server."
+    ),
+    trigger="One of the host's public addresses is on a list that `flask datasets update` "
+    "installed: the abuse.ch Feodo Tracker list of botnet command-and-control servers, the "
+    "Phishing.Database list of phishing addresses or an address in the URLhaus host file. High "
+    "when a botnet or malware list names it (Medium confidence), Medium when only the phishing "
+    "list does (Low confidence: shared hosting puts many sites on one address). An address of a "
+    "CDN or other shared edge never raises it, however it is listed: the listing can come from "
+    "any of the sites behind it. The finding belongs to the address, not to the host name. A list "
+    "that is not installed or cannot be read gives the rule nothing to read, and an address that "
+    "is not listed is no proof that it is clean.",
+    severities=("medium", "high"),
+    checks=("blocklists", "dns"),
+    labels={
+        "addresses": N_("Listed addresses"),
+        "lists": N_("Listed by"),
+        "listed_for": N_("Listed for"),
+    },
+)
+def host_address_on_blocklist(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    blocklists = host.ok("blocklists")
+    if blocklists is None:
+        return
+    rows = [
+        row
+        for row in blocklists.data.get("addresses", [])
+        if isinstance(row, dict) and row.get("listed_on") and not row.get("shared")
+    ]
+    if not rows:
+        return
+    lists, kinds = _listing_sources(blocklists, [list(row["listed_on"]) for row in rows])
+    if not lists:
+        return
+    serious = bool(SERVER_KINDS & set(kinds))
+    yield Draft(
+        _subject(host),
+        "high" if serious else "medium",
+        "medium" if serious else "low",
+        "ip_only",
+        {
+            "host": host.hostname,
+            "addresses": [str(row["ip"]) for row in rows],
+            "lists": lists,
+            "listed_for": kinds,
+        },
+        _evidence(blocklists, host),
+        host.id,
+    )
+
+
 # ------------------------------------------------------------------------------ DNS
 
 

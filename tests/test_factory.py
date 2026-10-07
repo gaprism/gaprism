@@ -8,6 +8,7 @@ import pytest
 
 from app import create_app
 from app.config import (
+    BLOCKLIST_PROVIDER_KEYS,
     EXTERNAL_LOOKUP_DEFAULTS,
     EXTERNAL_LOOKUP_KEYS,
     MAX_PORTS_CACHE_HOURS,
@@ -277,6 +278,33 @@ def test_the_security_resolvers_come_from_the_environment(monkeypatch: pytest.Mo
         REPUTATION_RESOLVER_KEYS
     )
     monkeypatch.setenv("REPUTATION_RESOLVERS", "quad9,carrier-pigeon")
+    with pytest.raises(ConfigurationError, match="carrier-pigeon"):
+        create_app("development")
+
+
+def test_the_blocklist_providers_must_be_known_names() -> None:
+    unknown = type("Unknown", (TestingConfig,), {"BLOCKLIST_PROVIDERS": ["urlhaus", "evil"]})
+    with pytest.raises(ConfigurationError, match=r"BLOCKLIST_PROVIDERS may list.*unknown: evil"):
+        validate_config(unknown)
+    for chosen in ([], ["feodo"], list(BLOCKLIST_PROVIDER_KEYS)):
+        validate_config(type("Chosen", (TestingConfig,), {"BLOCKLIST_PROVIDERS": chosen}))
+    assert TestingConfig.BLOCKLIST_PROVIDERS == list(BLOCKLIST_PROVIDER_KEYS)  # on by default
+
+
+def test_the_blocklist_providers_of_the_configuration_are_the_ones_the_service_knows() -> None:
+    from app.service.blocklists import PROVIDERS
+
+    assert BLOCKLIST_PROVIDER_KEYS == tuple(PROVIDERS)  # (the settings module imports nothing)
+
+
+def test_the_blocklist_providers_come_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BLOCKLIST_PROVIDERS", " Feodo , URLhaus ")
+    assert create_app("development").config["BLOCKLIST_PROVIDERS"] == ["feodo", "urlhaus"]
+    monkeypatch.setenv("BLOCKLIST_PROVIDERS", "none")  # an empty line cannot say "none"
+    assert create_app("development").config["BLOCKLIST_PROVIDERS"] == []
+    monkeypatch.setenv("BLOCKLIST_PROVIDERS", "")  # an empty line keeps the default
+    assert create_app("development").config["BLOCKLIST_PROVIDERS"] == list(BLOCKLIST_PROVIDER_KEYS)
+    monkeypatch.setenv("BLOCKLIST_PROVIDERS", "urlhaus,carrier-pigeon")
     with pytest.raises(ConfigurationError, match="carrier-pigeon"):
         create_app("development")
 

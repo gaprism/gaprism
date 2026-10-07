@@ -28,12 +28,16 @@ OPTIONAL_LOOKUPS = ("rdap", "hsts_preload", "hibp")
 OPT_IN_LOOKUPS = ("observatory",)
 
 # Where `flask datasets update` downloads public files from (the IP location databases, with a
-# mirror as a fallback, and the exploitation data). Nothing about an assessment is sent there.
+# mirror as a fallback, the exploitation data and the blocklists). Nothing about an assessment is
+# sent there.
 DATASET_DOWNLOADS = (
     "download.db-ip.com",
     "cdn.jsdelivr.net",
     "www.cisa.gov",
     "epss.empiricalsecurity.com",
+    "urlhaus.abuse.ch",
+    "feodotracker.abuse.ch",
+    "raw.githubusercontent.com",
 )
 
 

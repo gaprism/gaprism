@@ -1,0 +1,69 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set names = d.names or [] %}
+{% set addresses = d.addresses or [] %}
+{% set own = names|selectattr('listed_on')|selectattr('role', 'equalto', 'host')|list %}
+{% set aliased = names|selectattr('listed_on')|selectattr('role', 'equalto', 'alias')|list %}
+{% set own_addresses = addresses|selectattr('listed_on')|rejectattr('shared')|list %}
+
+{% if own %}
+<div class="mb-4">{{ notice(_('The name of this host is on a blocklist'), _('A list of hosts that serve malware or phishing names this host. That is a third party’s classification, and it can be out of date or mistaken. Find out what the host serves and who controls it.'), 'danger') }}</div>
+{% elif aliased %}
+<div class="mb-4">{{ notice(_('A name this host is an alias for is on a blocklist'), _('The host points at a name that a list of malware or phishing hosts names. What the vendor’s host serves under its own name is not known.'), 'warning') }}</div>
+{% endif %}
+{% if own_addresses %}
+<div class="mb-4">{{ notice(_('An address of this host is on a blocklist'), _('A list of botnet, malware or phishing servers names an address that the host resolves to. On shared hosting that can be about a neighbour on the same address.'), 'danger' if section.cell.tone == 'high' else 'warning') }}</div>
+{% endif %}
+
+<p class="text-sm">{{ ngettext('The name of this host, the names it is an alias for and its public addresses were looked up in %(num)s blocklist that is installed on this server. Nothing was sent anywhere.', 'The name of this host, the names it is an alias for and its public addresses were looked up in %(num)s blocklists that are installed on this server. Nothing was sent anywhere.', d.feeds|length) }}</p>
+
+<div class="table-scroll mt-3">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('What was looked up, and whether a blocklist names it') }}</caption>
+    <thead><tr><th scope="col">{{ _('Looked up') }}</th><th scope="col">{{ _('Kind') }}</th><th scope="col">{{ _('Result') }}</th></tr></thead>
+    <tbody>
+      {% for n in names %}
+      <tr>
+        <td><bdi class="font-mono break-all">{{ n.name }}</bdi></td>
+        <td class="text-sm">{% if n.role == 'host' %}{{ _('Host name') }}{% else %}{{ _('Alias of the host (CNAME target)') }}{% endif %}</td>
+        <td>
+          {% if n.listed_on %}{% for key in n.listed_on %}{{ badge(blocklist_name(key), 'high' if n.role == 'host' else 'medium') }} {% endfor %}
+          {% else %}{{ badge(_('Not listed'), 'ok') }}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      {% for a in addresses %}
+      <tr>
+        <td><bdi class="font-mono">{{ a.ip }}</bdi></td>
+        <td class="text-sm">{{ _('Address') }}{% if a.network %} <span class="text-xs text-muted">· {{ a.network.name }}{% if a.shared %} ({{ _('shared edge') }}){% endif %}</span>{% endif %}</td>
+        <td>
+          {% if a.listed_on %}
+            {% for key in a.listed_on %}{{ badge(blocklist_name(key), 'muted' if a.shared else ('high' if key in ['feodo', 'urlhaus'] else 'medium')) }} {% endfor %}
+            {% if a.shared %}<div class="mt-1 text-xs text-muted">{{ _('Not held against this host: the address is shared, so the listing can come from any site behind it.') }}</div>{% endif %}
+          {% else %}{{ badge(_('Not listed'), 'ok') }}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if d.truncated %}<p class="mt-2 text-xs text-muted">{{ _('The host has %(total)s public addresses; the first %(shown)s were looked up.', total=d.addresses_total, shown=addresses|length) }}</p>{% endif %}
+
+<h3 class="mt-6 text-sm font-semibold">{{ _('Lists consulted') }}</h3>
+<ul class="mt-2 space-y-1 text-sm">
+  {% for f in d.feeds %}
+  <li>
+    <span class="font-semibold">{{ f.name }}</span> · {{ blocklist_about(f.kind) }} ·
+    {{ _('downloaded %(date)s', date=f.as_of) }}{% if f.published %}, {{ _('written %(date)s', date=f.published) }}{% endif %} ·
+    {{ ngettext('%(num)s host', '%(num)s hosts', f.domains, num='{:,}'.format(f.domains)) }}, {{ ngettext('%(num)s address', '%(num)s addresses', f.addresses, num='{:,}'.format(f.addresses)) }}
+    {% if f.stale %}{{ badge(_('old'), 'medium') }}{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% if d.feeds|selectattr('stale')|list %}<p class="mt-2 text-sm">{{ _('A list that is more than three days old may miss what appeared since. Run `flask datasets update` and scan again.') }}</p>{% endif %}
+{% if d.not_installed %}<p class="mt-2 text-sm">{{ _('Not consulted, because they are not installed: %(names)s. Run `flask datasets update` and scan again.', names=blocklist_names(d.not_installed)) }}</p>{% endif %}
+{% if d.unreadable %}<p class="mt-2 text-sm">{{ _('Not consulted, because the file could not be read: %(names)s. Run `flask datasets update --force`.', names=blocklist_names(d.unreadable)) }}</p>{% endif %}
+
+<p class="mt-4 text-xs text-muted">
+  {{ _('An entry says that somebody reported or measured the host at some time and the maintainers kept it; it does not say what is there today. A name or an address that is not listed is not shown to be clean: the lists hold only what their maintainers have seen.') }}
+</p>

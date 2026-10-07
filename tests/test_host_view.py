@@ -22,6 +22,8 @@ from app.service import host_view
 from app.service import scans as scan_service
 from app.service.geo import IpLocation
 from app.service.ports import PortFacts, PortService, PortsLookup, Vulnerability
+from tests.checks.test_blocklists_check import FakeLists, feed
+from tests.checks.test_blocklists_check import run as run_blocklists
 from tests.checks.test_breaches_check import ADOBE, LINKEDIN, FakeLimiters
 from tests.checks.test_breaches_check import answering as breaches_answer
 from tests.checks.test_breaches_check import run as run_breaches
@@ -2161,6 +2163,142 @@ def test_the_reputation_section_of_a_switched_off_check_names_the_setting(
     host = add_host(db_session, scan, WEB_HOST, {**healthy(), **results})
     body = host_page(client, assessment, host)
     assert "Switched off" in body and "REPUTATION_RESOLVERS" in body
+
+
+# ------------------------------------------------------------------------------ blocklists
+
+ALIAS = "edge.cdn.example.net"  # what the DNS outcome of these tests aliases the host to
+ADDRESS = "93.184.216.34"
+
+
+def blocklist_results(lists: FakeLists, **options: Any) -> dict[str, CheckOutcome]:
+    """The DNS answer and what the real blocklists check made of scripted lists."""
+    dns = dns_outcome()
+    return {"dns": dns, "blocklists": run_blocklists(lists, dns=dns, host=WEB_HOST, **options)}
+
+
+def test_the_blocklists_section_names_what_is_listed_and_by_which_list(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    lists = FakeLists(names={WEB_HOST: ("urlhaus",)}, addresses={ADDRESS: ("feodo",)})
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **blocklist_results(lists)})
+    body = host_page(client, assessment, host)
+    assert "Blocklists" in body and "Host name on abuse.ch URLhaus" in body
+    assert "The name of this host is on a blocklist" in body
+    assert "An address of this host is on a blocklist" in body
+    assert "abuse.ch Feodo Tracker" in body and ADDRESS in body
+    assert "Lists consulted" in body and "downloaded 2026-10-07" in body
+    assert "1,200 hosts, 30 addresses" in body  # counted with separators
+    assert "hosts that serve malware" in body and "botnet command-and-control servers" in body
+    assert "not shown to be clean" in body and "Nothing was sent anywhere." in body
+
+
+def test_the_blocklists_section_of_a_host_nobody_lists_says_how_little_that_means(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **blocklist_results(FakeLists())})
+    body = host_page(client, assessment, host)
+    assert "Not on 3 blocklists" in body and "Not listed" in body
+    assert "is on a blocklist" not in body
+    assert "not shown to be clean" in body and "only what their maintainers have seen" in body
+
+
+def test_the_blocklists_section_shows_an_alias_that_is_listed_as_an_alias(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    lists = FakeLists(names={ALIAS: ("phishing",)})
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **blocklist_results(lists)})
+    body = host_page(client, assessment, host)
+    assert "Alias on Phishing.Database" in body and "Alias of the host (CNAME target)" in body
+    assert "A name this host is an alias for is on a blocklist" in body
+    assert "The name of this host is on a blocklist" not in body and ALIAS in body
+
+
+def test_a_listed_address_of_a_cdn_edge_is_shown_but_not_held_against_the_host(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    lists = FakeLists(addresses={ADDRESS: ("phishing",)})
+    results = blocklist_results(lists, ip=ports_ip_outcome(located(ADDRESS, CLOUDFLARE)))
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **results})
+    body = host_page(client, assessment, host)
+    assert "a shared address is listed" in body and "shared edge" in body
+    assert "Not held against this host" in body
+    assert "An address of this host is on a blocklist" not in body
+
+
+def test_the_blocklists_section_counts_a_single_entry_in_the_singular(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    lists = FakeLists(
+        feeds=[feed("feodo", domains=0, addresses=1), feed("urlhaus", domains=391867, addresses=1)]
+    )
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **blocklist_results(lists)})
+    body = host_page(client, assessment, host)
+    assert "0 hosts, 1 address" in body and "391,867 hosts, 1 address" in body
+    assert "1 addresses" not in body
+
+
+def test_the_blocklists_section_of_a_server_without_the_lists_says_how_to_install_them(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    results = blocklist_results(FakeLists(feeds=()))
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **results})
+    body = host_page(client, assessment, host)
+    assert "The blocklists are not installed" in body and "flask datasets update" in body
+    assert "Lists consulted" not in body and "Not listed" not in body
+
+
+def test_the_blocklists_section_says_when_a_list_is_missing_or_old(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    lists = FakeLists(feeds=[feed("urlhaus", as_of="2026-09-20", stale=True)])
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **blocklist_results(lists)})
+    body = host_page(client, assessment, host)
+    assert "Not on 1 blocklist · incomplete, old lists" in body
+    assert (
+        "Not consulted, because they are not installed: Phishing.Database, abuse.ch Feodo" in body
+    )
+    assert "more than three days old" in body and "downloaded 2026-09-20" in body
+
+
+def test_the_blocklists_section_of_a_switched_off_check_names_the_setting(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    results = blocklist_results(FakeLists(), config={"BLOCKLIST_PROVIDERS": []})
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **results})
+    body = host_page(client, assessment, host)
+    assert "Switched off" in body and "BLOCKLIST_PROVIDERS" in body
+
+
+def test_what_the_blocklists_section_shows_is_escaped(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    stored = CheckOutcome(
+        "ok",
+        data={
+            "host": WEB_HOST,
+            "feeds": [
+                {"key": "urlhaus", "name": SCRIPT, "kind": "malware", "as_of": SCRIPT,
+                 "published": SCRIPT, "domains": 1, "addresses": 0, "stale": False}
+            ],
+            "not_installed": [SCRIPT],
+            "unreadable": [SCRIPT],
+            "names": [{"name": SCRIPT, "role": "host", "listed_on": ["urlhaus", SCRIPT]}],
+            "addresses": [
+                {"ip": SCRIPT, "listed_on": ["feodo"], "shared": False, "network": {"name": SCRIPT}}
+            ],
+        },
+    )  # fmt: skip
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "blocklists": stored})
+    body = host_page(client, assessment, host)
+    assert ESCAPED in body and SCRIPT not in body
 
 
 # ------------------------------------------------------------------------ TLS versions and suites

@@ -12,6 +12,8 @@ from app.checks.tls_protocols import outcome_from_protocols
 from app.rules import ScanFacts
 from app.service.geo import IpLocation
 from app.service.ports import PortFacts, PortService, PortsLookup, Vulnerability
+from tests.checks.test_blocklists_check import EVIL_ALIAS, FakeLists
+from tests.checks.test_blocklists_check import run as run_blocklists
 from tests.checks.test_breaches_check import answering
 from tests.checks.test_breaches_check import run as run_breaches
 from tests.checks.test_domain_dns_check import addresses as ns_addresses
@@ -207,6 +209,29 @@ def reputation_hosts() -> list[Any]:
 
 
 @cached
+def blocklist_hosts() -> list[Any]:
+    """A host name and an address on the lists, and a host that is an alias for a listed name."""
+    bad_dns = ports_dns("203.0.113.9")
+    alias_dns = ports_dns("203.0.113.10", cname=EVIL_ALIAS)
+    on_lists = FakeLists(
+        names={f"bad.{DOMAIN}": ("urlhaus",), EVIL_ALIAS: ("phishing",)},
+        addresses={"203.0.113.9": ("feodo",)},
+    )
+    return [
+        host(
+            f"bad.{DOMAIN}",
+            dns=bad_dns,
+            blocklists=run_blocklists(on_lists, dns=bad_dns, host=f"bad.{DOMAIN}"),
+        ),
+        host(
+            f"alias.{DOMAIN}",
+            dns=alias_dns,
+            blocklists=run_blocklists(on_lists, dns=alias_dns, host=f"alias.{DOMAIN}"),
+        ),
+    ]
+
+
+@cached
 def sound_domain() -> dict[str, CheckOutcome]:
     """The checks of a domain with nothing to complain about."""
     return {
@@ -305,4 +330,5 @@ def scans() -> list[ScanFacts]:
         ScanFacts(DOMAIN, protocol_hosts(), {}),
         ScanFacts(DOMAIN, tech_hosts(), {}),
         ScanFacts(DOMAIN, reputation_hosts(), {}),
+        ScanFacts(DOMAIN, blocklist_hosts(), {}),
     ]

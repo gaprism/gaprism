@@ -24,7 +24,7 @@ Edit `.env`: set `POSTGRES_PASSWORD` and the four secrets `SECRET_KEY`, `SECURIT
 ```bash
 docker compose up -d --build                       # build the image, start database, web and worker
 docker compose run --rm cli flask users create-admin    # the first account
-docker compose run --rm cli flask datasets update       # IP location data (about 65 MB) and exploitation data (about 5 MB)
+docker compose run --rm cli flask datasets update       # IP location data (about 65 MB), exploitation data (about 5 MB) and blocklists (about 11 MB)
 ```
 
 Then open <http://localhost:8080>. The first sign-in asks the user to enrol an authenticator app (`REQUIRE_MFA`, on by default in production).
@@ -86,13 +86,13 @@ docker compose down -v                    # remove the volumes as well: THE DATA
 
 An upgrade runs the migrations first; the web app and the worker start only when they have succeeded. Rebuild with `--pull` now and then to pick up security fixes of the base images.
 
-**Location data** (DB-IP Lite) is published monthly and the **exploitation data** (CISA's Known Exploited Vulnerabilities catalogue and FIRST's EPSS scores, which rank the CVEs a scan reports) changes every day. Without the first the IP check says so and names the command; without the second the CVE findings stay Informational and say that they were not ranked. One command updates all four files and leaves a download that is less than twelve hours old alone, so a daily run from cron keeps both current (`-T` because cron has no terminal):
+**Location data** (DB-IP Lite) is published monthly, the **exploitation data** (CISA's Known Exploited Vulnerabilities catalogue and FIRST's EPSS scores, which rank the CVEs a scan reports) changes every day, and the **blocklists** (abuse.ch's URLhaus and Feodo Tracker, and Phishing.Database; they name hosts and addresses that serve malware or phishing or run botnets) change every few hours. Without the first the IP check says so and names the command; without the second the CVE findings stay Informational and say that they were not ranked; without the third the blocklists check says that it could not look. One command updates all the files and leaves a download that is less than twelve hours old alone (the blocklists: six hours), so a run from cron every six hours keeps them all current (`-T` because cron has no terminal):
 
 ```cron
-0 4 * * *  cd /srv/web-due-diligence && docker compose run --rm -T cli flask datasets update
+0 */6 * * *  cd /srv/web-due-diligence && docker compose run --rm -T cli flask datasets update
 ```
 
-`flask datasets status` shows what is installed, how old it is and where it came from; data older than a week is flagged on the host page and in the findings.
+`flask datasets status` shows what is installed, how old it is and where it came from; location and exploitation data older than a week are flagged on the host page and in the findings, blocklists older than three days on the host page. `BLOCKLIST_PROVIDERS` chooses the blocklists to download and use (`urlhaus`, `phishing`, `feodo`; `none` switches the check off): a provider that is left out is neither downloaded nor looked at.
 
 **Backup** the database and the settings together:
 
@@ -183,7 +183,7 @@ A scan is not silent. This is everything it sends to somebody else; the page for
 | Have I Been Pwned (`haveibeenpwned.com`) | the domain name | once per scan | `EXTERNAL_DOMAIN_LOOKUPS` (`hibp`) |
 | Mozilla's HTTP Observatory (`observatory-api.mdn.mozilla.net`), **off unless you add it** | the domain name; Mozilla's scanner then requests the home page and a few well-known files from the domain's own servers, which see Mozilla, and the scan and its grade are public on MDN and cannot be hidden | once per scan (the domain, or `www.` when the domain itself has no site), cached 24 hours | `EXTERNAL_DOMAIN_LOOKUPS` (add `observatory`) |
 
-Besides the scan, `flask datasets update` downloads public files: the IP location databases from `download.db-ip.com` (with a jsDelivr mirror, `cdn.jsdelivr.net`, as a fallback), the Known Exploited Vulnerabilities catalogue from `www.cisa.gov` and the EPSS scores from `epss.empiricalsecurity.com`, where FIRST publishes them. Nothing about an assessment is sent: the CVEs a scan reports are looked up in the files on your own disk, so who runs which software never leaves your network.
+Besides the scan, `flask datasets update` downloads public files: the IP location databases from `download.db-ip.com` (with a jsDelivr mirror, `cdn.jsdelivr.net`, as a fallback), the Known Exploited Vulnerabilities catalogue from `www.cisa.gov`, the EPSS scores from `epss.empiricalsecurity.com`, where FIRST publishes them, and the blocklists: the URLhaus host file from `urlhaus.abuse.ch`, the Feodo Tracker list from `feodotracker.abuse.ch` and the Phishing.Database lists from `raw.githubusercontent.com` (`BLOCKLIST_PROVIDERS` chooses which). Nothing about an assessment is sent: the CVEs a scan reports and the blocklists are looked up in the files on your own disk, so who runs which software, and which hosts and addresses an assessment looks at, never leaves your network.
 
 With `EXTERNAL_DOMAIN_LOOKUPS=none`, `REPUTATION_RESOLVERS=none` and `PORTS_PROVIDER=off`, the only outsiders who learn the domain are the certificate-transparency sources and the DNS resolvers, and the assessed servers see the checks. The optional lookups are on by default because their facts (expiry and locks, HSTS preload, breach history, whether security resolvers block a host) are part of the answer; switch them off when the name of the assessed domain must not reach anybody else. A per-assessment switch for that is on the roadmap's backlog. The Mozilla HTTP Observatory is the exception: it makes a third party scan the domain and publishes the result, so it is off until you add `observatory` to `EXTERNAL_DOMAIN_LOOKUPS`. The host pages also link to the SSL Labs server test and to the Observatory; those links send nothing from here, and what a click starts is the visitor's own use of their website (SSL Labs' terms allow its API only for sites whose owners gave permission, which is why it is not called from here). The security resolvers are the only ones of these that learn the names of the *hosts* too; a network that does not let DNS questions through to them makes the check fail (after a few unanswered questions it stops asking for half a minute, so a scan is not held up), and the host pages say so.
 
@@ -208,3 +208,4 @@ With `EXTERNAL_DOMAIN_LOOKUPS=none`, `REPUTATION_RESOLVERS=none` and `PORTS_PROV
 | The worker logs `relation "audit_event" does not exist` (or another missing table) | the database is behind the code: run `flask db upgrade` (`docker compose up -d --build` does it) |
 | Somebody forgot the password or lost the phone | `users set-password EMAIL`, `users reset-mfa EMAIL` |
 | IP location says "unavailable" | run `docker compose run --rm cli flask datasets update` |
+| The blocklists check says "The blocklists are not installed" | the same command; to stop looking at them set `BLOCKLIST_PROVIDERS=none` |

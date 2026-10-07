@@ -217,6 +217,34 @@ def test_the_security_resolvers_every_host_name_went_to_are_named_in_the_method(
     assert method.security_resolvers == ("Quad9",)
 
 
+def test_the_blocklists_that_were_looked_in_are_named_with_the_day_they_are_from(
+    db_session: Session,
+) -> None:
+    scan, _ = evaluated(db_session)
+    assert report_of(db_session, scan).method.blocklists == ()
+
+    def feeds(*items: tuple[str, str, str]) -> dict[str, Any]:
+        return {"feeds": [{"key": k, "name": n, "as_of": d} for k, n, d in items], "names": []}
+
+    urlhaus, feodo = ("urlhaus", "abuse.ch URLhaus"), ("feodo", "abuse.ch Feodo Tracker")
+    both = feeds((*feodo, "2026-10-07"), (*urlhaus, "2026-10-07"))
+    add_host(db_session, scan, "a.example.com", {"blocklists": CheckOutcome("ok", data=both)})
+    older = feeds((*urlhaus, "2026-10-05"))
+    add_host(db_session, scan, "b.example.com", {"blocklists": CheckOutcome("ok", data=older)})
+    odd = {"feeds": ["nonsense", {"key": "carrier-pigeon", "name": "x", "as_of": "2026-10-01"}]}
+    add_host(db_session, scan, "c.example.com", {"blocklists": CheckOutcome("ok", data=odd)})
+    gone = feeds(("phishing", "Phishing.Database", "2026-10-07"))
+    add_host(
+        db_session, scan, "d.example.com",
+        {"blocklists": CheckOutcome("unavailable", "blocklists_missing", data=gone)},
+    )  # fmt: skip
+    # the providers' order, the oldest day of each, and nothing from a check that did not answer
+    assert report_of(db_session, scan).method.blocklists == (
+        "abuse.ch URLhaus (2026-10-05)",
+        "abuse.ch Feodo Tracker (2026-10-07)",
+    )
+
+
 def test_the_method_says_when_the_name_went_to_mozillas_observatory(db_session: Session) -> None:
     scan, _ = evaluated(db_session)
     assert report_of(db_session, scan).method.observatory is False

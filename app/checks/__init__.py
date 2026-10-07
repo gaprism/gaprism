@@ -15,6 +15,7 @@ from app.checks.base import (
     lookup_enabled,
     waits_for,
 )
+from app.checks.blocklists import BlocklistsCheck
 from app.checks.breaches import BreachesCheck
 from app.checks.discovery import DiscoveryCheck
 from app.checks.dns import DnsCheck
@@ -46,6 +47,7 @@ REGISTRY: dict[str, Check] = {
         TechCheck(),
         TakeoverCheck(),
         ReputationCheck(),
+        BlocklistsCheck(),
         EmailCheck(),
         RegistrationCheck(),
         DomainDnsCheck(),

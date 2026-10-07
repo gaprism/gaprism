@@ -240,10 +240,10 @@ def test_the_hosts_that_datasets_update_contacts_are_the_ones_listed() -> None:
     """The list the doc is checked against must be what the code downloads from."""
     from urllib.parse import urlsplit
 
-    from app.service import exploits
+    from app.service import blocklists, exploits
     from app.service.geo import datasets
 
-    urls = [exploits.KEV_URL, exploits.EPSS_URL]
+    urls = [exploits.KEV_URL, exploits.EPSS_URL, *blocklists.URLS]
     for spec in datasets.SPECS:
         urls.append(spec.official)
         urls.extend(spec.mirrors)

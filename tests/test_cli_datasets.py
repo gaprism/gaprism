@@ -12,8 +12,10 @@ import pytest
 from flask import Flask
 from flask.testing import FlaskCliRunner
 
+from app.service import blocklists as blocklists_service
 from tests.exploit_helpers import epss_gz, kev_json, small_files  # noqa: F401
 from tests.geo_helpers import gzipped, install_databases
+from tests.test_blocklists import FEODO, PHISHING_ADDRESSES, PHISHING_DOMAINS, URLHAUS
 
 TODAY = datetime.datetime.now(datetime.UTC).date()
 REAL_CLIENT = httpx.Client
@@ -51,10 +53,16 @@ def test_status_says_what_is_missing_and_how_to_fix_it(
     assert f"Directory: {datasets_dir}" in result.output
     assert "city: not installed" in result.output and "asn: not installed" in result.output
     assert "kev: not installed" in result.output and "epss: not installed" in result.output
+    for key in ("urlhaus", "phishing", "feodo"):
+        assert f"{key}: not installed" in result.output
     assert "Run `flask datasets update`" in result.output
     assert "IP geolocation by DB-IP.com (CC BY 4.0), https://db-ip.com" in result.output
     assert "Known Exploited Vulnerabilities Catalog, CISA" in result.output
     assert "Exploit Prediction Scoring System (EPSS), FIRST.Org, Inc." in result.output
+    assert "URLhaus, abuse.ch" in result.output and "Feodo Tracker, abuse.ch" in result.output
+    assert "Phishing.Database (https://github.com/Phishing-Database/Phishing.Database" in (
+        result.output
+    )
 
 
 def test_status_shows_build_age_and_staleness(
@@ -69,11 +77,13 @@ def test_status_shows_build_age_and_staleness(
 
 @pytest.mark.usefixtures("small_files")
 def test_update_installs_the_data_and_a_second_run_finds_it_current(
+    app: Flask,
     cli_runner: FlaskCliRunner,
     datasets_dir: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setitem(app.config, "BLOCKLIST_PROVIDERS", [])  # (they have tests of their own)
     source = install_databases(tmp_path / "source", built=TODAY)
     payloads = {
         "city": gzipped(source / "dbip-city-lite.mmdb"),
@@ -121,4 +131,75 @@ def test_a_failed_download_is_reported_and_the_exit_code_says_so(
     assert result.exit_code == 1
     assert "city: FAILED" in result.output and "http_503" in result.output
     assert "kev: FAILED" in result.output and "epss: FAILED" in result.output
+    for key in ("urlhaus", "phishing", "feodo"):
+        assert f"{key}: FAILED" in result.output
     assert "At least one database could not be installed." in result.output
+
+
+def served_blocklists(request: httpx.Request) -> httpx.Response:
+    """The sample files of the three providers, by URL."""
+    files = {
+        "urlhaus.abuse.ch": URLHAUS,
+        "feodotracker.abuse.ch": FEODO,
+    }
+    url = str(request.url)
+    if request.url.host == "raw.githubusercontent.com":
+        return httpx.Response(200, text=PHISHING_ADDRESSES if "IPs" in url else PHISHING_DOMAINS)
+    return httpx.Response(200, text=files[request.url.host])
+
+
+def small_blocklists(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The sample files are far smaller than the real lists, which the update refuses."""
+    real = blocklists_service.update
+    monkeypatch.setattr(
+        blocklists_service, "update", lambda *args, **kwargs: real(*args, relaxed=True, **kwargs)
+    )
+
+
+def test_update_installs_only_the_blocklists_the_owner_chose(
+    app: Flask,
+    cli_runner: FlaskCliRunner,
+    datasets_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(app.config, "BLOCKLIST_PROVIDERS", ["feodo", "urlhaus"])
+    small_blocklists(monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host in ("urlhaus.abuse.ch", "feodotracker.abuse.ch"):
+            return served_blocklists(request)
+        return httpx.Response(503)  # the other data does not matter here
+
+    requested = serve(monkeypatch, handler)
+    result = cli_runner.invoke(args=["datasets", "update"])
+    assert "urlhaus: updated, as of" in result.output and "feodo: updated, as of" in result.output
+    assert "phishing" not in result.output.split("Data:")[0]  # not downloaded, not even named
+    assert not any("githubusercontent" in url for url in requested)
+    assert (datasets_dir / "urlhaus.sqlite").exists() and (datasets_dir / "feodo.sqlite").exists()
+    assert not (datasets_dir / "phishing.sqlite").exists()
+    credits = result.output.split("Data:")[1]
+    assert "URLhaus, abuse.ch" in credits and "Phishing.Database" not in credits
+
+    status = cli_runner.invoke(args=["datasets", "status"]).output
+    assert f"urlhaus: as of {TODAY.isoformat()}" in status and "feodo: as of" in status
+    assert "phishing: switched off (BLOCKLIST_PROVIDERS)" in status
+    again = cli_runner.invoke(args=["datasets", "update"]).output
+    assert "urlhaus: already current" in again and "feodo: already current" in again
+
+
+def test_with_the_blocklists_switched_off_nothing_of_them_is_downloaded_or_credited(
+    app: Flask,
+    cli_runner: FlaskCliRunner,
+    datasets_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(app.config, "BLOCKLIST_PROVIDERS", [])
+    requested = serve(monkeypatch, lambda request: httpx.Response(503))
+    result = cli_runner.invoke(args=["datasets", "update"])
+    hosts = {url.split("/")[2] for url in requested}
+    assert not hosts & {"urlhaus.abuse.ch", "feodotracker.abuse.ch", "raw.githubusercontent.com"}
+    assert "urlhaus" not in result.output.lower() and "phishing" not in result.output.lower()
+    status = cli_runner.invoke(args=["datasets", "status"]).output
+    for key in ("urlhaus", "phishing", "feodo"):
+        assert f"{key}: switched off (BLOCKLIST_PROVIDERS)" in status
+    assert "abuse.ch" not in status

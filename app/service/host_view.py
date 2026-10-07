@@ -22,6 +22,7 @@ from app.checks import DISCOVERY_KEY
 from app.i18n import gettext as _
 from app.i18n import ngettext
 from app.models import Assessment, CheckResult, Host, Scan
+from app.service.blocklists import PROVIDERS as BLOCKLIST_PROVIDERS
 
 CHECK_ORDER = (
     "dns",
@@ -33,6 +34,7 @@ CHECK_ORDER = (
     "tech",
     "takeover",
     "reputation",
+    "blocklists",
 )
 # The checks of the domain itself (they run once per scan), in display order.
 DOMAIN_CHECK_ORDER = (
@@ -61,6 +63,7 @@ CHECK_TITLES = {
     "tech": N_("Technologies"),
     "takeover": N_("Subdomain takeover"),
     "reputation": N_("Reputation (security DNS)"),
+    "blocklists": N_("Blocklists"),
     "email": N_("Email security"),
     "registration": N_("Domain registration"),
     "domain_dns": N_("Name servers and CAA"),
@@ -139,6 +142,8 @@ REASONS = {
     "invalid_hostname_ip": N_("Mozilla does not scan IP addresses"),
     "scan_failed": N_("Mozilla's scan failed: the site did not answer as expected"),
     "not_scannable": N_("Mozilla could not scan the site"),
+    "blocklists_missing": N_("The blocklists are not installed"),
+    "blocklists_unreadable": N_("The blocklists could not be read"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.
@@ -150,6 +155,15 @@ HELP = {
     "datasets_unreadable": N_(
         "The IP location databases could not be read. Run `flask datasets update --force` "
         "to download them again."
+    ),
+    "blocklists_missing": N_(
+        "The blocklists of malware, phishing and botnet hosts are not installed. Run `flask "
+        "datasets update` once (about 11 MB from abuse.ch and GitHub) and scan again; schedule it "
+        "every few hours to keep them current. Nothing about the assessment is sent."
+    ),
+    "blocklists_unreadable": N_(
+        "A blocklist file is there but could not be read. Run `flask datasets update --force` to "
+        "download it again."
     ),
     "missing_api_key": N_(
         "PORTS_PROVIDER is set to shodan but SHODAN_API_KEY is empty. Add the key to `.env`, "
@@ -177,7 +191,7 @@ HELP = {
     "disabled": N_(
         "This lookup is switched off: ports and CVEs by PORTS_PROVIDER=off, lookups of the "
         "domain at a third party by EXTERNAL_DOMAIN_LOOKUPS, the security DNS resolvers by "
-        "REPUTATION_RESOLVERS."
+        "REPUTATION_RESOLVERS, the blocklists by BLOCKLIST_PROVIDERS."
     ),
     "no_verdict": N_(
         "The resolvers answered, but not in a way that says whether they block the name (an "
@@ -266,6 +280,28 @@ EDE_NAMES = {
     23: N_("Network error"),
     24: N_("Invalid data"),
 }
+
+
+BLOCKLIST_ABOUT = {
+    "malware": N_("hosts that serve malware"),
+    "phishing": N_("phishing hosts and addresses"),
+    "botnet": N_("botnet command-and-control servers"),
+}
+
+
+def blocklist_name(key: str) -> str:
+    """The name of a blocklist provider (the key itself if it is not one this version knows)."""
+    provider = BLOCKLIST_PROVIDERS.get(key)
+    return provider.name if provider else key
+
+
+def blocklist_names(keys: Sequence[str]) -> str:
+    return ", ".join(blocklist_name(str(key)) for key in keys)
+
+
+def blocklist_about(kind: str) -> str:
+    """What a blocklist is about, in words."""
+    return _(BLOCKLIST_ABOUT[kind]) if kind in BLOCKLIST_ABOUT else kind
 
 
 def ede_label(code: int) -> str:
@@ -609,6 +645,44 @@ def _reputation_cell(data: Mapping[str, Any]) -> CheckCell:
     return CheckCell("ok", "ok", text)
 
 
+def _blocklists_cell(data: Mapping[str, Any]) -> CheckCell:
+    """What the blocklists say about the host, its aliases and its addresses, in a few words."""
+    feeds = [f for f in data.get("feeds", []) if isinstance(f, Mapping)]
+    named = {str(f.get("key")): str(f.get("name")) for f in feeds}
+    kinds = {str(f.get("key")): str(f.get("kind")) for f in feeds}
+
+    def lists(rows: list[Mapping[str, Any]]) -> str:
+        keys = [key for row in rows for key in row.get("listed_on", [])]
+        return ", ".join(dict.fromkeys(named.get(str(key), str(key)) for key in keys))
+
+    names = [n for n in data.get("names", []) if isinstance(n, Mapping) and n.get("listed_on")]
+    own = [n for n in names if n.get("role") == "host"]
+    aliases = [n for n in names if n.get("role") == "alias"]
+    addresses = [
+        a for a in data.get("addresses", []) if isinstance(a, Mapping) and a.get("listed_on")
+    ]
+    mine = [a for a in addresses if not a.get("shared")]
+    if own:
+        return CheckCell("ok", "high", _("Host name on %(lists)s", lists=lists(own)))
+    if mine:
+        serious = any(
+            kinds.get(str(key)) in ("malware", "botnet") for a in mine for key in a["listed_on"]
+        )
+        text = _("Address on %(lists)s", lists=lists(mine))
+        return CheckCell("ok", "high" if serious else "medium", text)
+    if aliases:
+        return CheckCell("ok", "medium", _("Alias on %(lists)s", lists=lists(aliases)))
+    text = ngettext("Not on %(num)s blocklist", "Not on %(num)s blocklists", len(feeds))
+    if addresses:  # listed, but only a CDN's or another shared edge
+        return CheckCell("ok", "muted", text + " · " + _("a shared address is listed"))
+    gaps = data.get("not_installed") or data.get("unreadable")
+    old = any(f.get("stale") for f in feeds)
+    if gaps or old:
+        notes = ([_("incomplete")] if gaps else []) + ([_("old lists")] if old else [])
+        return CheckCell("ok", "medium", text + " · " + ", ".join(notes))
+    return CheckCell("ok", "ok", text)
+
+
 def _observatory_cell(data: Mapping[str, Any]) -> CheckCell:
     grade = str(data.get("grade") or "?")
     tone = {"A": "ok", "B": "ok", "C": "medium", "D": "high", "F": "high"}.get(grade[:1], "muted")
@@ -632,6 +706,7 @@ _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "tech": _tech_cell,
     "takeover": _takeover_cell,
     "reputation": _reputation_cell,
+    "blocklists": _blocklists_cell,
     "email": _email_cell,
     "registration": _registration_cell,
     "domain_dns": _domain_dns_cell,

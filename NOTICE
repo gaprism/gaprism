@@ -36,6 +36,15 @@ Data the application downloads or queries (not part of this repository)
   no registration) and asks to be named when they are used; the application names EPSS and FIRST
   wherever it shows a score, in the report's list of sources and in the JSON export. Installed on
   request by `flask datasets update`.
+- Blocklists of hosts and addresses that serve malware or phishing or run botnets, installed on
+  request by `flask datasets update` and matched offline (`BLOCKLIST_PROVIDERS` chooses them): the
+  URLhaus host file of abuse.ch, https://urlhaus.abuse.ch, which abuse.ch offers free of charge
+  under its fair use principles (use by companies and for-profit needs may require a subscription
+  to its commercial API, so check before using this application commercially); the Feodo Tracker
+  blocklist of abuse.ch, https://feodotracker.abuse.ch/blocklist/, which abuse.ch releases as CC0;
+  and Phishing.Database, https://github.com/Phishing-Database/Phishing.Database, MIT licence. The
+  application names them wherever it shows a listing, in the report's list of sources and in the
+  JSON export.
 - Everything else is queried, not redistributed. Its terms are listed in docs/checks-catalog.md
   (sections 3 and 5); the Shodan InternetDB, for one, is free for non-commercial use only.
 

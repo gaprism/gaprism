@@ -67,6 +67,9 @@ this file. Wording changes keep the rule's version; a change in *what* it flags 
 | [`TECH_OUTDATED_VERSION`](#tech_outdated_version) | Low | Old software version |
 | [`SCRIPT_FROM_COMPROMISED_HOST`](#script_from_compromised_host) | High or Medium | Page loads from a host that served malware |
 | [`HOST_BLOCKED_BY_SECURITY_DNS`](#host_blocked_by_security_dns) | High or Medium | Blocked by security DNS resolvers |
+| [`HOST_ON_BLOCKLIST`](#host_on_blocklist) | High | Host name on a blocklist |
+| [`ALIAS_ON_BLOCKLIST`](#alias_on_blocklist) | Medium | Alias of a blocklisted host |
+| [`HOST_ADDRESS_ON_BLOCKLIST`](#host_address_on_blocklist) | High or Medium | Address on a blocklist |
 | [`DANGLING_CNAME`](#dangling_cname) | Medium | Alias points nowhere |
 | [`TAKEOVER_LIKELY`](#takeover_likely) | High | Alias may be taken over |
 | [`DNS_PRIVATE_ADDRESS`](#dns_private_address) | Low | Public name points to a private address |
@@ -335,6 +338,42 @@ Run once per host of the scan, over what that host's checks collected.
 *Advice:* Find out what the host serves and who controls it: a compromised site, a taken-over subdomain or a phishing page under the vendor's name are all possible. Ask the vendor whether they know. If the name is blocked by mistake, the resolvers' operators have a way to ask for a review.
 
 *Facts shown:* Blocked by, How it shows, Resolvers asked
+
+### `HOST_ON_BLOCKLIST`
+
+**Host name on a blocklist** · High · reads the `blocklists`, `dns` checks · version 1
+
+*Fires when:* The host's own name is on a list that `flask datasets update` installed: the abuse.ch URLhaus host file (hosts of malware URLs that are active or were added in the last 48 hours) or the Phishing.Database list of phishing hosts that still answered when they were tested. High, with Medium confidence: a list is a third party's classification, a host name can be listed because of one page of a site, and an entry can outlive the problem until the list is updated. The finding names each list with the day it was downloaded. A list that is not installed or cannot be read gives the rule nothing to read, and a name that is not listed is no proof that it is clean: the lists hold only what their maintainers have seen.
+
+*Says:* {host} is listed by {lists} for {listed_for}.
+
+*Advice:* Find out what the host serves and who controls it: a compromised site, a taken-over subdomain or a phishing page under the vendor's name are all possible. Ask the vendor whether they know and what they did about it. A listing can be out of date or mistaken; the maintainers of the list have a way to ask for a review.
+
+*Facts shown:* Listed by, Listed for
+
+### `ALIAS_ON_BLOCKLIST`
+
+**Alias of a blocklisted host** · Medium · reads the `blocklists`, `dns` checks · version 1
+
+*Fires when:* A name that the host is an alias for (a CNAME target) is on a list that `flask datasets update` installed, while the host's own name is not. Medium, with Medium confidence: the list names the target, and a server often answers differently under another name, so what the vendor's host serves is not known. A list that is not installed or cannot be read gives the rule nothing to read, and a name that is not listed is no proof that it is clean.
+
+*Says:* {host} is an alias for {listed}, which is listed by {lists} for {listed_for}.
+
+*Advice:* Ask the vendor why the name points there. An alias to a host that serves malware or phishing is either a leftover that someone else has since taken over, or a sign that the vendor's DNS was changed. Remove the alias if nothing needs it. What the listed host serves under this name is not known.
+
+*Facts shown:* Listed alias, Listed by, Listed for
+
+### `HOST_ADDRESS_ON_BLOCKLIST`
+
+**Address on a blocklist** · High or Medium · reads the `blocklists`, `dns` checks · version 1
+
+*Fires when:* One of the host's public addresses is on a list that `flask datasets update` installed: the abuse.ch Feodo Tracker list of botnet command-and-control servers, the Phishing.Database list of phishing addresses or an address in the URLhaus host file. High when a botnet or malware list names it (Medium confidence), Medium when only the phishing list does (Low confidence: shared hosting puts many sites on one address). An address of a CDN or other shared edge never raises it, however it is listed: the listing can come from any of the sites behind it. The finding belongs to the address, not to the host name. A list that is not installed or cannot be read gives the rule nothing to read, and an address that is not listed is no proof that it is clean.
+
+*Says:* {host} resolves to {addresses}, which is listed by {lists} for {listed_for}.
+
+*Advice:* Find out whether the address is the vendor's own server or shared with others. An address that a botnet or malware list names can mean that the server behind it is compromised; one on a phishing list may belong to a neighbour on shared hosting. Ask the vendor to look at the server.
+
+*Facts shown:* Listed addresses, Listed by, Listed for
 
 ### `DANGLING_CNAME`
 

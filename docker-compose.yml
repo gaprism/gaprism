@@ -113,7 +113,7 @@ services:
 
   # One-off commands, never started by `up`:
   #   docker compose run --rm cli flask users create-admin
-  #   docker compose run --rm cli flask datasets update      # about 65 MB, then monthly
+  #   docker compose run --rm cli flask datasets update      # about 80 MB, then every few hours (docs/deploy.md)
   cli:
     <<: *app
     profiles: [tools]

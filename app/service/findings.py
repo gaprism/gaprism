@@ -523,6 +523,15 @@ def _block_how_label(code: str) -> str:
     return labels.get(code) or code
 
 
+def _listed_for_label(code: str) -> str:
+    labels = {
+        "malware": _("serving malware"),
+        "phishing": _("phishing"),
+        "botnet": _("controlling a botnet"),
+    }
+    return labels.get(code) or code
+
+
 # Parameter values that are codes get translated before they go into a sentence.
 TRANSLATORS = {
     "failures": _failure_label,
@@ -535,6 +544,7 @@ TRANSLATORS = {
     "version_from": _version_source_label,
     "loaded_as": _loaded_as_label,
     "block_how": _block_how_label,
+    "listed_for": _listed_for_label,
 }
 
 

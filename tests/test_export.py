@@ -18,6 +18,10 @@ from app.rules import RULES
 from app.service import decisions
 from app.service import export as export_service
 from app.service.export import CSV_BOM, ExportData
+from tests.checks.test_blocklists_check import EVIL_ALIAS, FakeLists
+from tests.checks.test_blocklists_check import run as run_blocklists
+from tests.checks.test_ports_check import CLOUDFLARE, ip_outcome, located
+from tests.checks.test_ports_check import dns as ports_dns
 from tests.checks.test_reputation_check import (
     CLOUDFLARE_CLEAR,
     QUAD9_BLOCKED,
@@ -302,6 +306,34 @@ def test_the_hosts_csv_names_the_security_resolvers_that_block_a_host(db_session
     assert rows["bad-tls.example.com"]["blocked_by"] == ""  # and a host not asked: not "clean"
 
 
+def test_the_hosts_csv_names_what_the_blocklists_list(db_session: Session) -> None:
+    scan, _ = evaluated(db_session)
+    dns = ports_dns("203.0.113.9", "203.0.113.10", cname=EVIL_ALIAS)
+    lists = FakeLists(
+        names={"bad.example.com": ("urlhaus",), EVIL_ALIAS: ("phishing",)},
+        addresses={"203.0.113.9": ("feodo",), "203.0.113.10": ("phishing",)},
+    )
+    edge = ip_outcome(located("203.0.113.10", CLOUDFLARE))
+    checked = run_blocklists(lists, dns=dns, ip=edge, host="bad.example.com")
+    add_host(db_session, scan, "bad.example.com", {"dns": dns, "blocklists": checked})
+    add_host(
+        db_session,
+        scan,
+        "silent.example.com",
+        {"blocklists": CheckOutcome("unavailable", "blocklists_missing", {"names": []})},
+    )
+    clear = run_blocklists(FakeLists(), dns=ports_dns("203.0.113.20"), host="clear.example.com")
+    add_host(db_session, scan, "clear.example.com", {"blocklists": clear})
+    rows = {r["hostname"]: r for r in parse_csv(export_service.hosts_csv(build(db_session, scan)))}
+    # the address of a CDN edge is left out: the listing can come from any site behind it
+    assert rows["bad.example.com"]["listed_on"] == (
+        "host: abuse.ch URLhaus; alias login.evil-example.net: Phishing.Database; "
+        "address 203.0.113.9: abuse.ch Feodo Tracker"
+    )
+    for name in ("silent.example.com", "clear.example.com", "bad-tls.example.com"):
+        assert rows[name]["listed_on"] == ""  # not asked, not answered, and not listed
+
+
 def test_checks_that_gave_no_answer_show_their_status_not_an_empty_cell(
     db_session: Session,
 ) -> None:
@@ -553,6 +585,23 @@ def test_the_security_resolvers_are_named_when_the_reputation_check_ran() -> Non
     assert only_one[0].name == "Security DNS resolvers: Quad9"
     unknown = export_service.attributions_for({"security-dns:nobody"}, {})
     assert unknown[0].name == "Security DNS resolvers: ?"  # never invents a resolver
+
+
+def test_the_blocklists_that_were_looked_in_are_credited_with_their_terms() -> None:
+    sources = {"blocklists:urlhaus,feodo", "blocklists:phishing", "blocklists:feodo"}
+    found = {a.key: a for a in export_service.attributions_for(sources, {})}
+    assert list(found) == ["blocklist_urlhaus", "blocklist_phishing", "blocklist_feodo"]
+    assert found["blocklist_urlhaus"].name == "abuse.ch URLhaus"
+    assert "fair use" in found["blocklist_urlhaus"].terms
+    assert (
+        found["blocklist_phishing"].url == "https://github.com/Phishing-Database/Phishing.Database"
+    )
+    assert "Terms: CC0" in found["blocklist_feodo"].terms
+    assert "nothing about the assessment was sent" in found["blocklist_feodo"].terms
+    assert "clean bill of health" in found["blocklist_feodo"].terms
+    assert "botnet command-and-control servers" in found["blocklist_feodo"].used_for
+    # the lists were not there, or a key nobody knows: nothing is credited, nothing invented
+    assert export_service.attributions_for({"blocklists", "blocklists:nobody"}, {}) == ()
 
 
 def test_the_observatory_is_credited_only_when_the_name_was_sent_to_it() -> None:

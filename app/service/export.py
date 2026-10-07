@@ -29,6 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.checks import DISCOVERY_KEY, observatory, reputation, takeover_services
+from app.checks.blocklists import SOURCE as BLOCKLISTS_SOURCE
 from app.i18n import gettext as _
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
@@ -36,8 +37,9 @@ from app.rules import RULES
 from app.service import exploits as exploit_service
 from app.service import findings as findings_service
 from app.service import summary as summary_service
+from app.service.blocklists import PROVIDERS as BLOCKLIST_PROVIDERS
 from app.service.decisions import Decision
-from app.service.host_view import CHECK_ORDER, DOMAIN_CHECK_ORDER
+from app.service.host_view import CHECK_ORDER, DOMAIN_CHECK_ORDER, blocklist_about
 
 FORMAT_NAME = "web-due-diligence-export"
 FORMAT_VERSION = 1
@@ -64,6 +66,7 @@ HOST_COLUMNS = (
     "http_scheme",
     "technologies",
     "blocked_by",
+    "listed_on",
     "open_findings",
     "top_severity",
     "gaps",
@@ -419,6 +422,34 @@ def attributions_for(
                     "classification, and a name that is not blocked is not a clean bill of health."
                 ),
                 None,
+            )
+        )
+    consulted = {
+        key
+        for source in used
+        if source.startswith(f"{BLOCKLISTS_SOURCE}:")
+        for key in source.split(":", 1)[1].split(",")
+    }
+    for provider in BLOCKLIST_PROVIDERS.values():
+        if provider.key not in consulted:
+            continue
+        found.append(
+            Attribution(
+                f"blocklist_{provider.key}",
+                provider.name,
+                _(
+                    "Whether the host names, aliases and addresses of the assessment are listed "
+                    "by this provider (%(about)s), looked up offline",
+                    about=blocklist_about(provider.kind),
+                ),
+                _(
+                    "Terms: %(licence)s. Installed on the server that ran the scan: nothing "
+                    "about the assessment was sent. A listing is the maintainers' classification "
+                    "at some time, and a name or address that is not listed is not a clean bill "
+                    "of health.",
+                    licence=provider.licence,
+                ),
+                provider.page,
             )
         )
     if "dbip" in used:
@@ -784,6 +815,31 @@ def _blocked_by(check: CheckExport | None) -> list[str]:
     return [str(name) for name in check.data.get("blocked_by", [])]
 
 
+def _listed_on(check: CheckExport | None) -> list[str]:
+    """What the blocklists name: the host, its aliases and its own addresses. An address of a CDN
+    or another shared edge is not held against the host. Nothing when the check did not answer."""
+    if check is None or check.status != "ok":
+        return []
+    called = {
+        str(feed.get("key")): str(feed.get("name"))
+        for feed in check.data.get("feeds", [])
+        if isinstance(feed, Mapping)
+    }
+
+    def by(keys: Iterable[Any]) -> str:
+        return ", ".join(called.get(str(key), str(key)) for key in keys)
+
+    found: list[str] = []
+    for row in check.data.get("names", []):
+        if isinstance(row, Mapping) and row.get("listed_on"):
+            label = "host" if row.get("role") == "host" else f"alias {row.get('name')}"
+            found.append(f"{label}: {by(row['listed_on'])}")
+    for row in check.data.get("addresses", []):
+        if isinstance(row, Mapping) and row.get("listed_on") and not row.get("shared"):
+            found.append(f"address {row.get('ip')}: {by(row['listed_on'])}")
+    return found
+
+
 def _host_row(host: HostExport) -> list[Any]:
     dns, ports = host.check("dns"), host.check("ports")
     tls, http = host.check("tls"), host.check("http")
@@ -834,6 +890,7 @@ def _host_row(host: HostExport) -> list[Any]:
         scheme,
         technologies,
         _blocked_by(host.check("reputation")),
+        _listed_on(host.check("blocklists")),
         host.open_findings,
         host.top_severity,
         host.has_gaps,

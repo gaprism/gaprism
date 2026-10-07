@@ -1,0 +1,51 @@
+################################################################
+# abuse.ch URLhaus Host file                                   #
+# Last updated: 2026-10-07 19:20:10 (UTC)                      #
+#                                                              #
+# Terms Of Use: https://urlhaus.abuse.ch/api/                  #
+# For questions please contact urlhaus [at] abuse.ch           #
+################################################################
+#
+127.0.0.1	3.zhzy999.net
+127.0.0.1	3.zhzy999.net3.zhzy999.net
+127.0.0.1	31.128.173.853.zhzy999.net31.128.173.853.zhzy999.net
+127.0.0.1	compromised-01.sample.example
+127.0.0.1	compromised-02.sample.example
+127.0.0.1	compromised-03.sample.example
+127.0.0.1	compromised-04.sample.example
+127.0.0.1	compromised-05.sample.example
+127.0.0.1	compromised-06.sample.example
+127.0.0.1	compromised-07.sample.example
+127.0.0.1	compromised-08.sample.example
+127.0.0.1	compromised-09.sample.example
+127.0.0.1	compromised-10.sample.example
+127.0.0.1	compromised-11.sample.example
+127.0.0.1	compromised-12.sample.example
+127.0.0.1	compromised-13.sample.example
+127.0.0.1	compromised-14.sample.example
+127.0.0.1	compromised-15.sample.example
+127.0.0.1	compromised-16.sample.example
+127.0.0.1	compromised-17.sample.example
+127.0.0.1	compromised-18.sample.example
+127.0.0.1	compromised-19.sample.example
+127.0.0.1	compromised-20.sample.example
+127.0.0.1	compromised-21.sample.example
+127.0.0.1	compromised-22.sample.example
+127.0.0.1	compromised-23.sample.example
+127.0.0.1	compromised-24.sample.example
+127.0.0.1	compromised-25.sample.example
+127.0.0.1	compromised-26.sample.example
+127.0.0.1	compromised-27.sample.example
+127.0.0.1	compromised-28.sample.example
+127.0.0.1	compromised-29.sample.example
+127.0.0.1	compromised-30.sample.example
+127.0.0.1	compromised-31.sample.example
+127.0.0.1	compromised-32.sample.example
+127.0.0.1	compromised-33.sample.example
+127.0.0.1	compromised-34.sample.example
+127.0.0.1	compromised-35.sample.example
+127.0.0.1	compromised-36.sample.example
+127.0.0.1	compromised-37.sample.example
+127.0.0.1	compromised-38.sample.example
+127.0.0.1	compromised-39.sample.example
+127.0.0.1	compromised-40.sample.example
