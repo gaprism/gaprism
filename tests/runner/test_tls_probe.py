@@ -4,14 +4,19 @@ from __future__ import annotations
 
 import datetime
 import ssl
+import warnings
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
+from cryptography import x509
+from cryptography.utils import CryptographyDeprecationWarning
 
 from runner.dns import SSRFBlockedError
 from runner.tls import (
     TLSProbeResult,
+    _chain_facts,
     _parse_cert_metadata,
     _signature_details,
     probe_tls_endpoint,
@@ -21,6 +26,7 @@ from tests.tls_helpers import (
     Issued,
     TlsServer,
     closed_port,
+    der_with_serial_byte,
     issue,
     write_ca,
     write_pem,
@@ -237,3 +243,72 @@ def test_the_result_serialises_with_the_new_facts(
     ):
         assert key in data
     assert datetime.datetime.fromisoformat(data["not_after"]) > datetime.datetime.now(datetime.UTC)
+
+
+# ------------------------------------------------------------------------------ odd certificates
+
+
+def heard(caught: list[warnings.WarningMessage]) -> list[warnings.WarningMessage]:
+    return [w for w in caught if issubclass(w.category, CryptographyDeprecationWarning)]
+
+
+@pytest.mark.parametrize(
+    ("byte", "serial", "positive"),
+    [(0x05, "5", True), (0x00, "0", False), (0xFB, "-5", False)],
+)
+def test_a_serial_number_that_is_not_positive_is_recorded_and_does_not_warn(
+    byte: int, serial: str, positive: bool
+) -> None:
+    der = der_with_serial_byte(issue(HOST, serial=5), byte)
+    if not positive:
+        # The premise: the library does warn about such a certificate (when it starts to refuse
+        # it instead, this raises: time to look at runner/tls.py).
+        with warnings.catch_warnings(record=True) as raw:
+            warnings.simplefilter("always")
+            x509.load_der_x509_certificate(der)
+        assert heard(raw)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")  # even a caller that asks for every warning hears none
+        meta = _parse_cert_metadata(der)
+    assert heard(caught) == []
+    assert (meta["serial_number"], meta["serial_positive"]) == (serial, positive)
+    assert meta["subject_cn"] == HOST and len(meta["fingerprint_sha256"]) == 64
+
+
+def test_the_chain_of_such_a_certificate_is_read_without_a_warning_too() -> None:
+    old = der_with_serial_byte(issue("Old CA", ca=True, serial=5), 0xFB)
+    peer = SimpleNamespace(get_unverified_chain=lambda: [old])
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert _chain_facts(peer, verified=False) == (1, ["CN=Old CA"])
+    assert heard(caught) == []
+
+
+def refuse(der: bytes, backend: Any = None) -> Any:
+    raise ValueError("Parsing failed")
+
+
+def test_a_certificate_that_cannot_be_parsed_is_unreadable_not_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """What happens when the library stops accepting certificates it only warns about today."""
+    der = issue(HOST).der
+    monkeypatch.setattr("runner.tls.x509.load_der_x509_certificate", refuse)
+    assert _parse_cert_metadata(der) == {"unreadable": True}
+    peer = SimpleNamespace(get_unverified_chain=lambda: [der])
+    assert _chain_facts(peer, verified=False) == (1, ["(unreadable)"])
+
+
+def test_a_certificate_that_cannot_be_read_is_never_reported_valid(
+    allow_loopback: None, tmp_path: Path, rsa_ca: Issued, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    leaf = issue(HOST, sans=[HOST], issuer=rsa_ca)
+    trust_file = write_ca(tmp_path, "rsa-ca", rsa_ca)
+    with serve(tmp_path, leaf) as server:
+        monkeypatch.setattr("runner.tls.x509.load_der_x509_certificate", refuse)
+        result = probe(server, trust_file)
+    assert result.failure_reasons == ["CERTIFICATE_UNREADABLE"]
+    assert result.is_valid is False and result.fingerprint_sha256 is None
+    assert (
+        result.hostname_match is True
+    )  # nothing was learnt that says otherwise: no invented failure

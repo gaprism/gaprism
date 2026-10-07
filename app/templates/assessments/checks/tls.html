@@ -29,4 +29,7 @@
   <ul class="mt-2 flex flex-wrap gap-2">{% for san in c.sans %}<li class="rounded-md border border-line bg-canvas px-2 py-0.5"><bdi class="font-mono text-xs">{{ san }}</bdi></li>{% endfor %}</ul>
 </details>
 {% endif %}
+{% if c.serial_positive is false %}
+<div class="mt-4">{{ notice(_('Serial number is not positive'), _('RFC 5280 requires the serial number of a certificate to be a positive integer. Its serial number is %(serial)s, which an old or faulty certificate authority can produce. Libraries and browsers may refuse such certificates in the future.', serial=c.serial), 'warning') }}</div>
+{% endif %}
 {% if c.fingerprint_sha256 %}<p class="mt-4 text-xs text-muted">{{ _('SHA-256 fingerprint') }}: <bdi class="font-mono break-all">{{ c.fingerprint_sha256 }}</bdi></p>{% endif %}

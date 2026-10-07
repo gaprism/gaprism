@@ -49,7 +49,7 @@ from tests.checks.test_securitytxt_check import GITHUB as SECURITY_TXT
 from tests.checks.test_securitytxt_check import WELL_KNOWN, Web
 from tests.checks.test_securitytxt_check import run as run_security
 from tests.checks.test_securitytxt_check import text as security_text
-from tests.checks.test_tls_check import probe_result
+from tests.checks.test_tls_check import no_certificate, probe_result
 from tests.exploit_helpers import FakeExploits, listed, scored
 from tests.helpers import create_assessment, create_user, login_as
 from tests.test_engine import CONFIG
@@ -1717,3 +1717,22 @@ def test_hostile_text_in_the_new_domain_sections_is_escaped(
     body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
     assert SCRIPT not in body and body.count(ESCAPED) >= 8
     assert SCRIPT not in client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+
+
+def test_the_tls_section_says_when_the_serial_number_is_not_positive(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    odd = tls_outcome(serial_number="-5", serial_positive=False)
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "tls": odd})
+    body = host_page(client, assessment, host)
+    assert "Serial number is not positive" in body and "Its serial number is -5" in body
+    ordinary = add_host(db_session, scan, "www." + WEB_HOST, healthy())
+    assert "Serial number is not positive" not in host_page(client, assessment, ordinary)
+
+
+def test_an_unreadable_certificate_is_named_as_that(signed_in: Any, db_session: Session) -> None:
+    client, assessment, scan = signed_in
+    unreadable = outcome_from_probe(no_certificate("CERTIFICATE_UNREADABLE"))
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "tls": unreadable})
+    assert "The certificate could not be read" in host_page(client, assessment, host)

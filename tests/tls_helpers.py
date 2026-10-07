@@ -50,6 +50,7 @@ def issue(
     starts: datetime.timedelta = -DAY,
     ends: datetime.timedelta = 30 * DAY,
     digest: hashes.HashAlgorithm | None = None,
+    serial: int | None = None,
 ) -> Issued:
     """A certificate for ``subject_cn``; self-signed unless ``issuer`` is given."""
     key = _key(key_kind, key_bits)
@@ -60,7 +61,7 @@ def issue(
         .subject_name(name)
         .issuer_name(issuer.cert.subject if issuer else name)
         .public_key(key.public_key())
-        .serial_number(x509.random_serial_number())
+        .serial_number(x509.random_serial_number() if serial is None else serial)
         .not_valid_before(now + starts)
         .not_valid_after(now + ends)
         .add_extension(x509.BasicConstraints(ca=ca, path_length=None), critical=True)
@@ -96,6 +97,17 @@ def issue(
         )
     signer = issuer.key if issuer else key
     return Issued(key, builder.sign(signer, digest or hashes.SHA256()))
+
+
+def der_with_serial_byte(issued: Issued, value: int) -> bytes:
+    """The DER of a certificate made with ``issue(..., serial=5)``, its serial number overwritten
+    by the single byte ``value``: 0x00 is zero, 0xFB is -5. This is how a faulty authority's
+    certificate looks. The signature no longer matches, which parsing does not check, and the
+    encoding stays minimal (a one-byte INTEGER), so strict parsers still accept the structure."""
+    der = issued.der
+    marker = bytes.fromhex("a003020102020105")  # [0] version v3, then INTEGER 5
+    assert der.count(marker) == 1, "build the certificate with serial=5"
+    return der.replace(marker, marker[:-1] + bytes([value]))
 
 
 def write_pem(directory: Path, name: str, leaf: Issued, *chain: Issued) -> tuple[str, str]:

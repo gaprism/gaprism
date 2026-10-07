@@ -195,3 +195,22 @@ def test_a_certificate_with_thousands_of_names_is_bounded() -> None:
     certificate = outcome.data["certificate"]
     assert len(certificate["sans"]) == MAX_SANS and certificate["san_count"] == MAX_SANS + 400
     assert len(certificate["subject_cn"]) == 200
+
+
+def test_a_serial_number_that_is_not_positive_is_part_of_the_facts() -> None:
+    outcome = outcome_from_probe(probe_result(serial_number="-5", serial_positive=False))
+    assert outcome.status == "ok"
+    certificate = outcome.data["certificate"]
+    assert (certificate["serial"], certificate["serial_positive"]) == ("-5", False)
+    assert (
+        outcome_from_probe(probe_result(serial_positive=True)).data["certificate"][
+            "serial_positive"
+        ]
+        is True
+    )
+
+
+def test_a_certificate_that_was_presented_and_cannot_be_read_is_an_error_with_that_reason() -> None:
+    outcome = outcome_from_probe(no_certificate("CERTIFICATE_UNREADABLE"))
+    assert (outcome.status, outcome.reason_code) == ("error", "certificate_unreadable")
+    assert outcome.data["failures"] == ["certificate_unreadable"]

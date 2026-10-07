@@ -7,6 +7,9 @@ import datetime
 import ipaddress
 import socket
 import ssl
+import threading
+import warnings
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -15,6 +18,7 @@ from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
+from cryptography.utils import CryptographyDeprecationWarning
 
 from runner.dns import SSRFBlockedError, is_ip_public, resolve_and_screen
 
@@ -38,6 +42,40 @@ _SIGNATURE_NAMES = {
 MAX_CHAIN_CERTIFICATES = 10
 MAX_NAME_LENGTH = 200
 
+# ``cryptography`` warns (when a certificate is loaded and each time its serial number is read)
+# that a future release will refuse a certificate whose serial number is zero or negative: RFC 5280
+# requires a positive one, but a few old authorities issued others, and this prober reads whatever
+# other people's servers present. The fact is part of the result (``serial_positive``) where an
+# analyst can see which host it is, so the warning is silenced where certificates are read.
+# ``catch_warnings`` changes process-wide state: one thread at a time.
+_SERIAL_WARNING = "Parsed a serial number which wasn't positive"
+_WARNING_LOCK = threading.Lock()
+
+
+@contextlib.contextmanager
+def _serial_warning_silenced() -> Iterator[None]:
+    with _WARNING_LOCK, warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message=_SERIAL_WARNING, category=CryptographyDeprecationWarning
+        )
+        yield
+
+
+def _load_certificate(der: bytes) -> x509.Certificate:
+    """Parse a DER certificate; ``ValueError`` if it cannot be read."""
+    with _serial_warning_silenced():
+        return x509.load_der_x509_certificate(der, default_backend())
+
+
+def _serial_of(cert: x509.Certificate) -> int:
+    with _serial_warning_silenced():
+        return cert.serial_number
+
+
+def _serial_text(serial: int) -> str:
+    """The serial number in hex, with a minus sign if it is negative (it should not be)."""
+    return ("-" if serial < 0 else "") + format(abs(serial), "X")
+
 
 @dataclass(frozen=True)
 class TLSProbeResult:
@@ -59,6 +97,7 @@ class TLSProbeResult:
     issuer_org: str | None = None
     sans: list[str] = field(default_factory=list)
     serial_number: str | None = None
+    serial_positive: bool | None = None  # False: zero or negative, which RFC 5280 forbids
     fingerprint_sha256: str | None = None
     cipher_suite: str | None = None
     protocol_version: str | None = None
@@ -97,6 +136,7 @@ class TLSProbeResult:
             "issuer_org": self.issuer_org,
             "sans": self.sans,
             "serial_number": self.serial_number,
+            "serial_positive": self.serial_positive,
             "fingerprint_sha256": self.fingerprint_sha256,
             "cipher_suite": self.cipher_suite,
             "protocol_version": self.protocol_version,
@@ -180,7 +220,7 @@ def _chain_facts(ssock: ssl.SSLSocket, verified: bool) -> tuple[int | None, list
     subjects: list[str] = []
     for der in chain[:MAX_CHAIN_CERTIFICATES]:  # DER bytes, one per certificate
         try:
-            cert = x509.load_der_x509_certificate(bytes(der), default_backend())
+            cert = _load_certificate(bytes(der))
         except ValueError:
             subjects.append("(unreadable)")
             continue
@@ -189,11 +229,15 @@ def _chain_facts(ssock: ssl.SSLSocket, verified: bool) -> tuple[int | None, list
 
 
 def _parse_cert_metadata(der_bytes: bytes) -> dict[str, Any]:
-    """Parse X.509 certificate metadata from binary DER representation."""
+    """Parse X.509 certificate metadata from binary DER representation.
+
+    A certificate that was received but cannot be read comes back as ``{"unreadable": True}``:
+    something was presented, so it must never look like "no certificate".
+    """
     try:
-        cert = x509.load_der_x509_certificate(der_bytes, default_backend())
+        cert = _load_certificate(der_bytes)
     except Exception:
-        return {}
+        return {"unreadable": True}
 
     subject_cn = None
     for attr in cert.subject.get_attributes_for_oid(x509.oid.NameOID.COMMON_NAME):
@@ -230,7 +274,7 @@ def _parse_cert_metadata(der_bytes: bytes) -> dict[str, Any]:
     days_left = (not_after - now).days
 
     fingerprint = cert.fingerprint(hashes.SHA256()).hex()
-    serial = hex(cert.serial_number)[2:].upper()
+    serial_number = _serial_of(cert)
     key_type, key_bits, key_curve = _key_details(cert)
     signature_algorithm, signature_hash = _signature_details(cert)
     # Browsers ignore the CN when SANs exist, so it only counts when there are none.
@@ -245,7 +289,8 @@ def _parse_cert_metadata(der_bytes: bytes) -> dict[str, Any]:
         "not_after": not_after,
         "days_until_expiration": days_left,
         "fingerprint_sha256": fingerprint,
-        "serial_number": serial,
+        "serial_number": _serial_text(serial_number),
+        "serial_positive": serial_number > 0,
         "key_type": key_type,
         "key_bits": key_bits,
         "key_curve": key_curve,
@@ -402,8 +447,11 @@ def probe_tls_endpoint(
     cert_meta: dict[str, Any] = {}
     if der_cert:
         cert_meta = _parse_cert_metadata(der_cert)
+        if cert_meta.get("unreadable"):
+            # Never "valid", and never "no certificate": one was presented and could not be read.
+            failure_reasons.append("CERTIFICATE_UNREADABLE")
         # Perform explicit granular checks if unverified context was used
-        if not chain_trust:
+        elif not chain_trust:
             now = datetime.datetime.now(datetime.UTC)
             nb = cert_meta.get("not_before")
             na = cert_meta.get("not_after")
@@ -450,6 +498,7 @@ def probe_tls_endpoint(
         issuer_org=cert_meta.get("issuer_org"),
         sans=cert_meta.get("sans", []),
         serial_number=cert_meta.get("serial_number"),
+        serial_positive=cert_meta.get("serial_positive"),
         fingerprint_sha256=cert_meta.get("fingerprint_sha256"),
         cipher_suite=cipher_suite,
         protocol_version=protocol_version,

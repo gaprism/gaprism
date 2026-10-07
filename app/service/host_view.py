@@ -175,6 +175,7 @@ TLS_FAILURES = {
     "untrusted": N_("Not trusted"),
     "verify_failed": N_("Verification failed"),
     "handshake_failed": N_("TLS handshake failed"),
+    "certificate_unreadable": N_("The certificate could not be read"),
 }
 
 
