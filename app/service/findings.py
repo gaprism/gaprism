@@ -514,6 +514,15 @@ def _loaded_as_label(code: str) -> str:
     return labels.get(code) or code
 
 
+def _block_how_label(code: str) -> str:
+    labels = {
+        "nxdomain": _("the name does not resolve for it"),
+        "unspecified_address": _("it answers 0.0.0.0 (or ::) instead of the address"),
+        "ede": _("it says that the name is blocked"),
+    }
+    return labels.get(code) or code
+
+
 # Parameter values that are codes get translated before they go into a sentence.
 TRANSLATORS = {
     "failures": _failure_label,
@@ -525,6 +534,7 @@ TRANSLATORS = {
     "takeover_claim": _takeover_claim_label,
     "version_from": _version_source_label,
     "loaded_as": _loaded_as_label,
+    "block_how": _block_how_label,
 }
 
 

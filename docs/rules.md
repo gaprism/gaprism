@@ -66,6 +66,7 @@ this file. Wording changes keep the rule's version; a change in *what* it flags 
 | [`SERVER_VERSION_DISCLOSED`](#server_version_disclosed) | Informational | Software version disclosed |
 | [`TECH_OUTDATED_VERSION`](#tech_outdated_version) | Low | Old software version |
 | [`SCRIPT_FROM_COMPROMISED_HOST`](#script_from_compromised_host) | High or Medium | Page loads from a host that served malware |
+| [`HOST_BLOCKED_BY_SECURITY_DNS`](#host_blocked_by_security_dns) | High or Medium | Blocked by security DNS resolvers |
 | [`DANGLING_CNAME`](#dangling_cname) | Medium | Alias points nowhere |
 | [`TAKEOVER_LIKELY`](#takeover_likely) | High | Alias may be taken over |
 | [`DNS_PRIVATE_ADDRESS`](#dns_private_address) | Low | Public name points to a private address |
@@ -322,6 +323,18 @@ Run once per host of the scan, over what that host's checks collected.
 *Advice:* Remove the reference, or replace it with a copy of the file that the site serves itself or with a trusted mirror, and review what the page loaded in the meantime. Whoever controls such a host can run code in every visitor's browser.
 
 *Facts shown:* Hosts, Loaded as
+
+### `HOST_BLOCKED_BY_SECURITY_DNS`
+
+**Blocked by security DNS resolvers** · High or Medium · reads the `reputation`, `dns` checks · version 1
+
+*Fires when:* A security DNS resolver (Quad9, Cloudflare's malware-blocking 1.1.1.2) refuses a name that the DNS check resolved: it says so with an Extended DNS Error (Blocked, Censored, Filtered, Prohibited), answers NXDOMAIN or answers 0.0.0.0. Medium when one resolver blocks it, High when two agree. The confidence is Medium: blocking is a third party's classification, which can be wrong or can list a name because of what another tenant of a shared host did. A resolver that failed, did not answer, or answered differently without saying why is not counted as a block, and a name that is not blocked is no proof that it is clean: each resolver knows only part of the bad names of the internet.
+
+*Says:* {host} is blocked by {blocked_by}, which refuse names that their threat intelligence flags as malicious.
+
+*Advice:* Find out what the host serves and who controls it: a compromised site, a taken-over subdomain or a phishing page under the vendor's name are all possible. Ask the vendor whether they know. If the name is blocked by mistake, the resolvers' operators have a way to ask for a review.
+
+*Facts shown:* Blocked by, How it shows, Resolvers asked
 
 ### `DANGLING_CNAME`
 

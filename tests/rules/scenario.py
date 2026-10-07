@@ -26,6 +26,15 @@ from tests.checks.test_ports_check import dns as ports_dns
 from tests.checks.test_ports_check import run as run_ports
 from tests.checks.test_registration_check import Registry
 from tests.checks.test_registration_check import run as run_registration
+from tests.checks.test_reputation_check import (
+    CLOUDFLARE_BLOCKED,
+    QUAD9_BLOCKED,
+    QUAD9_CLEAR,
+    wire,
+)
+from tests.checks.test_reputation_check import both as reputation_network
+from tests.checks.test_reputation_check import dns_result as reputation_dns
+from tests.checks.test_reputation_check import run as reputation_run
 from tests.checks.test_securitytxt_check import GITHUB as SECURITY_TXT
 from tests.checks.test_securitytxt_check import WELL_KNOWN, Web
 from tests.checks.test_securitytxt_check import run as run_security
@@ -182,6 +191,22 @@ def tech_hosts() -> list[Any]:
 
 
 @cached
+def reputation_hosts() -> list[Any]:
+    """A host that security resolvers block (both of them: High) and one that only one blocks."""
+    dns = reputation_dns()
+    both_block = reputation_run(
+        reputation_network(wire(QUAD9_BLOCKED), wire(CLOUDFLARE_BLOCKED)), dns=dns
+    )
+    one_blocks = reputation_run(
+        reputation_network(wire(QUAD9_CLEAR), wire(CLOUDFLARE_BLOCKED)), dns=dns
+    )
+    return [
+        host(f"phish.{DOMAIN}", dns=dns, reputation=both_block),
+        host(f"odd.{DOMAIN}", dns=dns, reputation=one_blocks),
+    ]
+
+
+@cached
 def sound_domain() -> dict[str, CheckOutcome]:
     """The checks of a domain with nothing to complain about."""
     return {
@@ -279,4 +304,5 @@ def scans() -> list[ScanFacts]:
         ScanFacts(DOMAIN, takeover_hosts(), {}),
         ScanFacts(DOMAIN, protocol_hosts(), {}),
         ScanFacts(DOMAIN, tech_hosts(), {}),
+        ScanFacts(DOMAIN, reputation_hosts(), {}),
     ]

@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.checks.reputation import SECURITY_RESOLVERS
+from app.checks.reputation import SOURCE as SECURITY_SOURCE
 from app.i18n import gettext as _
 from app.service.export import (
     CT_SOURCE_NAMES,
@@ -61,6 +63,7 @@ class Method:
     ports_providers: tuple[str, ...]
     location_databases: tuple[tuple[str, str], ...]  # (type, build date)
     resolvers: str | None
+    security_resolvers: tuple[str, ...]  # the security DNS resolvers every host name went to
     evaluated_at: str | None
     findings_errors: tuple[str, ...]  # rules that crashed: their findings are missing
 
@@ -118,6 +121,7 @@ def _method(data: ExportData) -> Method:
     providers: list[str] = []
     databases: list[tuple[str, str]] = []
     resolvers: str | None = None
+    security: tuple[str, ...] = ()
     for host in data.hosts:
         for check in host.checks:
             if check.key == "ports" and check.source in PORT_PROVIDERS:
@@ -134,6 +138,15 @@ def _method(data: ExportData) -> Method:
                 check.key == "dns" and resolvers is None and (check.source or "").startswith("dns:")
             ):
                 resolvers = (check.source or "").split(":", 1)[1] or None
+            elif (
+                check.key == "reputation"
+                and not security
+                and (check.source or "").startswith(f"{SECURITY_SOURCE}:")
+            ):
+                keys = (check.source or "").split(":", 1)[1].split(",")
+                security = tuple(
+                    SECURITY_RESOLVERS[key].name for key in keys if key in SECURITY_RESOLVERS
+                )
     limit = data.scan_options.get("max_hosts")
     return Method(
         discovery=sources,
@@ -142,6 +155,7 @@ def _method(data: ExportData) -> Method:
         ports_providers=tuple(providers),
         location_databases=tuple(databases),
         resolvers=resolvers,
+        security_resolvers=security,
         evaluated_at=data.findings_info.get("evaluated_at"),
         findings_errors=tuple(str(rule) for rule in data.findings_info.get("errors", [])),
     )

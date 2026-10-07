@@ -412,6 +412,16 @@ def test_a_host_is_fully_checked_when_nothing_failed_and_nothing_is_missing() ->
     assert coverage.fully_checked == 2 and coverage.incomplete == 5
 
 
+def test_the_reputation_check_is_a_gap_when_it_failed_and_not_when_it_was_switched_off() -> None:
+    switched_off = checks_of(dns=DNS_OK, reputation=CheckOutcome("skipped", "disabled"))
+    no_address = checks_of(dns=DNS_OK, reputation=CheckOutcome("skipped", "no_address_record"))
+    unreachable = checks_of(dns=DNS_OK, reputation=CheckOutcome("error", "no_resolver_answered"))
+    no_verdict = checks_of(dns=DNS_OK, reputation=CheckOutcome("no_data", "no_verdict"))
+    assert summary.fully_checked(switched_off) and summary.fully_checked(no_address)
+    assert not summary.fully_checked(unreachable)  # nothing was concluded: a gap
+    assert summary.fully_checked(no_verdict)  # asked, and the resolvers could not say: an answer
+
+
 def test_what_discovery_saw_and_left_out() -> None:
     discovery = {
         "counts": {"names_seen": 148, "out_of_scope": 9},

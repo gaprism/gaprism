@@ -24,6 +24,12 @@ CT_SOURCE_KEYS = ("ctlogs", "certspotter", "crtsh")
 # Have I Been Pwned. Each can be switched off in EXTERNAL_DOMAIN_LOOKUPS (`none` switches all off).
 EXTERNAL_LOOKUP_KEYS = ("rdap", "hsts_preload", "hibp")
 
+# Security DNS resolvers that refuse names their threat intelligence flags as malicious (the
+# reputation check asks them about every host: Quad9 and Cloudflare's 1.1.1.2). REPUTATION_RESOLVERS
+# lists the ones to ask (`none` switches the check off); app/checks/reputation.py knows their
+# addresses.
+REPUTATION_RESOLVER_KEYS = ("quad9", "cloudflare")
+
 # Where the assessed hosts may be located (ISO 3166-1 alpha-2, upper case): the EU-27, the EEA
 # (IS, LI, NO) and CH. Hosts outside this area raise LOCATION_OUTSIDE_EU_CH (see docs/rules.md).
 DEFAULT_DATA_LOCATION_ALLOWED = (
@@ -155,6 +161,10 @@ class BaseConfig:
     # Third-party lookups of the assessed domain (see EXTERNAL_LOOKUP_KEYS); the checks behind a
     # name that is left out report "unavailable: disabled" instead of asking.
     EXTERNAL_DOMAIN_LOOKUPS: ClassVar[list[str]] = ["rdap", "hsts_preload", "hibp"]
+
+    # Security DNS resolvers asked whether they block a host (see REPUTATION_RESOLVER_KEYS). Every
+    # host name of a scan is sent to each of them; a plain DNS question, like the DNS check's.
+    REPUTATION_RESOLVERS: ClassVar[list[str]] = list(REPUTATION_RESOLVER_KEYS)
 
     # Ports and CVEs that Shodan has observed on a host's addresses. `auto` uses the Shodan host
     # API when SHODAN_API_KEY is set and the keyless InternetDB (free for non-commercial use only)
@@ -291,6 +301,14 @@ def validate_config(config_obj: Any) -> None:
             f"EXTERNAL_DOMAIN_LOOKUPS may list {', '.join(EXTERNAL_LOOKUP_KEYS)} "
             f"(or 'none'); unknown: {', '.join(unknown_lookups)}."
         )
+    unknown_resolvers = sorted(
+        set(getattr(config_obj, "REPUTATION_RESOLVERS", [])) - set(REPUTATION_RESOLVER_KEYS)
+    )
+    if unknown_resolvers:
+        raise ConfigurationError(
+            f"REPUTATION_RESOLVERS may list {', '.join(REPUTATION_RESOLVER_KEYS)} "
+            f"(or 'none'); unknown: {', '.join(unknown_resolvers)}."
+        )
     if getattr(config_obj, "PORTS_PROVIDER", "") not in PORTS_PROVIDERS:
         raise ConfigurationError(f"PORTS_PROVIDER must be one of {', '.join(PORTS_PROVIDERS)}.")
     for name in (
@@ -409,6 +427,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "DATA_LOCATION_ALLOWED": "DATA_LOCATION_ALLOWED",
             "BREACH_RECENT_MONTHS": "BREACH_RECENT_MONTHS",
             "EXTERNAL_DOMAIN_LOOKUPS": "EXTERNAL_DOMAIN_LOOKUPS",
+            "REPUTATION_RESOLVERS": "REPUTATION_RESOLVERS",
             "PORTS_PROVIDER": "PORTS_PROVIDER",
             "SHODAN_API_KEY": "SHODAN_API_KEY",
             "SHODAN_RATE_PER_SECOND": "SHODAN_RATE_PER_SECOND",
@@ -451,6 +470,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
         values["DATA_LOCATION_ALLOWED"] = [c.upper() for c in values["DATA_LOCATION_ALLOWED"]]
         if values["EXTERNAL_DOMAIN_LOOKUPS"] == ["none"]:
             values["EXTERNAL_DOMAIN_LOOKUPS"] = []  # an empty line cannot say "none"
+        if values["REPUTATION_RESOLVERS"] == ["none"]:
+            values["REPUTATION_RESOLVERS"] = []
         values["PORTS_PROVIDER"] = str(values["PORTS_PROVIDER"]).strip().lower()
         values["SHODAN_API_KEY"] = str(values["SHODAN_API_KEY"]).strip()
     values["SECURITY_TOTP_SECRETS"] = {"1": values["MFA_ENCRYPTION_KEY"]}

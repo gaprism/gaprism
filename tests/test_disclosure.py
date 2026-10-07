@@ -19,6 +19,7 @@ DEFAULTS: dict[str, Any] = {
     "PORTS_PROVIDER": "auto",
     "SHODAN_API_KEY": "",
     "EXTERNAL_DOMAIN_LOOKUPS": ["rdap", "hsts_preload", "hibp"],
+    "REPUTATION_RESOLVERS": ["quad9", "cloudflare"],
 }
 
 
@@ -35,17 +36,21 @@ def keys(**changes: Any) -> list[str]:
 
 def test_a_default_installation_names_every_recipient() -> None:
     result = described()
-    assert keys() == ["ct", "dns", "hosts", "ports", "rdap", "hsts_preload", "hibp"]
+    assert keys() == ["ct", "dns", "hosts", "ports", "reputation", "rdap", "hsts_preload", "hibp"]
     by_key = {row.key: row for row in result.rows}
     assert "ctlogs.dev, CertSpotter, crt.sh" in by_key["ct"].who
     assert by_key["ct"].hosts == ("api.ctlogs.dev", "api.certspotter.com", "crt.sh")
     assert by_key["dns"].hosts == ("1.1.1.1", "8.8.8.8")
     assert by_key["ports"].who == "Shodan InternetDB"  # no key: the keyless provider
     assert by_key["ports"].learns_domain is False  # it gets addresses, not the name
+    assert by_key["reputation"].hosts == ("9.9.9.9", "1.1.1.2")  # and every host name
+    assert by_key["reputation"].who == "Security DNS resolvers: Quad9, Cloudflare (1.1.1.2)"
+    assert by_key["reputation"].optional and by_key["reputation"].setting == "REPUTATION_RESOLVERS"
     assert not by_key["hosts"].third_party  # the assessed servers are not a third party
     assert result.domain_to == (
         "the Certificate Transparency sources (ctlogs.dev, CertSpotter, crt.sh)",
         "the DNS resolvers",
+        "the security DNS resolvers (Quad9, Cloudflare (1.1.1.2))",
         "the registry (RDAP)",
         "hstspreload.org",
         "Have I Been Pwned",
@@ -55,17 +60,37 @@ def test_a_default_installation_names_every_recipient() -> None:
 
 def test_what_is_switched_off_is_left_out_and_named() -> None:
     result = described(EXTERNAL_DOMAIN_LOOKUPS=["hibp"])
-    assert keys(EXTERNAL_DOMAIN_LOOKUPS=["hibp"]) == ["ct", "dns", "hosts", "ports", "hibp"]
+    assert keys(EXTERNAL_DOMAIN_LOOKUPS=["hibp"]) == [
+        "ct",
+        "dns",
+        "hosts",
+        "ports",
+        "reputation",
+        "hibp",
+    ]
     assert result.domain_to[-1] == "Have I Been Pwned"
     assert result.optional_off == ("the registry (RDAP)", "hstspreload.org")
 
-    none = described(EXTERNAL_DOMAIN_LOOKUPS=[], PORTS_PROVIDER="off")
+    none = described(EXTERNAL_DOMAIN_LOOKUPS=[], PORTS_PROVIDER="off", REPUTATION_RESOLVERS=[])
     assert [row.key for row in none.rows] == ["ct", "dns", "hosts"]
     assert none.domain_to == (
         "the Certificate Transparency sources (ctlogs.dev, CertSpotter, crt.sh)",
         "the DNS resolvers",
     )
-    assert len(none.optional_off) == 3
+    assert len(none.optional_off) == 4
+    assert none.optional_off[-1] == "the security DNS resolvers"
+
+
+def test_the_security_resolvers_follow_the_configuration() -> None:
+    one = {row.key: row for row in described(REPUTATION_RESOLVERS=["quad9"]).rows}
+    assert one["reputation"].who == "Security DNS resolvers: Quad9"
+    assert one["reputation"].hosts == ("9.9.9.9",)
+    off = described(REPUTATION_RESOLVERS=[])
+    assert "reputation" not in [row.key for row in off.rows]
+    assert off.optional_off == ("the security DNS resolvers",)
+    assert not any("security" in name for name in off.domain_to)
+    unknown = described(REPUTATION_RESOLVERS=["nobody"])  # validation refuses this at startup
+    assert "reputation" not in [row.key for row in unknown.rows]
 
 
 def test_the_sources_and_resolvers_come_from_the_configuration() -> None:
@@ -120,11 +145,13 @@ def test_the_page_follows_the_installation_and_says_what_is_off(
     app: Flask, client: FlaskClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setitem(app.config, "EXTERNAL_DOMAIN_LOOKUPS", [])
+    monkeypatch.setitem(app.config, "REPUTATION_RESOLVERS", [])
     login_as(client, create_user(db_session))
     page = client.get("/assessments/new").get_data(as_text=True)
-    off = "the registry (RDAP), hstspreload.org, Have I Been Pwned."
+    off = "the registry (RDAP), hstspreload.org, Have I Been Pwned, the security DNS resolvers."
     assert f"Switched off in this installation: {off}" in page
     assert "<bdi>Have I Been Pwned</bdi>" not in page  # no row for a lookup that is off
+    assert "Security DNS resolvers:" not in page
 
 
 def test_what_the_page_shows_is_escaped(

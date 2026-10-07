@@ -48,6 +48,18 @@ from tests.checks.test_ports_check import ip_outcome as ports_ip_outcome
 from tests.checks.test_ports_check import run as run_ports
 from tests.checks.test_registration_check import Registry
 from tests.checks.test_registration_check import run as run_registration
+from tests.checks.test_reputation_check import (
+    CLOUDFLARE_BLOCKED,
+    CLOUDFLARE_CLEAR,
+    CLOUDFLARE_DNSSEC_BOGUS,
+    QUAD9_BLOCKED,
+    QUAD9_CLEAR,
+    QUAD9_DNSSEC_BOGUS,
+    wire,
+)
+from tests.checks.test_reputation_check import both as reputation_network
+from tests.checks.test_reputation_check import dns_result as reputation_dns
+from tests.checks.test_reputation_check import run as run_reputation
 from tests.checks.test_securitytxt_check import GITHUB as SECURITY_TXT
 from tests.checks.test_securitytxt_check import WELL_KNOWN, Web
 from tests.checks.test_securitytxt_check import run as run_security
@@ -1958,6 +1970,81 @@ def test_the_badge_of_the_technologies_section_sums_it_up(
         r'<section[^>]*aria-labelledby="check-tech".*?</section>', page_text, re.DOTALL
     )
     assert section is not None and f">{badge}</span>" in section.group(0)
+
+
+# ------------------------------------------------------------------------------ reputation
+
+
+def reputation_results(network: Any, **options: Any) -> dict[str, CheckOutcome]:
+    """The DNS answer and what the real reputation check made of scripted resolver answers."""
+    dns = reputation_dns()
+    return {"dns": dns, "reputation": run_reputation(network, dns=dns, **options)}
+
+
+def test_the_reputation_section_shows_who_blocks_the_name_and_how(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    results = reputation_results(reputation_network(wire(QUAD9_BLOCKED), wire(CLOUDFLARE_BLOCKED)))
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **results})
+    body = host_page(client, assessment, host)
+    assert "Reputation (security DNS)" in body and "Blocked by Quad9, Cloudflare (1.1.1.2)" in body
+    assert "the name does not resolve for it" in body  # Quad9: NXDOMAIN
+    assert "it answers 0.0.0.0 (or ::) instead of the address" in body  # Cloudflare
+    assert "Filtered" in body and "Censored" in body  # what each said (Extended DNS Errors)
+    assert "9.9.9.9" in body and "1.1.1.2" in body and "93.184.216.34" in body
+    assert "classification" in body and "can be wrong" in body
+    assert "Nothing was sent to the host itself." in body
+
+
+def test_the_reputation_section_of_a_name_nobody_blocks_says_how_little_that_means(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    results = reputation_results(reputation_network(wire(QUAD9_CLEAR), wire(CLOUDFLARE_CLEAR)))
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **results})
+    body = host_page(client, assessment, host)
+    assert "Not blocked by 2 resolvers" in body and "Blocked by" not in body
+    assert "172.66.147.243" in body  # what they answered
+    assert "says little" in body and "only part of the bad names" in body
+
+
+def test_the_reputation_section_says_when_the_resolvers_gave_no_verdict(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    network = reputation_network(wire(QUAD9_DNSSEC_BOGUS), wire(CLOUDFLARE_DNSSEC_BOGUS))
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **reputation_results(network)})
+    body = host_page(client, assessment, host)
+    assert "No resolver gave a verdict" in body and "not a clean result" in body
+    assert "No verdict" in body and "Resolver error" in body  # the table is there as well
+    assert "Signature expired" in body and "DNSKEY missing" in body  # what each resolver said
+    assert "Not blocked" not in body.split("Reputation (security DNS)")[-1]
+
+
+def test_the_reputation_section_says_when_no_resolver_answered(
+    signed_in: Any, db_session: Session
+) -> None:
+    import dns.exception
+
+    client, assessment, scan = signed_in
+    network = reputation_network(dns.exception.Timeout(), dns.exception.Timeout())
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **reputation_results(network)})
+    body = host_page(client, assessment, host)
+    assert "Timed out" in body and "REPUTATION_RESOLVERS=none" in body
+    assert "Not blocked" not in body.split("Reputation (security DNS)")[-1]
+
+
+def test_the_reputation_section_of_a_switched_off_check_names_the_setting(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    results = reputation_results(
+        reputation_network(None, None), config={"REPUTATION_RESOLVERS": []}
+    )
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **results})
+    body = host_page(client, assessment, host)
+    assert "Switched off" in body and "REPUTATION_RESOLVERS" in body
 
 
 # ------------------------------------------------------------------------ TLS versions and suites

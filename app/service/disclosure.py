@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from app.checks.reputation import SECURITY_RESOLVERS, SecurityResolver
 from app.i18n import gettext as _
 
 # What each name in CT_SOURCES is called and where its requests go.
@@ -38,7 +39,7 @@ DATASET_DOWNLOADS = (
 class Recipient:
     """One party that receives something because a scan runs."""
 
-    key: str  # stable name: "ct", "dns", "hosts", "ports", "rdap", "hsts_preload", "hibp"
+    key: str  # stable name: "ct", "dns", "hosts", "ports", "reputation", "rdap", ...
     who: str  # as shown
     hosts: tuple[str, ...]  # where the requests go (names or addresses); empty if it varies
     receives: str  # what is sent
@@ -124,6 +125,27 @@ def _ports(config: Mapping[str, Any]) -> Recipient | None:
     )
 
 
+def _security_resolvers(config: Mapping[str, Any]) -> list[SecurityResolver]:
+    chosen = config.get("REPUTATION_RESOLVERS", [])
+    return [SECURITY_RESOLVERS[key] for key in chosen if key in SECURITY_RESOLVERS]
+
+
+def _reputation(resolvers: list[SecurityResolver]) -> Recipient | None:
+    if not resolvers:
+        return None  # switched off: nothing is sent
+    return Recipient(
+        "reputation",
+        _("Security DNS resolvers: %(names)s", names=", ".join(r.name for r in resolvers)),
+        tuple(r.address for r in resolvers),
+        _("Every host name of the assessment, as a plain DNS question like the DNS check's"),
+        _("Whether they block a host as malicious (malware, phishing, botnet control)"),
+        "REPUTATION_RESOLVERS",
+        third_party=True,
+        learns_domain=True,
+        optional=True,
+    )
+
+
 def describe(config: Mapping[str, Any]) -> Disclosure:
     """The recipients for this configuration. Call it in a request: the texts are translated."""
     ct = [CT_SOURCES[key] for key in config.get("CT_SOURCES", []) if key in CT_SOURCES]
@@ -176,13 +198,27 @@ def describe(config: Mapping[str, Any]) -> Disclosure:
     ports = _ports(config)
     if ports is not None:
         rows.append(ports)
+    security = _security_resolvers(config)
+    reputation = _reputation(security)
+    if reputation is not None:
+        rows.append(reputation)
     enabled = [key for key in OPTIONAL_LOOKUPS if key in config.get("EXTERNAL_DOMAIN_LOOKUPS", [])]
     rows.extend(_optional(key) for key in enabled)
 
     domain_to = [
         _("the Certificate Transparency sources (%(names)s)", names=", ".join(n for n, _h in ct)),
         _("the DNS resolvers") if resolvers else _("the system's DNS resolver"),
+        *(
+            [_("the security DNS resolvers (%(names)s)", names=", ".join(r.name for r in security))]
+            if security
+            else []
+        ),
         *(_optional_name(key) for key in enabled),
     ]
-    off = tuple(_optional_name(key) for key in OPTIONAL_LOOKUPS if key not in enabled)
+    off = tuple(
+        [
+            *(_optional_name(key) for key in OPTIONAL_LOOKUPS if key not in enabled),
+            *([] if security else [_("the security DNS resolvers")]),
+        ]
+    )
     return Disclosure(tuple(rows), tuple(domain_to), off)

@@ -70,6 +70,7 @@ All CSV files are UTF-8 with a byte order mark (so that Excel reads umlauts corr
 | `http_status` | the status code of the final response |
 | `http_scheme` | `https` or `http`: the scheme that answered |
 | `technologies` | what the response headers and the first page show the host is built with or loads (web server, language, CMS, libraries, analytics, ...), with the version where one showed (`PHP 8.4.26`); the CDN or WAF is in `cdn_waf`. A technology that is not listed is not recognised rather than absent |
+| `blocked_by` | the security DNS resolvers (Quad9, Cloudflare (1.1.1.2)) that refuse the host's name, which they do for names that their threat intelligence flags as malicious; empty if none does (which proves nothing: each knows only part of the bad names) or the check did not answer |
 | `open_findings` | open findings about the host and the addresses it resolves to |
 | `top_severity` | the highest severity among them |
 | `gaps` | `true` if a check of this host failed, was unavailable, did not finish or was cancelled |

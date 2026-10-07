@@ -13,7 +13,8 @@
     <p class="text-sm text-muted">{{ section.reason }}</p>
     {% endif %}
     {% if section.help %}<p class="mt-1 text-sm">{{ section.help }}</p>{% endif %}
-    {% if section.cell.status == 'ok' %}
+    {% if section.cell.status == 'ok' or (section.key == 'reputation' and section.data.get('resolvers')) %}
+    {# the reputation check says what each resolver answered also when none gave a verdict #}
     {% include 'assessments/checks/' ~ section.key ~ '.html' ignore missing %}
     {% elif section.cell.status in ['queued', 'running'] %}
     <p class="text-sm text-muted">{{ _('This check has not finished yet. Reload the page in a moment.') }}</p>

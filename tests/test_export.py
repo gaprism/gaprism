@@ -18,6 +18,14 @@ from app.rules import RULES
 from app.service import decisions
 from app.service import export as export_service
 from app.service.export import CSV_BOM, ExportData
+from tests.checks.test_reputation_check import (
+    CLOUDFLARE_CLEAR,
+    QUAD9_BLOCKED,
+    wire,
+)
+from tests.checks.test_reputation_check import both as reputation_network
+from tests.checks.test_reputation_check import dns_result as reputation_dns
+from tests.checks.test_reputation_check import run as run_reputation
 from tests.helpers import create_user
 from tests.rules.test_tech_finding_rules import judged as judged_page
 from tests.test_decisions import SPF, TLS, user_of
@@ -272,6 +280,28 @@ def test_the_hosts_csv_names_the_cdn_or_waf_and_the_technologies(db_session: Ses
         assert (rows[name]["cdn_waf"], rows[name]["technologies"]) == ("", "")
 
 
+def test_the_hosts_csv_names_the_security_resolvers_that_block_a_host(db_session: Session) -> None:
+    scan, _ = evaluated(db_session)
+    dns = reputation_dns()
+    network = reputation_network(wire(QUAD9_BLOCKED), wire(CLOUDFLARE_CLEAR))
+    add_host(
+        db_session,
+        scan,
+        "phish.example.com",
+        {"dns": dns, "reputation": run_reputation(network, dns=dns)},
+    )
+    add_host(
+        db_session,
+        scan,
+        "silent.example.com",
+        {"reputation": CheckOutcome("error", "no_resolver_answered", {"blocked_by": ["Quad9"]})},
+    )
+    rows = {r["hostname"]: r for r in parse_csv(export_service.hosts_csv(build(db_session, scan)))}
+    assert rows["phish.example.com"]["blocked_by"] == "Quad9"
+    assert rows["silent.example.com"]["blocked_by"] == ""  # a check that failed names nobody
+    assert rows["bad-tls.example.com"]["blocked_by"] == ""  # and a host not asked: not "clean"
+
+
 def test_checks_that_gave_no_answer_show_their_status_not_an_empty_cell(
     db_session: Session,
 ) -> None:
@@ -509,6 +539,20 @@ def test_a_scan_that_ran_the_takeover_check_credits_its_ruleset(db_session: Sess
     )
     db_session.commit()
     assert "takeover" in {a.key for a in build(db_session, scan).attributions}
+
+
+def test_the_security_resolvers_are_named_when_the_reputation_check_ran() -> None:
+    found = {
+        a.key: a for a in export_service.attributions_for({"security-dns:quad9,cloudflare"}, {})
+    }
+    assert list(found) == ["reputation"]
+    credit = found["reputation"]
+    assert credit.name == "Security DNS resolvers: Quad9, Cloudflare (1.1.1.2)"
+    assert "plain DNS questions" in credit.terms and "clean bill of health" in credit.terms
+    only_one = export_service.attributions_for({"security-dns:quad9"}, {})
+    assert only_one[0].name == "Security DNS resolvers: Quad9"
+    unknown = export_service.attributions_for({"security-dns:nobody"}, {})
+    assert unknown[0].name == "Security DNS resolvers: ?"  # never invents a resolver
 
 
 def test_a_scan_that_used_shodan_and_no_third_party_names_only_what_it_used() -> None:

@@ -23,7 +23,17 @@ from app.i18n import gettext as _
 from app.i18n import ngettext
 from app.models import Assessment, CheckResult, Host, Scan
 
-CHECK_ORDER = ("dns", "ip", "ports", "tls", "tls_protocols", "http", "tech", "takeover")
+CHECK_ORDER = (
+    "dns",
+    "ip",
+    "ports",
+    "tls",
+    "tls_protocols",
+    "http",
+    "tech",
+    "takeover",
+    "reputation",
+)
 # The checks of the domain itself (they run once per scan), in display order.
 DOMAIN_CHECK_ORDER = (
     "email",
@@ -49,6 +59,7 @@ CHECK_TITLES = {
     "http": N_("HTTP"),
     "tech": N_("Technologies"),
     "takeover": N_("Subdomain takeover"),
+    "reputation": N_("Reputation (security DNS)"),
     "email": N_("Email security"),
     "registration": N_("Domain registration"),
     "domain_dns": N_("Name servers and CAA"),
@@ -111,6 +122,16 @@ REASONS = {
     "not_determined": N_("This part of the check could not be answered"),
     "no_country": N_("The location database knows the network but not the country"),
     "no_page": N_("No web page could be read, so the services it loads are not known"),
+    "no_address_record": N_("The host has no address record to ask about"),
+    "no_verdict": N_("No resolver gave a verdict"),
+    "no_resolver_answered": N_("No security resolver answered"),
+    "invalid_name": N_("The name cannot be asked about"),
+    "resolver_paused": N_("Not asked: it had not answered the last questions"),
+    "resolver_refused": N_("The resolver refused the question"),
+    "nxdomain_unexplained": N_("Said the name does not exist, without saying why"),
+    "no_answer": N_("Answered without an address"),
+    "bad_response": N_("The answer came from the wrong source or was malformed"),
+    "unexpected_rcode": N_("An answer that means nothing here"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.
@@ -148,7 +169,18 @@ HELP = {
     ),
     "disabled": N_(
         "This lookup is switched off: ports and CVEs by PORTS_PROVIDER=off, lookups of the "
-        "domain at a third party by EXTERNAL_DOMAIN_LOOKUPS."
+        "domain at a third party by EXTERNAL_DOMAIN_LOOKUPS, the security DNS resolvers by "
+        "REPUTATION_RESOLVERS."
+    ),
+    "no_verdict": N_(
+        "The resolvers answered, but not in a way that says whether they block the name (an "
+        "error such as a failed DNSSEC validation, for example). Nothing can be concluded about "
+        "this host: it is not a clean result."
+    ),
+    "no_resolver_answered": N_(
+        "None of the security resolvers answered. This network may not let DNS questions "
+        "through to them (9.9.9.9 and 1.1.1.2): set REPUTATION_RESOLVERS=none to switch the "
+        "check off, or allow the traffic."
     ),
     "no_rdap_service": N_(
         "IANA's list has no RDAP server for this top-level domain (many country registries only "
@@ -197,6 +229,41 @@ TLS_FAILURES = {
     "handshake_failed": N_("TLS handshake failed"),
     "certificate_unreadable": N_("The certificate could not be read"),
 }
+
+
+# The Extended DNS Errors of RFC 8914 (a resolver says why it did not answer as asked).
+EDE_NAMES = {
+    0: N_("Other error"),
+    1: N_("Unsupported DNSKEY algorithm"),
+    2: N_("Unsupported DS digest type"),
+    3: N_("Stale answer"),
+    4: N_("Forged answer"),
+    5: N_("DNSSEC indeterminate"),
+    6: N_("DNSSEC bogus"),
+    7: N_("Signature expired"),
+    8: N_("Signature not yet valid"),
+    9: N_("DNSKEY missing"),
+    10: N_("RRSIGs missing"),
+    11: N_("No zone key bit set"),
+    12: N_("NSEC missing"),
+    13: N_("Cached error"),
+    14: N_("Not ready"),
+    15: N_("Blocked"),
+    16: N_("Censored"),
+    17: N_("Filtered"),
+    18: N_("Prohibited"),
+    19: N_("Stale NXDOMAIN answer"),
+    20: N_("Not authoritative"),
+    21: N_("Not supported"),
+    22: N_("No reachable authority"),
+    23: N_("Network error"),
+    24: N_("Invalid data"),
+}
+
+
+def ede_label(code: int) -> str:
+    """The name of an Extended DNS Error (its number when it is not one RFC 8914 lists)."""
+    return _(EDE_NAMES[code]) if code in EDE_NAMES else _("error %(code)s", code=code)
 
 
 def reason_label(code: str | None) -> str | None:
@@ -525,6 +592,16 @@ def _takeover_cell(data: Mapping[str, Any]) -> CheckCell:
     )
 
 
+def _reputation_cell(data: Mapping[str, Any]) -> CheckCell:
+    blocked = [str(name) for name in data.get("blocked_by", [])]
+    if blocked:
+        text = _("Blocked by %(names)s", names=", ".join(blocked))
+        return CheckCell("ok", "high" if len(blocked) > 1 else "medium", text)
+    decided = int(data.get("decided") or 0)
+    text = ngettext("Not blocked by %(num)s resolver", "Not blocked by %(num)s resolvers", decided)
+    return CheckCell("ok", "ok", text)
+
+
 _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "dns": _dns_cell,
     "ip": _ip_cell,
@@ -534,6 +611,7 @@ _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "http": _http_cell,
     "tech": _tech_cell,
     "takeover": _takeover_cell,
+    "reputation": _reputation_cell,
     "email": _email_cell,
     "registration": _registration_cell,
     "domain_dns": _domain_dns_cell,

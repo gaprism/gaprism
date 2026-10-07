@@ -11,6 +11,7 @@ from app.config import (
     EXTERNAL_LOOKUP_KEYS,
     MAX_PORTS_CACHE_HOURS,
     PORTS_PROVIDERS,
+    REPUTATION_RESOLVER_KEYS,
     ConfigurationError,
     ProductionConfig,
     TestingConfig,
@@ -248,6 +249,29 @@ def test_external_domain_lookups_come_from_the_environment(monkeypatch: pytest.M
     monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "")  # an empty line keeps the default
     assert create_app("development").config["EXTERNAL_DOMAIN_LOOKUPS"] == list(EXTERNAL_LOOKUP_KEYS)
     monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "rdap,carrier-pigeon")
+    with pytest.raises(ConfigurationError, match="carrier-pigeon"):
+        create_app("development")
+
+
+def test_the_security_resolvers_must_be_known_names() -> None:
+    unknown = type("Unknown", (TestingConfig,), {"REPUTATION_RESOLVERS": ["quad9", "evil"]})
+    with pytest.raises(ConfigurationError, match=r"REPUTATION_RESOLVERS may list.*unknown: evil"):
+        validate_config(unknown)
+    for chosen in ([], ["quad9"], list(REPUTATION_RESOLVER_KEYS)):
+        validate_config(type("Chosen", (TestingConfig,), {"REPUTATION_RESOLVERS": chosen}))
+    assert TestingConfig.REPUTATION_RESOLVERS == list(REPUTATION_RESOLVER_KEYS)  # on by default
+
+
+def test_the_security_resolvers_come_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REPUTATION_RESOLVERS", " Quad9 ")
+    assert create_app("development").config["REPUTATION_RESOLVERS"] == ["quad9"]
+    monkeypatch.setenv("REPUTATION_RESOLVERS", "none")  # an empty line cannot say "none"
+    assert create_app("development").config["REPUTATION_RESOLVERS"] == []
+    monkeypatch.setenv("REPUTATION_RESOLVERS", "")  # an empty line keeps the default
+    assert create_app("development").config["REPUTATION_RESOLVERS"] == list(
+        REPUTATION_RESOLVER_KEYS
+    )
+    monkeypatch.setenv("REPUTATION_RESOLVERS", "quad9,carrier-pigeon")
     with pytest.raises(ConfigurationError, match="carrier-pigeon"):
         create_app("development")
 

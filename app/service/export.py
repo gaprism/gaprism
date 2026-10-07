@@ -28,7 +28,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.checks import DISCOVERY_KEY, takeover_services
+from app.checks import DISCOVERY_KEY, reputation, takeover_services
 from app.i18n import gettext as _
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
@@ -63,6 +63,7 @@ HOST_COLUMNS = (
     "http_status",
     "http_scheme",
     "technologies",
+    "blocked_by",
     "open_findings",
     "top_severity",
     "gaps",
@@ -397,6 +398,27 @@ def attributions_for(
                     "part of the program; nothing about the assessment was sent for it."
                 ),
                 takeover_services.SOURCE_URL,
+            )
+        )
+    security = [s for s in used if s.startswith(f"{reputation.SOURCE}:")]
+    if security:
+        keys = security[0].split(":", 1)[1].split(",")
+        named = ", ".join(
+            reputation.SECURITY_RESOLVERS[key].name
+            for key in keys
+            if key in reputation.SECURITY_RESOLVERS
+        )
+        found.append(
+            Attribution(
+                "reputation",
+                _("Security DNS resolvers: %(names)s", names=named or "?"),
+                _("Whether they block the host names as malicious"),
+                _(
+                    "Public resolvers, asked as any client would. The host names of the "
+                    "assessment are sent to them as plain DNS questions. Blocking is their own "
+                    "classification, and a name that is not blocked is not a clean bill of health."
+                ),
+                None,
             )
         )
     if "dbip" in used:
@@ -739,6 +761,13 @@ def _technologies(tech: CheckExport | None) -> tuple[list[str], list[str]]:
     return edge, named[:MAX_TECHNOLOGIES_SHOWN]
 
 
+def _blocked_by(check: CheckExport | None) -> list[str]:
+    """The security resolvers that block the host's name (nothing when the check did not answer)."""
+    if check is None or check.status != "ok":
+        return []
+    return [str(name) for name in check.data.get("blocked_by", [])]
+
+
 def _host_row(host: HostExport) -> list[Any]:
     dns, ports = host.check("dns"), host.check("ports")
     tls, http = host.check("tls"), host.check("http")
@@ -788,6 +817,7 @@ def _host_row(host: HostExport) -> list[Any]:
         status if isinstance(status, int) else None,
         scheme,
         technologies,
+        _blocked_by(host.check("reputation")),
         host.open_findings,
         host.top_severity,
         host.has_gaps,

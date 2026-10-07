@@ -750,6 +750,63 @@ def script_from_compromised_host(host: HostFacts, settings: RuleSettings) -> Ite
     )
 
 
+# ------------------------------------------------------------------------------ reputation
+
+
+@host_rule(
+    "HOST_BLOCKED_BY_SECURITY_DNS",
+    title=N_("Blocked by security DNS resolvers"),
+    summary=N_(
+        "%(host)s is blocked by %(blocked_by)s, which refuse names that their threat "
+        "intelligence flags as malicious."
+    ),
+    advice=N_(
+        "Find out what the host serves and who controls it: a compromised site, a taken-over "
+        "subdomain or a phishing page under the vendor's name are all possible. Ask the vendor "
+        "whether they know. If the name is blocked by mistake, the resolvers' operators have a "
+        "way to ask for a review."
+    ),
+    trigger="A security DNS resolver (Quad9, Cloudflare's malware-blocking 1.1.1.2) refuses a name "
+    "that the DNS check resolved: it says so with an Extended DNS Error (Blocked, Censored, "
+    "Filtered, Prohibited), answers NXDOMAIN or answers 0.0.0.0. Medium when one resolver blocks "
+    "it, High when two agree. The confidence is Medium: blocking is a third party's "
+    "classification, which can be wrong or can list a name because of what another tenant of a "
+    "shared host did. A resolver that failed, did not answer, or answered differently without "
+    "saying why is not counted as a block, and a name that is not blocked is no proof that it is "
+    "clean: each resolver knows only part of the bad names of the internet.",
+    severities=("medium", "high"),
+    checks=("reputation", "dns"),
+    labels={
+        "blocked_by": N_("Blocked by"),
+        "block_how": N_("How it shows"),
+        "asked": N_("Resolvers asked"),
+    },
+)
+def host_blocked_by_security_dns(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    reputation = host.ok("reputation")
+    if reputation is None:
+        return
+    rows = [row for row in reputation.data.get("resolvers", []) if isinstance(row, dict)]
+    blocked = [row for row in rows if row.get("verdict") == "blocked" and row.get("name")]
+    if not blocked:
+        return
+    dns = host.ok("dns")
+    yield Draft(
+        _subject(host),
+        "high" if len(blocked) >= 2 else "medium",
+        "medium",
+        "hostname_supported",
+        {
+            "host": host.hostname,
+            "blocked_by": [str(row["name"]) for row in blocked],
+            "block_how": sorted({str(row["how"]) for row in blocked if row.get("how")}),
+            "asked": len(rows),
+        },
+        (reputation.id,) if dns is None else (reputation.id, dns.id),
+        host.id,
+    )
+
+
 # ------------------------------------------------------------------------------ DNS
 
 

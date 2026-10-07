@@ -200,6 +200,21 @@ def test_the_method_is_read_from_what_the_scan_stored(db_session: Session) -> No
     assert method.dropped_by_limit == 4 and method.host_limit == scan.options["max_hosts"]
     assert method.resolvers == "1.1.1.1,9.9.9.9" and method.ports_providers == ("Shodan host API",)
     assert method.evaluated_at and method.findings_errors == ()
+    assert method.security_resolvers == ()  # no host of this scan was asked about its reputation
+
+
+def test_the_security_resolvers_every_host_name_went_to_are_named_in_the_method(
+    db_session: Session,
+) -> None:
+    scan, _ = evaluated(db_session)
+    add_host(
+        db_session,
+        scan,
+        "asked.example.com",
+        {"reputation": CheckOutcome("ok", data={"blocked_by": []}, source="security-dns:quad9")},
+    )
+    method = report_of(db_session, scan).method
+    assert method.security_resolvers == ("Quad9",)
 
 
 def test_a_scan_without_discovery_data_has_an_empty_method_not_a_crash(db_session: Session) -> None:

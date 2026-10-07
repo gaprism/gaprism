@@ -1,0 +1,40 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set how = {
+  'nxdomain': _('the name does not resolve for it'),
+  'unspecified_address': _('it answers 0.0.0.0 (or ::) instead of the address'),
+  'ede': _('it says that the name is blocked')} %}
+
+{% if d.blocked_by %}
+<div class="mb-4">{{ notice(_('Blocked by %(names)s', names=d.blocked_by|join(', ')), _('These resolvers refuse names that their threat intelligence flags as malicious (malware, phishing, botnet control), although the DNS check resolved this one. That is a third party’s classification, and it can be wrong.'), 'danger' if d.blocked_by|length > 1 else 'warning') }}</div>
+{% endif %}
+
+<p class="text-sm">{{ _('The name of this host was asked of %(n)s security resolvers (the %(type)s record), as a plain DNS question. Nothing was sent to the host itself.', n=d.resolvers|length, type=d.asked) }}</p>
+
+<div class="table-scroll mt-3">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('What each security resolver answered') }}</caption>
+    <thead><tr><th scope="col">{{ _('Resolver') }}</th><th scope="col">{{ _('Verdict') }}</th><th scope="col">{{ _('What it answered') }}</th></tr></thead>
+    <tbody>
+      {% for r in d.resolvers %}
+      <tr>
+        <td>{{ r.name }} <span class="text-xs text-muted">· <bdi class="font-mono">{{ r.address }}</bdi></span></td>
+        <td>
+          {% if r.verdict == 'blocked' %}{{ badge(_('Blocked'), 'high') }}
+          {% elif r.verdict == 'clear' %}{{ badge(_('Not blocked'), 'ok') }}
+          {% else %}{{ badge(_('No verdict'), 'muted') }}{% endif %}
+        </td>
+        <td class="text-sm">
+          {% if r.verdict == 'blocked' %}{{ how.get(r.how, r.how) }}.{% endif %}
+          {% if r.rcode %}<div class="text-xs text-muted">{{ r.rcode }}{% if r.answers %} · {% for address in r.answers %}<bdi class="font-mono">{{ address }}</bdi>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}{% if r.ede %} · {{ _('says') }}: {% for code in r.ede %}{{ ede_label(code) }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</div>{% endif %}
+          {% if r.error %}<div>{{ reason_label(r.error) }}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="mt-4 text-xs text-muted">
+  {{ _('A resolver that does not block a name says little: each of them knows only part of the bad names of the internet, and blocking is its own classification. A resolver that did not answer, or answered without saying why, is not counted as a block. Compared with: %(addresses)s (what the DNS check found).', addresses=d.baseline|join(', ')) }}
+</p>
