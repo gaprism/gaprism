@@ -842,6 +842,10 @@ def test_the_ports_panel_shows_what_is_known_about_the_exploitation_of_each_cve(
     assert "EPSS 97.3 %" in body
     assert "CISA KEV, as of 2026-10-04" in body and "EPSS, as of 2026-10-06" in body
     assert "Not ranked" not in body and "out of date" not in body
+    # both lists are credited, with a link to where they come from
+    assert "CVEs ranked with" in body and "nothing about this assessment was sent" in body
+    assert 'href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog"' in body
+    assert 'href="https://www.first.org/epss/"' in body and "FIRST.Org, Inc." in body
 
 
 def test_the_ports_panel_never_shows_an_epss_score_as_a_certainty(
@@ -867,6 +871,7 @@ def test_the_ports_panel_says_when_the_cves_are_not_ranked(
     body = host_page(client, assessment, host)
     assert "Not ranked: the exploitation data (CISA KEV, EPSS) is not installed." in body
     assert "flask datasets update" in body and "known exploited" not in body
+    assert "CVEs ranked with" not in body and "first.org/epss" not in body  # nothing to credit
 
 
 def test_the_ports_panel_says_when_the_exploitation_data_is_out_of_date(

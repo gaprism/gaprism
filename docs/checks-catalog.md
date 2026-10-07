@@ -146,8 +146,8 @@ Two owner-specified rules:
 | `sslyze` | **AGPL-3.0** | Do not import into the core unless the project is AGPL; optional external CLI only |
 | `enthec/webappanalyzer` data | **GPL-3.0** | Do not bundle; write our own small ruleset or let users download it |
 | `can-i-take-over-xyz` fingerprints | CC-BY-4.0 | Bundle with attribution |
-| CISA KEV | US government work, published for anyone to use | Downloaded by `datasets update`; named in `NOTICE` and the CLI |
-| FIRST EPSS | free to use; FIRST asks to be named | Downloaded by `datasets update`; shown as "EPSS" wherever a score is; named in `NOTICE` and the CLI |
+| CISA KEV | US government work, published for anyone to use | Downloaded by `datasets update`; named on the host page, in the report's sources and the JSON export, in `NOTICE` and the CLI |
+| FIRST EPSS | free (CSV and API, no registration); FIRST asks for attribution | Downloaded by `datasets update`; shown as "EPSS" wherever a score is; named on the host page, in the report's sources and the JSON export, in `NOTICE` and the CLI |
 | DB-IP City / ASN Lite (incl. the `wp-statistics` mirror) | CC BY 4.0 (the mirror's repo is MIT; the data is not) | Attribution link to db-ip.com in the app footer, on the IP location page and in the report (and the JSON export's `attributions`, [export-format.md](export-format.md)); do not commit the `.mmdb` files |
 | `publicsuffixlist` | MPL-2.0 | Fine as a dependency |
 | `dnspython` / `maxminddb` | ISC / Apache-2.0 | Fine |

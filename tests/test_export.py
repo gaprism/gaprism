@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import csv
 import io
 import json
@@ -410,6 +411,46 @@ def test_the_sources_a_scan_used_are_named_with_their_terms() -> None:
     assert "non-commercial" in found["internetdb"].terms
     assert "CC BY 4.0" in found["hibp"].terms and found["hibp"].url == "https://haveibeenpwned.com"
     assert all(a.used_for and a.terms for a in found.values())
+
+
+def test_the_lists_that_ranked_the_cves_are_named_with_their_terms() -> None:
+    used = {"internetdb", "cisa-kev", "first-epss"}
+    found = {a.key: a for a in export_service.attributions_for(used, {})}
+    assert list(found) == ["internetdb", "cisa_kev", "first_epss"]  # next to the ports source
+    assert "CISA" in found["cisa_kev"].name and found["cisa_kev"].url.startswith(
+        "https://www.cisa.gov/"
+    )
+    assert (
+        "FIRST" in found["first_epss"].name
+        and found["first_epss"].url == "https://www.first.org/epss/"
+    )
+    assert "named as the source" in found["first_epss"].terms
+    assert all(
+        "nothing about the assessment was sent" in found[k].terms
+        for k in found
+        if k != "internetdb"
+    )
+    assert [a.key for a in export_service.attributions_for({"first-epss"}, {})] == ["first_epss"]
+
+
+def test_a_scan_credits_the_lists_that_its_ports_results_were_ranked_with(
+    db_session: Session,
+) -> None:
+    scan, _ = evaluated(db_session)
+    ports = db_session.scalars(
+        select(CheckResult).where(CheckResult.scan_id == scan.id, CheckResult.check_key == "ports")
+    ).first()
+    assert ports is not None
+    assert not {"cisa_kev", "first_epss"} & {a.key for a in build(db_session, scan).attributions}
+
+    data = copy.deepcopy(ports.data)
+    for entry in data["addresses"]:
+        if entry.get("facts"):
+            entry["facts"]["exploit_data"] = {"ranked_by": "kev_epss", "kev_as_of": "2026-10-04"}
+    ports.data = data
+    db_session.commit()
+    keys = [a.key for a in build(db_session, scan).attributions]
+    assert "cisa_kev" in keys and "first_epss" in keys
 
 
 def test_a_scan_that_used_shodan_and_no_third_party_names_only_what_it_used() -> None:

@@ -100,3 +100,13 @@
   {{ _('Data by Shodan.') }}
   {% if d.provider == 'internetdb' %}{{ _('Shodan InternetDB is updated weekly, is free for non-commercial use only and lists ports and CVE IDs without versions or scores. Set SHODAN_API_KEY for details.') }}{% endif %}
 </p>
+{% set credited = exploit_sources(d) %}
+{% if credited %}
+<p class="mt-1 text-xs text-muted">
+  {{ _('CVEs ranked with') }}
+  {% if 'cisa-kev' in credited %}<a class="link" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" rel="noopener noreferrer">{{ _('the Known Exploited Vulnerabilities Catalog of CISA') }}</a>{% endif %}
+  {% if credited|length > 1 %}{{ _('and') }}{% endif %}
+  {% if 'first-epss' in credited %}<a class="link" href="https://www.first.org/epss/" rel="noopener noreferrer">{{ _('the Exploit Prediction Scoring System (EPSS) of FIRST.Org, Inc.') }}</a>{% endif %}.
+  {{ _('They are installed on this server: nothing about this assessment was sent for the ranking.') }}
+</p>
+{% endif %}

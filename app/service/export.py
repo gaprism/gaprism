@@ -33,6 +33,7 @@ from app.i18n import gettext as _
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
 from app.rules import RULES
+from app.service import exploits as exploit_service
 from app.service import findings as findings_service
 from app.service import summary as summary_service
 from app.service.decisions import Decision
@@ -244,6 +245,8 @@ def build_export(
         evidence[str(row.id)] = EvidenceRef(row.id, row.check_key, hostname, row.collected_at)
         if row.source:
             sources.add(row.source)
+        if row.check_key == "ports":
+            sources |= exploit_service.sources_used(check.data)
         if row.host_id is not None:
             by_host.setdefault(row.host_id, []).append(check)
         elif row.check_key == DISCOVERY_KEY:
@@ -404,6 +407,35 @@ def attributions_for(
                 _("Open ports and CVE identifiers that Shodan observed on IP addresses"),
                 _("Used under the licence of whoever ran the scan. A snapshot, no port scan."),
                 "https://www.shodan.io",
+            )
+        )
+    if exploit_service.KEV_SOURCE in used:
+        found.append(
+            Attribution(
+                "cisa_kev",
+                exploit_service.KEV_ATTRIBUTION,
+                _("Which of the reported CVEs are known to be exploited, looked up offline"),
+                _(
+                    "Published by CISA for anyone to use. Installed on the server that ran the "
+                    "scan: nothing about the assessment was sent."
+                ),
+                exploit_service.KEV_URL_PAGE,
+            )
+        )
+    if exploit_service.EPSS_SOURCE in used:
+        found.append(
+            Attribution(
+                "first_epss",
+                exploit_service.EPSS_ATTRIBUTION,
+                _(
+                    "The estimated probability that a reported CVE is exploited within 30 days, "
+                    "looked up offline"
+                ),
+                _(
+                    "Free to use; FIRST asks to be named as the source. Installed on the server "
+                    "that ran the scan: nothing about the assessment was sent."
+                ),
+                exploit_service.EPSS_URL_PAGE,
             )
         )
     if any(s.startswith("rdap") for s in used):

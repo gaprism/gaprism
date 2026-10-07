@@ -49,6 +49,7 @@ assessments_bp.add_app_template_global(findings_service.status_label, "status_la
 assessments_bp.add_app_template_global(host_view_service.check_title, "check_title")
 assessments_bp.add_app_template_global(decision_service.review_window, "review_window")
 assessments_bp.add_app_template_global(exploit_service.epss_percent, "epss_percent")
+assessments_bp.add_app_template_global(exploit_service.sources_used, "exploit_sources")
 
 
 def _panel_context(assessment: Assessment) -> dict[str, Any]:

@@ -26,8 +26,10 @@ Data the application downloads or queries (not part of this repository)
   https://www.cisa.gov/known-exploited-vulnerabilities-catalog, which CISA publishes for
   anyone to use. Installed on request by `flask datasets update`.
 - Exploit prediction scores: the Exploit Prediction Scoring System (EPSS), FIRST.Org, Inc.,
-  https://www.first.org/epss/, free to use; the application names EPSS wherever it shows a
-  score. Installed on request by `flask datasets update`.
+  https://www.first.org/epss/. FIRST publishes the scores for free (a CSV download and an API,
+  no registration) and asks to be named when they are used; the application names EPSS and FIRST
+  wherever it shows a score, in the report's list of sources and in the JSON export. Installed on
+  request by `flask datasets update`.
 - Everything else is queried, not redistributed. Its terms are listed in docs/checks-catalog.md
   (sections 3 and 5); the Shodan InternetDB, for one, is free for non-commercial use only.
 
