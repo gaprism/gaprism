@@ -116,6 +116,25 @@ def test_starting_a_scan_queues_discovery_and_refuses_a_second_active_scan(
     assert raised.value.scan.id == scan.id
 
 
+def test_a_lookup_the_owner_switched_off_does_not_make_the_scan_partial(
+    db_session: Session,
+) -> None:
+    off = CheckOutcome("skipped", "disabled")
+    broken = CheckOutcome("unavailable", "missing_api_key")
+    results = {}
+    for name, outcome in (("off.example", off), ("broken.example", broken)):
+        scan = new_scan(db_session, name)
+        registry = {
+            "discovery": discovery(f"www.{name}"),
+            "fake_lookup": FakeCheck("fake_lookup", "host", outcome),
+        }
+        drain(db_session, registry)
+        db_session.refresh(scan)
+        results[name] = scan.status
+    # switching a lookup off is a decision; a lookup that cannot work is a gap
+    assert results == {"off.example": "completed", "broken.example": "partial"}
+
+
 def test_a_scan_runs_discovery_then_the_host_checks_and_completes(db_session: Session) -> None:
     scan = new_scan(db_session)
     host_check = FakeCheck("fake_host", "host")

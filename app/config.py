@@ -162,8 +162,8 @@ class BaseConfig:
     BREACH_RECENT_MONTHS: int = 24
 
     # Third-party lookups of the assessed domain (see EXTERNAL_LOOKUP_KEYS); the checks behind a
-    # name that is left out report "unavailable: disabled" instead of asking (the opt-in
-    # observatory: "skipped", so that a lookup nobody asked for does not make a scan partial).
+    # name that is left out report "skipped: disabled" instead of asking: switching a lookup off is
+    # a decision, so it neither leaves hosts with gaps nor makes a scan partial.
     EXTERNAL_DOMAIN_LOOKUPS: ClassVar[list[str]] = list(EXTERNAL_LOOKUP_DEFAULTS)
 
     # Security DNS resolvers asked whether they block a host (see REPUTATION_RESOLVER_KEYS). Every

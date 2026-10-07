@@ -31,7 +31,7 @@ class HstsPreloadCheck:
     def run(self, ctx: CheckContext) -> CheckOutcome:
         domain = ctx.domain.lower().rstrip(".")
         if not lookup_enabled(ctx.config, "hsts_preload"):
-            return CheckOutcome("unavailable", "disabled", {"domain": domain})
+            return CheckOutcome("skipped", "disabled", {"domain": domain})
         if ctx.cache is not None:
             hit = ctx.cache.get("hstspreload", domain, CACHE_FOR)
             if hit is not None and hit.status == "ok":

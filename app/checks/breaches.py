@@ -87,7 +87,7 @@ class BreachesCheck:
     def run(self, ctx: CheckContext) -> CheckOutcome:
         domain = registrable_domain(ctx.domain) or ctx.domain.lower().rstrip(".")
         if not lookup_enabled(ctx.config, "hibp"):
-            return CheckOutcome("unavailable", "disabled", {"domain": domain})
+            return CheckOutcome("skipped", "disabled", {"domain": domain})
         base = {"domain": ctx.domain, "queried": domain}
         if ctx.cache is not None:
             hit = ctx.cache.get("hibp", domain, CACHE_FOR)

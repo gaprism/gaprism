@@ -244,6 +244,40 @@ def test_the_method_says_when_the_name_went_to_mozillas_observatory(db_session: 
     assert report_of(db_session, scan).method.observatory is True
 
 
+def test_the_method_names_the_checks_the_installation_switched_off(db_session: Session) -> None:
+    scan, _ = evaluated(db_session)
+    assert report_of(db_session, scan).method.switched_off == ()
+    rows = {
+        (row.check_key, row.host_id is None): row
+        for row in db_session.scalars(select(CheckResult).where(CheckResult.scan_id == scan.id))
+    }
+    for key in ("hsts_preload", "observatory"):
+        if (key, True) not in rows:
+            db_session.add(
+                CheckResult(
+                    scan_id=scan.id, host_id=None, check_key=key, status="ok", data={},
+                    source=None, collected_at=NOW,
+                )
+            )  # fmt: skip
+    db_session.commit()
+    for row in db_session.scalars(
+        select(CheckResult).where(
+            CheckResult.scan_id == scan.id,
+            CheckResult.check_key.in_(["hsts_preload", "observatory", "registration", "ports"]),
+        )
+    ):
+        row.status, row.reason_code = "skipped", "disabled"  # PORTS_PROVIDER=off, lookups off
+    db_session.commit()
+    method = report_of(db_session, scan).method
+    # each name once, in the order the pages show them; the opt-in check nobody enabled is not
+    # "switched off"
+    assert method.switched_off == (
+        "Open ports and CVEs",
+        "Domain registration",
+        "HSTS preload list",
+    )
+
+
 def test_a_scan_without_discovery_data_has_an_empty_method_not_a_crash(db_session: Session) -> None:
     scan, _ = evaluated(db_session)
     for row in db_session.scalars(

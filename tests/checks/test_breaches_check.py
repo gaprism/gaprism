@@ -176,7 +176,7 @@ def test_the_lookup_can_be_switched_off() -> None:
         raise AssertionError("must not be asked")
 
     outcome = run(never, config={"EXTERNAL_DOMAIN_LOOKUPS": ["rdap", "hsts_preload"]})
-    assert (outcome.status, outcome.reason_code) == ("unavailable", "disabled")
+    assert (outcome.status, outcome.reason_code) == ("skipped", "disabled")  # a decision, no gap
 
 
 def test_calls_go_through_the_shared_rate_limiter(limiters: FakeLimiters) -> None:

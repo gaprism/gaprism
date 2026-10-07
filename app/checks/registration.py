@@ -184,7 +184,7 @@ class RegistrationCheck:
 
     def run(self, ctx: CheckContext) -> CheckOutcome:
         if not lookup_enabled(ctx.config, "rdap"):
-            return CheckOutcome("unavailable", "disabled", {"domain": ctx.domain})
+            return CheckOutcome("skipped", "disabled", {"domain": ctx.domain})
         domain = registrable_domain(ctx.domain)
         if domain is None:
             return CheckOutcome("no_data", "not_registrable", {"domain": ctx.domain})

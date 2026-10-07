@@ -18,10 +18,18 @@ from app.service.export import (
     host_places,
 )
 from app.service.findings import SEVERITIES
-from app.service.host_view import CheckCell, DomainRow, check_title, summarize
+from app.service.host_view import (
+    CHECK_ORDER,
+    DOMAIN_CHECK_ORDER,
+    CheckCell,
+    DomainRow,
+    check_title,
+    summarize,
+)
 from app.service.summary import hosts_over_limit
 
 HOST_COLUMNS = ("dns", "ip", "ports", "tls", "http")
+OPT_IN_CHECKS = frozenset({"observatory"})  # off until somebody adds them: not "switched off"
 PORT_PROVIDERS = {"internetdb": "Shodan InternetDB", "shodan": "Shodan host API"}
 MAX_PLACES_SHOWN = 4  # cities named in one cell of the hosts table
 
@@ -66,6 +74,7 @@ class Method:
     resolvers: str | None
     security_resolvers: tuple[str, ...]  # the security DNS resolvers every host name went to
     observatory: bool  # the domain name went to Mozilla's HTTP Observatory
+    switched_off: tuple[str, ...]  # titles of the checks the installation switched off
     evaluated_at: str | None
     findings_errors: tuple[str, ...]  # rules that crashed: their findings are missing
 
@@ -78,6 +87,13 @@ class ReportView:
     hosts: tuple[ReportHost, ...]
     domain: tuple[DomainRow, ...]
     method: Method
+
+
+def _order(key: str) -> tuple[int, int]:
+    """Host checks first, then the domain's, each in the order the pages show them."""
+    if key in CHECK_ORDER:
+        return (0, CHECK_ORDER.index(key))
+    return (1, DOMAIN_CHECK_ORDER.index(key)) if key in DOMAIN_CHECK_ORDER else (2, 0)
 
 
 def _location(host: HostExport, cell: CheckCell | None) -> str:
@@ -153,6 +169,11 @@ def _method(data: ExportData) -> Method:
         check.key == "observatory" and check.source == OBSERVATORY_SOURCE
         for check in data.domain_checks
     )
+    off = {
+        check.key
+        for check in (*(c for host in data.hosts for c in host.checks), *data.domain_checks)
+        if check.status == "skipped" and check.reason_code == "disabled"
+    } - OPT_IN_CHECKS  # an opt-in check nobody enabled was never "switched off"
     limit = data.scan_options.get("max_hosts")
     return Method(
         discovery=sources,
@@ -163,6 +184,7 @@ def _method(data: ExportData) -> Method:
         resolvers=resolvers,
         security_resolvers=security,
         observatory=asked_mozilla,
+        switched_off=tuple(check_title(key) for key in sorted(off, key=_order)),
         evaluated_at=data.findings_info.get("evaluated_at"),
         findings_errors=tuple(str(rule) for rule in data.findings_info.get("errors", [])),
     )

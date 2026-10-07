@@ -13,8 +13,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import JSONB_EMPTY_OBJECT, BaseUUIDModel, TimestampMixin, sql_in
 
 # queued/running: work in progress · ok: collected · no_data: asked, nothing there ·
-# unavailable: not configured, no key, quota, disabled · error: failed · skipped: prerequisite
-# was not ok. These are different outcomes and must never be shown as "clean".
+# unavailable: not configured, no key, quota · error: failed · skipped: prerequisite was not ok,
+# or the owner switched the check off. These are different outcomes and must never be shown as
+# "clean".
 CHECK_STATUSES = ("queued", "running", "ok", "no_data", "unavailable", "error", "skipped")
 TERMINAL_CHECK_STATUSES = ("ok", "no_data", "unavailable", "error", "skipped")
 

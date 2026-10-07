@@ -16,8 +16,9 @@ import httpx
 
 from app.config import EXTERNAL_LOOKUP_DEFAULTS
 
-# ok: collected · no_data: asked, nothing there · unavailable: not configured, no key, quota,
-# disabled · error: failed · skipped: a prerequisite was not ok. Never show these as "clean".
+# ok: collected · no_data: asked, nothing there · unavailable: not configured, no key, quota ·
+# error: failed · skipped: a prerequisite was not ok, or the owner switched the check off (a
+# decision, not a gap: reason ``disabled``). Never show these as "clean".
 CheckStatus = Literal["ok", "no_data", "unavailable", "error", "skipped"]
 CheckScope = Literal["host", "domain"]
 

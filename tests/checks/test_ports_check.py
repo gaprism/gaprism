@@ -139,10 +139,16 @@ def test_without_a_public_address_there_is_nothing_to_ask() -> None:
     assert provider.calls == []
 
 
-@pytest.mark.parametrize("reason", ["disabled", "missing_api_key"])
-def test_an_unconfigured_provider_makes_the_check_unavailable_not_clean(reason: str) -> None:
+@pytest.mark.parametrize(
+    ("reason", "status"),
+    [
+        ("disabled", "skipped"),  # the owner switched it off: a decision, not a gap
+        ("missing_api_key", "unavailable"),  # a setting that cannot work: a gap
+    ],
+)
+def test_an_unconfigured_provider_is_never_a_clean_result(reason: str, status: str) -> None:
     outcome = run(reason, {"dns": dns(IP1, IP2)})
-    assert (outcome.status, outcome.reason_code) == ("unavailable", reason)
+    assert (outcome.status, outcome.reason_code) == (status, reason)
     assert outcome.data == {"addresses_total": 2}
 
 
@@ -507,4 +513,5 @@ def test_a_switched_off_check_says_so() -> None:
         http=HTTP,
         previous={"dns": dns(IP1)},
     )
-    assert PortsCheck().run(ctx).reason_code == "disabled"
+    outcome = PortsCheck().run(ctx)
+    assert (outcome.status, outcome.reason_code) == ("skipped", "disabled")

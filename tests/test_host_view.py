@@ -306,7 +306,7 @@ def entry(
             "muted",
             "The provider knows nothing about this address",
         ),
-        ("ports", "unavailable", "disabled", {}, "medium", "Switched off"),
+        ("ports", "skipped", "disabled", {}, "muted", "Switched off"),
         ("ports", "unavailable", "missing_api_key", {}, "medium", "No API key configured"),
         ("ports", "unavailable", "invalid_key", {}, "medium", "API key rejected"),
         ("ports", "unavailable", "membership_required", {}, "medium", "Needs a paid Shodan plan"),
@@ -467,7 +467,7 @@ def entry(
             "The registry offers no RDAP service",
         ),
         ("registration", "no_data", "not_found", {}, "muted", "The registry has no such domain"),
-        ("registration", "unavailable", "disabled", {}, "medium", "Switched off"),
+        ("registration", "skipped", "disabled", {}, "muted", "Switched off"),
         ("registration", "unavailable", "rate_limited", {}, "medium", "Rate limited"),
         (
             "registration",
@@ -534,7 +534,7 @@ def entry(
         ("hsts_preload", "ok", None, {"status": "removed"}, "medium", "Removed"),
         ("hsts_preload", "ok", None, {"status": "unknown"}, "muted", "Not on the list"),
         ("hsts_preload", "ok", None, {"status": "something-new"}, "muted", "Unknown"),
-        ("hsts_preload", "unavailable", "disabled", {}, "medium", "Switched off"),
+        ("hsts_preload", "skipped", "disabled", {}, "muted", "Switched off"),
         ("hsts_preload", "error", "http_500", {}, "high", "HTTP error 500"),
         (
             "breaches",
@@ -1755,7 +1755,7 @@ def test_a_switched_off_third_party_lookup_explains_the_setting(
 ) -> None:
     client, assessment, scan = signed_in
     add_domain_result(
-        db_session, scan, "hsts_preload", CheckOutcome("unavailable", "disabled", {"domain": "x"})
+        db_session, scan, "hsts_preload", CheckOutcome("skipped", "disabled", {"domain": "x"})
     )
     body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
     assert "Switched off" in body and "EXTERNAL_DOMAIN_LOOKUPS" in body

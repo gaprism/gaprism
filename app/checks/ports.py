@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from app.checks.base import CachedAnswer, CheckContext, CheckOutcome, CheckScope
+from app.checks.base import CachedAnswer, CheckContext, CheckOutcome, CheckScope, CheckStatus
 from app.checks.dns import alias_names
 from app.service import exploits
 from app.service.geo import hint_for
@@ -188,8 +188,9 @@ class PortsCheck:
         if dns is None or not found:
             return CheckOutcome("skipped", "no_public_address", {})
         provider = self._provider(ctx)
-        if isinstance(provider, str):  # not configured: disabled, or no key for Shodan
-            return CheckOutcome("unavailable", provider, {"addresses_total": len(found)})
+        if isinstance(provider, str):  # not configured: switched off, or no key for Shodan
+            status: CheckStatus = "skipped" if provider == "disabled" else "unavailable"
+            return CheckOutcome(status, provider, {"addresses_total": len(found)})
 
         addresses = found[:MAX_ADDRESSES]
         aliases = alias_names(dns.data)

@@ -297,7 +297,7 @@ def test_a_switched_off_lookup_asks_nobody() -> None:
     web = Registry()
     for lookups in ([], ["hibp", "hsts_preload"]):
         outcome = run("example.com", web, config={"EXTERNAL_DOMAIN_LOOKUPS": lookups})
-        assert (outcome.status, outcome.reason_code) == ("unavailable", "disabled")
+        assert (outcome.status, outcome.reason_code) == ("skipped", "disabled")  # a decision
     assert web.requests == []
     assert run("example.com", web, config={"EXTERNAL_DOMAIN_LOOKUPS": ["rdap"]}).status == "ok"
 

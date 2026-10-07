@@ -121,7 +121,7 @@ def test_a_switched_off_lookup_asks_nobody() -> None:
         raise AssertionError("must not be asked")
 
     outcome = run(never, config={"EXTERNAL_DOMAIN_LOOKUPS": ["rdap", "hibp"]})
-    assert (outcome.status, outcome.reason_code) == ("unavailable", "disabled")
+    assert (outcome.status, outcome.reason_code) == ("skipped", "disabled")  # a decision, no gap
 
 
 def test_the_answer_is_cached_for_a_day_and_failures_are_not() -> None:
