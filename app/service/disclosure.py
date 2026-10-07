@@ -166,7 +166,7 @@ def describe(config: Mapping[str, Any]) -> Disclosure:
                 "the owner can see the scan in their logs",
                 agent=str(config.get("USER_AGENT", "")),
             ),
-            _("The TLS, HTTP, subdomain takeover and e-mail checks"),
+            _("The TLS, TLS versions, HTTP, subdomain takeover and e-mail checks"),
             "USER_AGENT",
             third_party=False,
             learns_domain=True,

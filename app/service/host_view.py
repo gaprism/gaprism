@@ -23,7 +23,7 @@ from app.i18n import gettext as _
 from app.i18n import ngettext
 from app.models import Assessment, CheckResult, Host, Scan
 
-CHECK_ORDER = ("dns", "ip", "ports", "tls", "http", "takeover")
+CHECK_ORDER = ("dns", "ip", "ports", "tls", "tls_protocols", "http", "takeover")
 # The checks of the domain itself (they run once per scan), in display order.
 DOMAIN_CHECK_ORDER = (
     "email",
@@ -45,6 +45,7 @@ CHECK_TITLES = {
     "ip": N_("IP addresses and location"),
     "ports": N_("Open ports and CVEs"),
     "tls": N_("TLS certificate"),
+    "tls_protocols": N_("TLS versions and suites"),
     "http": N_("HTTP"),
     "takeover": N_("Subdomain takeover"),
     "email": N_("Email security"),
@@ -75,6 +76,8 @@ REASONS = {
     "no_public_address": N_("No public address to connect to"),
     "no_hostname": N_("No hostname"),
     "no_certificate": N_("No certificate"),
+    "not_tls": N_("Not a TLS service"),
+    "no_handshake": N_("No handshake succeeded"),
     "internal_error": N_("Internal error"),
     "max_attempts_exceeded": N_("Gave up after repeated failures"),
     "scan_cancelled": N_("Scan cancelled"),
@@ -121,6 +124,15 @@ HELP = {
     "missing_api_key": N_(
         "PORTS_PROVIDER is set to shodan but SHODAN_API_KEY is empty. Add the key to `.env`, "
         "or set PORTS_PROVIDER=auto to use the keyless InternetDB, and scan again."
+    ),
+    "no_handshake": N_(
+        "None of the questions got a handshake. The server may offer only versions or suites "
+        "this program cannot speak (SSLv3, RC4, 3DES, export suites), refuse clients like this "
+        "one, or be having trouble. Nothing can be concluded: use a dedicated tester."
+    ),
+    "not_tls": N_(
+        "The port answered, but not with TLS (a plain web server, for example). Nothing can be "
+        "concluded about TLS versions."
     ),
     "tls_verification_failed": N_(
         "The host answered over HTTPS with a certificate that could not be verified (one for "
@@ -420,6 +432,22 @@ def _tls_cell(data: Mapping[str, Any]) -> CheckCell:
     )
 
 
+def _tls_protocols_cell(data: Mapping[str, Any]) -> CheckCell:
+    accepted = [str(key) for key in data.get("accepted", [])]
+    names = {"TLSv1.3": "1.3", "TLSv1.2": "1.2", "TLSv1.1": "1.1", "TLSv1": "1.0"}
+    shown = " · ".join(names[key] for key in names if key in accepted)
+    suites = [s for s in data.get("suites", []) if isinstance(s, Mapping)]
+    if any(s.get("status") == "accepted" for s in suites):
+        return CheckCell("ok", "high", _("Accepts suites without encryption or authentication"))
+    modern = [key for key in accepted if key in ("TLSv1.2", "TLSv1.3")]
+    legacy = [key for key in accepted if key in ("TLSv1", "TLSv1.1")]
+    if legacy and not modern:
+        return CheckCell("ok", "high", _("Only outdated TLS: %(versions)s", versions=shown))
+    if legacy:
+        return CheckCell("ok", "medium", _("Accepts TLS %(versions)s", versions=shown))
+    return CheckCell("ok", "ok", _("TLS %(versions)s", versions=shown) if shown else _("Done"))
+
+
 def _http_cell(data: Mapping[str, Any]) -> CheckCell:
     status = data.get("status")
     if not isinstance(status, int):
@@ -453,6 +481,7 @@ _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "ip": _ip_cell,
     "ports": _ports_cell,
     "tls": _tls_cell,
+    "tls_protocols": _tls_protocols_cell,
     "http": _http_cell,
     "takeover": _takeover_cell,
     "email": _email_cell,

@@ -1,0 +1,65 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set versions = [('TLSv1.3', 'TLS 1.3', false), ('TLSv1.2', 'TLS 1.2', false), ('TLSv1.1', 'TLS 1.1', true), ('TLSv1', 'TLS 1.0', true)] %}
+{% set kinds = [
+  ('anonymous_or_null', _('Suites without authentication or without encryption'), _('Anyone could pose as the server, or nothing is encrypted.'))] %}
+{% set why = {
+  'alert': _('answered with an alert'),
+  'closed': _('closed the connection'),
+  'not_tls': _('did not speak TLS'),
+  'timeout': _('did not answer in time'),
+  'refused': _('refused the connection'),
+  'connection_failed': _('the connection failed'),
+  'tls_error': _('the handshake failed in an unexpected way'),
+  'unsupported_by_client': _('this build of OpenSSL cannot offer it'),
+  'budget_exceeded': _('not asked: out of time')} %}
+{% set statuses = {'accepted': _('Accepted'), 'rejected': _('Not accepted'), 'unknown': _('Unknown'), 'not_testable': _('Not tested')} %}
+
+{% macro result(attempt, legacy) %}
+  {% set tone = {'accepted': 'medium' if legacy else 'ok', 'rejected': 'ok' if legacy else 'muted', 'unknown': 'medium', 'not_testable': 'muted'}[attempt.status] %}
+  {{ badge(statuses[attempt.status], tone) }}
+  {% if attempt.status != 'accepted' and attempt.reason %}<span class="text-xs text-muted">{{ why.get(attempt.reason, attempt.reason) }}</span>{% endif %}
+{% endmacro %}
+
+<div class="table-scroll">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('TLS versions this server accepts') }}</caption>
+    <thead><tr><th scope="col">{{ _('Version') }}</th><th scope="col">{{ _('Result') }}</th><th scope="col">{{ _('Suite it chose') }}</th></tr></thead>
+    <tbody>
+      {% for key, name, legacy in versions %}
+      {% set attempt = d.versions|selectattr('key', 'equalto', key)|first %}
+      <tr>
+        <td>{{ name }}{% if legacy %} <span class="text-xs text-muted">({{ _('retired in 2021') }})</span>{% endif %}</td>
+        <td>{% if attempt %}{{ result(attempt, legacy) }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>{% if attempt and attempt.cipher %}<bdi class="font-mono break-all text-xs">{{ attempt.cipher }}</bdi>{% if attempt.forward_secret is false %} {{ badge(_('no forward secrecy'), 'low') }}{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="table-scroll mt-4">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('Kinds of cipher suites this server accepts') }}</caption>
+    <thead><tr><th scope="col">{{ _('Kind of suites') }}</th><th scope="col">{{ _('Result') }}</th><th scope="col">{{ _('Suite it chose') }}</th></tr></thead>
+    <tbody>
+      {% for key, name, meaning in kinds %}
+      {% set attempt = d.suites|selectattr('key', 'equalto', key)|first %}
+      <tr>
+        <td>{{ name }}<div class="text-xs text-muted">{{ meaning }}</div></td>
+        <td>{% if attempt %}{{ result(attempt, true) }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>{% if attempt and attempt.cipher %}<bdi class="font-mono break-all text-xs">{{ attempt.cipher }}</bdi>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="mt-4 text-xs text-muted">
+  {{ _('Each row is one handshake in which only that version, or only that kind of suites, was offered. Nothing is sent after the handshake, and the certificate is not verified here (the TLS section does that).') }}
+</p>
+{% if d.not_tested %}
+<p class="mt-2 text-xs text-muted">
+  {{ _('Not tested: %(list)s. The OpenSSL this program asks with (%(openssl)s) cannot offer them, so "not accepted" above says nothing about them. Use a dedicated tester for these.', list=d.not_tested|join(', '), openssl=d.openssl) }}
+</p>
+{% endif %}

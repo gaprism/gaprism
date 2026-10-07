@@ -4,7 +4,7 @@ Technical due diligence from a single pane of glass. Enter a vendor's domain; th
 
 > **Status:** MVP under construction (branch `mvp`). Plan: [docs/roadmap.md](docs/roadmap.md).
 
-**Responsible use.** Only assess domains you are allowed to assess. The tool sends standard, low-impact requests (DNS, one TLS handshake, one HTTP GET) and queries public data sources; it never logs in, scans ports or exploits anything.
+**Responsible use.** Only assess domains you are allowed to assess. The tool sends standard, low-impact requests (DNS, a few TLS handshakes, one HTTP GET) and queries public data sources; it never logs in, scans ports or exploits anything.
 
 ## Quick start
 

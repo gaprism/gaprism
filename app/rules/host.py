@@ -17,6 +17,7 @@ from app.rules.base import (
     Confidence,
     Draft,
     HostFacts,
+    Result,
     RuleSettings,
     Severity,
     host_rule,
@@ -165,6 +166,209 @@ def tls_weak_signature(host: HostFacts, settings: RuleSettings) -> Iterator[Draf
             "hostname_supported",
             {"host": host.hostname, "algorithm": certificate.get("signature_algorithm") or digest},
             (tls.id,),
+            host.id,
+        )
+
+
+# ------------------------------------------------------------------------------ TLS protocols
+
+LEGACY_VERSIONS = ("TLSv1", "TLSv1.1")  # retired by RFC 8996 in 2021
+MODERN_VERSIONS = ("TLSv1.2", "TLSv1.3")
+_VERSION_NAMES = {
+    "TLSv1": "TLS 1.0",
+    "TLSv1.1": "TLS 1.1",
+    "TLSv1.2": "TLS 1.2",
+    "TLSv1.3": "TLS 1.3",
+}
+
+
+def _answers(host: HostFacts) -> tuple[Result, dict[str, dict[str, Any]]] | None:
+    """What the host's protocols check stored, by question: its versions and kinds of suites."""
+    found = host.ok("tls_protocols")
+    if found is None:
+        return None
+    stored = (*found.data.get("versions", []), *found.data.get("suites", []))
+    return found, {str(a.get("key")): a for a in stored if isinstance(a, dict)}
+
+
+def _accepted(answers: dict[str, dict[str, Any]], keys: tuple[str, ...]) -> list[str]:
+    return [key for key in keys if answers.get(key, {}).get("status") == "accepted"]
+
+
+def _names(keys: list[str]) -> list[str]:
+    return [_VERSION_NAMES.get(key, key) for key in keys]
+
+
+@host_rule(
+    "TLS_LEGACY_PROTOCOL",
+    title=N_("Outdated TLS versions accepted"),
+    summary=N_(
+        "%(host)s still accepts %(versions)s next to the current versions. TLS 1.0 and 1.1 were "
+        "retired in 2021 (RFC 8996)."
+    ),
+    advice=N_("Switch off TLS 1.0 and TLS 1.1 so that only TLS 1.2 and TLS 1.3 are accepted."),
+    trigger="The server completed a handshake in which only TLS 1.0, or only TLS 1.1, was offered "
+    "and also accepts TLS 1.2 or TLS 1.3. RFC 8996 retired both old versions in 2021, and "
+    "frameworks such as PCI DSS and NIST SP 800-52 rev. 2 no longer allow them. A server that "
+    "accepts nothing newer is reported by TLS_NO_MODERN_PROTOCOL instead.",
+    severities=("medium",),
+    checks=("tls_protocols",),
+    labels={
+        "versions": N_("Outdated versions accepted"),
+        "modern": N_("Current versions accepted"),
+    },
+)
+def tls_legacy_protocol(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    found = _answers(host)
+    if found is None:
+        return
+    result, answers = found
+    legacy, modern = _accepted(answers, LEGACY_VERSIONS), _accepted(answers, MODERN_VERSIONS)
+    if legacy and modern:
+        yield Draft(
+            _subject(host),
+            "medium",
+            "high",
+            "hostname_supported",
+            {"host": host.hostname, "versions": _names(legacy), "modern": _names(modern)},
+            (result.id,),
+            host.id,
+        )
+
+
+@host_rule(
+    "TLS_NO_MODERN_PROTOCOL",
+    title=N_("Only outdated TLS versions accepted"),
+    summary=N_(
+        "%(host)s accepts %(versions)s and refuses TLS 1.2 and TLS 1.3: current browsers and "
+        "libraries cannot connect securely."
+    ),
+    advice=N_("Enable TLS 1.2 and TLS 1.3 and switch off TLS 1.0 and TLS 1.1."),
+    trigger="The server completed a handshake with TLS 1.0 or TLS 1.1 and answered both TLS 1.2 "
+    "and TLS 1.3 with a refusal. A question that timed out or could not be put does not count as "
+    "a refusal.",
+    severities=("high",),
+    checks=("tls_protocols",),
+    labels={"versions": N_("Versions accepted")},
+)
+def tls_no_modern_protocol(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    found = _answers(host)
+    if found is None:
+        return
+    result, answers = found
+    legacy = _accepted(answers, LEGACY_VERSIONS)
+    refused = all(answers.get(key, {}).get("status") == "rejected" for key in MODERN_VERSIONS)
+    if legacy and refused:
+        yield Draft(
+            _subject(host),
+            "high",
+            "high",
+            "hostname_supported",
+            {"host": host.hostname, "versions": _names(legacy)},
+            (result.id,),
+            host.id,
+        )
+
+
+@host_rule(
+    "TLS_NO_TLS13",
+    title=N_("TLS 1.3 not offered"),
+    summary=N_("%(host)s accepts TLS 1.2 but not TLS 1.3."),
+    advice=N_(
+        "Enable TLS 1.3 when the server software supports it: it is faster and drops the weak "
+        "options of older versions. Not urgent."
+    ),
+    trigger="The server accepted a TLS 1.2 handshake and answered a TLS 1.3 handshake with a "
+    "refusal. An observation, not a weakness: TLS 1.2 with good suites is still sound.",
+    severities=("informational",),
+    checks=("tls_protocols",),
+    labels={"versions": N_("Versions accepted")},
+)
+def tls_no_tls13(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    found = _answers(host)
+    if found is None:
+        return
+    result, answers = found
+    accepted = _accepted(answers, (*LEGACY_VERSIONS, *MODERN_VERSIONS))  # oldest first
+    if "TLSv1.2" in accepted and answers.get("TLSv1.3", {}).get("status") == "rejected":
+        yield Draft(
+            _subject(host),
+            "informational",
+            "high",
+            "hostname_supported",
+            {"host": host.hostname, "versions": _names(accepted)},
+            (result.id,),
+            host.id,
+        )
+
+
+@host_rule(
+    "TLS_NULL_OR_ANONYMOUS_SUITES",
+    title=N_("Suites without encryption or authentication accepted"),
+    summary=N_(
+        "%(host)s accepts the cipher suite %(cipher)s, which has no encryption or no "
+        "authentication of the server."
+    ),
+    advice=N_(
+        "Remove NULL and anonymous cipher suites from the server's configuration: with them "
+        "traffic can be read, or anyone can pose as the server."
+    ),
+    trigger="The server completed a handshake in which only suites without encryption (NULL) or "
+    "without authentication (anonymous) were offered.",
+    severities=("high",),
+    checks=("tls_protocols",),
+    labels={"cipher": N_("Suite it chose")},
+)
+def tls_null_or_anonymous_suites(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    found = _answers(host)
+    if found is None:
+        return
+    result, answers = found
+    weak = answers.get("anonymous_or_null", {})
+    if weak.get("status") == "accepted":
+        yield Draft(
+            _subject(host),
+            "high",
+            "high",
+            "hostname_supported",
+            {"host": host.hostname, "cipher": weak.get("cipher") or "?"},
+            (result.id,),
+            host.id,
+        )
+
+
+@host_rule(
+    "TLS_NO_FORWARD_SECRECY",
+    title=N_("Suite without forward secrecy chosen"),
+    summary=N_(
+        "In a TLS 1.2 handshake %(host)s chose %(cipher)s, a suite that gives no forward "
+        "secrecy, although better ones were offered."
+    ),
+    advice=N_(
+        "Put the ECDHE suites first in the server's preference order, so that a stolen server key "
+        "cannot open recorded sessions."
+    ),
+    trigger="Offered a normal list of suites in a TLS 1.2 handshake, the server chose one whose "
+    "key exchange is not ephemeral (not ECDHE or DHE). That it merely *accepts* such a suite when "
+    "nothing better is offered is common and not reported.",
+    severities=("low",),
+    checks=("tls_protocols",),
+    labels={"cipher": N_("Suite it chose")},
+)
+def tls_no_forward_secrecy(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    found = _answers(host)
+    if found is None:
+        return
+    result, answers = found
+    chosen = answers.get("TLSv1.2", {})
+    if chosen.get("status") == "accepted" and chosen.get("forward_secret") is False:
+        yield Draft(
+            _subject(host),
+            "low",
+            "high",
+            "hostname_supported",
+            {"host": host.hostname, "cipher": chosen.get("cipher") or "?"},
+            (result.id,),
             host.id,
         )
 

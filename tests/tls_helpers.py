@@ -20,6 +20,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
+from runner.quiet import silenced
+
 DAY = datetime.timedelta(days=1)
 
 
@@ -141,12 +143,26 @@ class TlsServer:
     connection with a plain HTTP error (not TLS at all) · ``silent``: accepts and never speaks.
     """
 
-    def __init__(self, mode: str = "tls", certfile: str = "", keyfile: str = "") -> None:
+    def __init__(
+        self,
+        mode: str = "tls",
+        certfile: str = "",
+        keyfile: str = "",
+        *,
+        versions: tuple[ssl.TLSVersion, ssl.TLSVersion] | None = None,
+        ciphers: str | None = None,
+    ) -> None:
+        """``versions`` (lowest, highest) and ``ciphers`` limit what a ``tls`` server will speak."""
         self.mode = mode
         self.context: ssl.SSLContext | None = None
         if mode == "tls":
             self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             self.context.load_cert_chain(certfile, keyfile)
+            if versions is not None:
+                with silenced(DeprecationWarning, r"ssl\.TLSVersion\.\w+ is deprecated"):
+                    self.context.minimum_version, self.context.maximum_version = versions
+            if ciphers is not None:
+                self.context.set_ciphers(ciphers)
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen(8)

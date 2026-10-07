@@ -7,9 +7,6 @@ import datetime
 import ipaddress
 import socket
 import ssl
-import threading
-import warnings
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -21,6 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, r
 from cryptography.utils import CryptographyDeprecationWarning
 
 from runner.dns import SSRFBlockedError, is_ip_public, resolve_and_screen
+from runner.quiet import silenced
 
 # Names for the signature algorithm OIDs that matter for a due-diligence reader (weak ones
 # included); anything else is reported by its dotted OID.
@@ -47,28 +45,17 @@ MAX_NAME_LENGTH = 200
 # requires a positive one, but a few old authorities issued others, and this prober reads whatever
 # other people's servers present. The fact is part of the result (``serial_positive``) where an
 # analyst can see which host it is, so the warning is silenced where certificates are read.
-# ``catch_warnings`` changes process-wide state: one thread at a time.
 _SERIAL_WARNING = "Parsed a serial number which wasn't positive"
-_WARNING_LOCK = threading.Lock()
-
-
-@contextlib.contextmanager
-def _serial_warning_silenced() -> Iterator[None]:
-    with _WARNING_LOCK, warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", message=_SERIAL_WARNING, category=CryptographyDeprecationWarning
-        )
-        yield
 
 
 def _load_certificate(der: bytes) -> x509.Certificate:
     """Parse a DER certificate; ``ValueError`` if it cannot be read."""
-    with _serial_warning_silenced():
+    with silenced(CryptographyDeprecationWarning, _SERIAL_WARNING):
         return x509.load_der_x509_certificate(der, default_backend())
 
 
 def _serial_of(cert: x509.Certificate) -> int:
-    with _serial_warning_silenced():
+    with silenced(CryptographyDeprecationWarning, _SERIAL_WARNING):
         return cert.serial_number
 
 

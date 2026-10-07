@@ -371,8 +371,10 @@ def attributions_for(
                 _("TLS certificate, HTTP response headers, security.txt and the MTA-STS policy"),
                 _(
                     "Standard requests: a TLS handshake and two HTTP requests per host, our own "
-                    "User-Agent, no credentials, only ports 80 and 443. A host that is an alias "
-                    "for a hosted service is asked for its home page once or twice more."
+                    "User-Agent, no credentials, only ports 80 and 443. Five more handshakes ask "
+                    "which TLS versions and kinds of suites the server accepts (nothing is sent "
+                    "after a handshake). A host that is an alias for a hosted service is asked "
+                    "for its home page once or twice more."
                 ),
                 None,
             )

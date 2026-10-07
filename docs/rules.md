@@ -50,6 +50,11 @@ this file. Wording changes keep the rule's version; a change in *what* it flags 
 | [`TLS_EXPIRES_SOON`](#tls_expires_soon) | Medium or Low | Certificate expires soon |
 | [`TLS_WEAK_KEY`](#tls_weak_key) | High | Weak certificate key |
 | [`TLS_WEAK_SIGNATURE`](#tls_weak_signature) | High | Weak certificate signature |
+| [`TLS_LEGACY_PROTOCOL`](#tls_legacy_protocol) | Medium | Outdated TLS versions accepted |
+| [`TLS_NO_MODERN_PROTOCOL`](#tls_no_modern_protocol) | High | Only outdated TLS versions accepted |
+| [`TLS_NO_TLS13`](#tls_no_tls13) | Informational | TLS 1.3 not offered |
+| [`TLS_NULL_OR_ANONYMOUS_SUITES`](#tls_null_or_anonymous_suites) | High | Suites without encryption or authentication accepted |
+| [`TLS_NO_FORWARD_SECRECY`](#tls_no_forward_secrecy) | Low | Suite without forward secrecy chosen |
 | [`NO_HTTPS`](#no_https) | High | No HTTPS |
 | [`HTTP_NO_HTTPS_REDIRECT`](#http_no_https_redirect) | Medium | HTTP is not redirected to HTTPS |
 | [`HSTS_MISSING`](#hsts_missing) | Low | HSTS not set |
@@ -133,6 +138,66 @@ Run once per host of the scan, over what that host's checks collected.
 *Advice:* Certificates must be signed with SHA-256 or stronger.
 
 *Facts shown:* Signature algorithm
+
+### `TLS_LEGACY_PROTOCOL`
+
+**Outdated TLS versions accepted** · Medium · reads the `tls_protocols` check · version 1
+
+*Fires when:* The server completed a handshake in which only TLS 1.0, or only TLS 1.1, was offered and also accepts TLS 1.2 or TLS 1.3. RFC 8996 retired both old versions in 2021, and frameworks such as PCI DSS and NIST SP 800-52 rev. 2 no longer allow them. A server that accepts nothing newer is reported by TLS_NO_MODERN_PROTOCOL instead.
+
+*Says:* {host} still accepts {versions} next to the current versions. TLS 1.0 and 1.1 were retired in 2021 (RFC 8996).
+
+*Advice:* Switch off TLS 1.0 and TLS 1.1 so that only TLS 1.2 and TLS 1.3 are accepted.
+
+*Facts shown:* Outdated versions accepted, Current versions accepted
+
+### `TLS_NO_MODERN_PROTOCOL`
+
+**Only outdated TLS versions accepted** · High · reads the `tls_protocols` check · version 1
+
+*Fires when:* The server completed a handshake with TLS 1.0 or TLS 1.1 and answered both TLS 1.2 and TLS 1.3 with a refusal. A question that timed out or could not be put does not count as a refusal.
+
+*Says:* {host} accepts {versions} and refuses TLS 1.2 and TLS 1.3: current browsers and libraries cannot connect securely.
+
+*Advice:* Enable TLS 1.2 and TLS 1.3 and switch off TLS 1.0 and TLS 1.1.
+
+*Facts shown:* Versions accepted
+
+### `TLS_NO_TLS13`
+
+**TLS 1.3 not offered** · Informational · reads the `tls_protocols` check · version 1
+
+*Fires when:* The server accepted a TLS 1.2 handshake and answered a TLS 1.3 handshake with a refusal. An observation, not a weakness: TLS 1.2 with good suites is still sound.
+
+*Says:* {host} accepts TLS 1.2 but not TLS 1.3.
+
+*Advice:* Enable TLS 1.3 when the server software supports it: it is faster and drops the weak options of older versions. Not urgent.
+
+*Facts shown:* Versions accepted
+
+### `TLS_NULL_OR_ANONYMOUS_SUITES`
+
+**Suites without encryption or authentication accepted** · High · reads the `tls_protocols` check · version 1
+
+*Fires when:* The server completed a handshake in which only suites without encryption (NULL) or without authentication (anonymous) were offered.
+
+*Says:* {host} accepts the cipher suite {cipher}, which has no encryption or no authentication of the server.
+
+*Advice:* Remove NULL and anonymous cipher suites from the server's configuration: with them traffic can be read, or anyone can pose as the server.
+
+*Facts shown:* Suite it chose
+
+### `TLS_NO_FORWARD_SECRECY`
+
+**Suite without forward secrecy chosen** · Low · reads the `tls_protocols` check · version 1
+
+*Fires when:* Offered a normal list of suites in a TLS 1.2 handshake, the server chose one whose key exchange is not ephemeral (not ECDHE or DHE). That it merely *accepts* such a suite when nothing better is offered is common and not reported.
+
+*Says:* In a TLS 1.2 handshake {host} chose {cipher}, a suite that gives no forward secrecy, although better ones were offered.
+
+*Advice:* Put the ECDHE suites first in the server's preference order, so that a stolen server key cannot open recorded sessions.
+
+*Facts shown:* Suite it chose
 
 ### `NO_HTTPS`
 

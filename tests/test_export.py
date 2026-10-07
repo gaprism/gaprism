@@ -462,6 +462,7 @@ def test_the_ruleset_of_the_takeover_check_is_credited_with_its_licence() -> Non
     assert "EdOverflow" in credit.name and "CC BY 4.0" in credit.terms
     assert "adapted" in credit.terms
     assert "once or twice more" in found["target"].terms  # the extra request is disclosed
+    assert "Five more handshakes" in found["target"].terms  # and the protocol questions
 
 
 def test_a_scan_that_ran_the_takeover_check_credits_its_ruleset(db_session: Session) -> None:

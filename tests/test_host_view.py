@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.checks.base import CheckOutcome
 from app.checks.tls import outcome_from_probe
+from app.checks.tls_protocols import outcome_from_protocols
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
 from app.service import exploits as exploit_data
@@ -58,6 +59,7 @@ from tests.checks.test_takeover_check import redirect as takeover_redirect
 from tests.checks.test_takeover_check import run as run_takeover
 from tests.checks.test_takeover_check import tls_failure as takeover_tls_failure
 from tests.checks.test_tls_check import no_certificate, probe_result
+from tests.checks.test_tls_protocols_check import answers as protocol_answers
 from tests.exploit_helpers import FakeExploits, listed, scored
 from tests.helpers import create_assessment, create_user, login_as
 from tests.test_engine import CONFIG
@@ -1820,3 +1822,76 @@ def test_the_takeover_section_of_a_host_that_is_not_an_alias_says_so(
     host = add_host(db_session, scan, TAKEOVER_HOST, takeover_results(TakeoverWeb()))
     body = host_page(client, assessment, host)
     assert "This host is not an alias" in body and "No alias for a hosted service" in body
+
+
+# ------------------------------------------------------------------------ TLS versions and suites
+
+
+def test_the_protocols_section_shows_each_question_with_its_answer(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    answered = protocol_answers(
+        {"TLSv1.2": "accepted", "TLSv1.3": "accepted", "TLSv1": "accepted"},
+        ciphers={"TLSv1.2": "AES256-GCM-SHA384"},
+        reason="alert",
+    )
+    outcome = outcome_from_protocols(answered)
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "tls_protocols": outcome})
+    body = host_page(client, assessment, host)
+    assert "TLS versions and suites" in body and "Accepts TLS 1.3 · 1.2 · 1.0" in body
+    assert "retired in 2021" in body  # next to the two old versions
+    assert "AES256-GCM-SHA384" in body and "TLS_AES_256_GCM_SHA384" in body  # what it chose
+    assert "Not accepted" in body and "answered with an alert" in body
+    assert body.count("no forward secrecy") == 1  # only the TLS 1.2 choice of AES256-GCM-SHA384
+    assert "Each row is one handshake" in body and "certificate is not verified here" in body
+
+
+def test_the_protocols_section_says_what_it_could_not_test(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    outcome = outcome_from_protocols(protocol_answers())
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "tls_protocols": outcome})
+    body = host_page(client, assessment, host)
+    assert "Not tested:" in body and "SSLv3" in body and "3DES" in body
+    assert "OpenSSL 3.0.18" in body  # the build that asked, so that silence is not read as safe
+    assert "TLS 1.3 · 1.2" in body  # the cell of a server with only the current versions
+
+
+def test_the_protocols_section_marks_suites_without_encryption_or_authentication(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    outcome = outcome_from_protocols(
+        protocol_answers({"TLSv1.2": "accepted"}, {"anonymous_or_null": "accepted"})
+    )
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "tls_protocols": outcome})
+    body = host_page(client, assessment, host)
+    assert "Accepts suites without encryption or authentication" in body
+    assert "ADH-AES256-GCM-SHA384" in body
+
+
+def test_a_server_that_completed_no_handshake_is_shown_as_inconclusive(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    silent = protocol_answers({key: "rejected" for key in ("TLSv1.2",)}, reason="not_tls")
+    outcome = outcome_from_protocols(silent)
+    assert (outcome.status, outcome.reason_code) == ("error", "not_tls")
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "tls_protocols": outcome})
+    body = host_page(client, assessment, host)
+    assert "Not a TLS service" in body and "Nothing can be concluded about TLS versions" in body
+
+
+def test_a_server_whose_questions_all_failed_says_what_that_can_mean(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    outcome = outcome_from_protocols(
+        protocol_answers({key: "rejected" for key in ("TLSv1.2",)}, reason="alert")
+    )
+    assert (outcome.status, outcome.reason_code) == ("error", "no_handshake")
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), "tls_protocols": outcome})
+    body = host_page(client, assessment, host)
+    assert "No handshake succeeded" in body and "RC4" in body and "use a dedicated tester" in body

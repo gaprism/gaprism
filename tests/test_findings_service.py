@@ -749,3 +749,41 @@ def test_a_missing_name_that_anyone_can_register_replaces_the_dangling_alias_fin
     assert ("How it shows", "the name does not exist and anyone can register it") in view.facts
     assert ("Can a stranger claim the name?", "Yes, anyone can register it") in view.facts
     assert "HTTP status" not in {label for label, _ in view.facts}  # nothing was asked of the host
+
+
+def test_protocol_findings_read_as_sentences_with_their_facts(db_session: Session) -> None:
+    from app.checks.tls_protocols import outcome_from_protocols
+    from tests.checks.test_tls_protocols_check import answers
+
+    scan = new_scan(db_session, "vendor.example")
+    risky = answers(
+        {"TLSv1.2": "accepted", "TLSv1.3": "accepted", "TLSv1.1": "accepted"},
+        {"anonymous_or_null": "accepted"},
+        ciphers={"TLSv1.2": "AES256-GCM-SHA384", "anonymous_or_null": "NULL-SHA256"},
+    )
+    add_host(
+        db_session, scan, "www.vendor.example", {"tls_protocols": outcome_from_protocols(risky)}
+    )
+    findings_service.evaluate_scan(db_session, scan, RULES_CONFIG)
+    db_session.commit()
+
+    views = {row.rule_id: findings_service.describe(row) for row in stored(db_session, scan)}
+    assert set(views) == {
+        "TLS_LEGACY_PROTOCOL",
+        "TLS_NULL_OR_ANONYMOUS_SUITES",
+        "TLS_NO_FORWARD_SECRECY",
+    }
+    legacy = views["TLS_LEGACY_PROTOCOL"]
+    assert legacy.message == (
+        "www.vendor.example still accepts TLS 1.1 next to the current versions. TLS 1.0 and 1.1 "
+        "were retired in 2021 (RFC 8996)."
+    )
+    assert ("Outdated versions accepted", "TLS 1.1") in legacy.facts
+    assert ("Current versions accepted", "TLS 1.2, TLS 1.3") in legacy.facts
+    assert legacy.evidence == findings_service.EvidenceLink(
+        legacy.evidence.host_id, "tls_protocols"
+    )
+    assert ("Suite it chose", "NULL-SHA256") in views["TLS_NULL_OR_ANONYMOUS_SUITES"].facts
+    assert views["TLS_NO_FORWARD_SECRECY"].message.startswith(
+        "In a TLS 1.2 handshake www.vendor.example chose AES256-GCM-SHA384"
+    )
