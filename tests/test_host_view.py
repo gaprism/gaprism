@@ -42,6 +42,11 @@ from tests.checks.test_ip_check import FakeProvider as FakeLocations
 from tests.checks.test_ip_check import Reverse, cloudflare, german, swiss
 from tests.checks.test_ip_check import dns_outcome as dns_addresses
 from tests.checks.test_ip_check import run as run_ip
+from tests.checks.test_observatory_check import EXAMPLE as OBSERVATORY_FAILING
+from tests.checks.test_observatory_check import GITHUB as OBSERVATORY_TOP
+from tests.checks.test_observatory_check import SCAN_FAILED as OBSERVATORY_SCAN_FAILED
+from tests.checks.test_observatory_check import Mozilla
+from tests.checks.test_observatory_check import run as run_observatory
 from tests.checks.test_ports_check import CLOUDFLARE, IP1, IP2, FakeProvider, facts, found, located
 from tests.checks.test_ports_check import dns as ports_dns
 from tests.checks.test_ports_check import ip_outcome as ports_ip_outcome
@@ -556,6 +561,48 @@ def entry(
             "No public breach known to Have I Been Pwned",
         ),
         ("breaches", "unavailable", "rate_limited", {}, "medium", "Rate limited"),
+        (
+            "observatory",
+            "ok",
+            None,
+            {"grade": "A+", "score": 115, "tests_failed": 1, "tests_quantity": 12},
+            "ok",
+            "A+ · 1 of 12 tests failed",
+        ),
+        (
+            "observatory",
+            "ok",
+            None,
+            {"grade": "B-", "score": 66, "tests_failed": 3, "tests_quantity": 12},
+            "ok",
+            "B- · 3 of 12 tests failed",
+        ),
+        (
+            "observatory",
+            "ok",
+            None,
+            {"grade": "C+", "score": 62, "tests_failed": 4, "tests_quantity": 12},
+            "medium",
+            "C+ · 4 of 12 tests failed",
+        ),
+        (
+            "observatory",
+            "ok",
+            None,
+            {"grade": "F", "score": 10, "tests_failed": 5, "tests_quantity": 12},
+            "high",
+            "F · 5 of 12 tests failed",
+        ),
+        ("observatory", "skipped", "disabled", {}, "muted", "Switched off"),
+        (
+            "observatory",
+            "no_data",
+            "scan_failed",
+            {},
+            "muted",
+            "Mozilla's scan failed: the site did not answer as expected",
+        ),
+        ("observatory", "unavailable", "rate_limited", {}, "medium", "Rate limited"),
         (
             "domain_dns",
             "ok",
@@ -1970,6 +2017,75 @@ def test_the_badge_of_the_technologies_section_sums_it_up(
         r'<section[^>]*aria-labelledby="check-tech".*?</section>', page_text, re.DOTALL
     )
     assert section is not None and f">{badge}</span>" in section.group(0)
+
+
+# ------------------------------------------------------------------------------ observatory
+
+
+def test_the_domain_page_shows_mozillas_grade_with_its_scale_and_where_it_came_from(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    outcome = run_observatory(Mozilla({"github.com": (200, OBSERVATORY_TOP)}), "github.com")
+    add_domain_result(db_session, scan, "observatory", outcome)
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "Mozilla Observatory grade" in body and ">A+<" in body
+    assert "115 points" in body and "11 passed, 1 failed, of 12" in body
+    assert "independent second opinion, not part of our findings" in body
+    assert "the scale ends at 145" in body
+    link = "https://developer.mozilla.org/en-US/observatory/analyze?host=github.com"
+    assert f'href="{link}"' in body and 'rel="noopener noreferrer"' in body
+    assert "scan and its grade are public on MDN" in body  # what it cost to ask
+
+
+def test_the_domain_page_says_when_www_was_scanned_in_place_of_the_apex(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    mozilla = Mozilla(
+        {"vendor.com": (422, OBSERVATORY_SCAN_FAILED), "www.vendor.com": (200, OBSERVATORY_FAILING)}
+    )
+    add_domain_result(db_session, scan, "observatory", run_observatory(mozilla, "vendor.com"))
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert "vendor.com could not be scanned, so www.vendor.com was." in body and ">F<" in body
+
+
+def test_the_assessment_page_lists_the_grade_and_a_scan_that_was_not_asked_for_is_quiet(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    off = run_observatory(Mozilla({}), config={})
+    assert (off.status, off.reason_code) == ("skipped", "disabled")
+    add_domain_result(db_session, scan, "observatory", off)
+    body = client.get(f"/assessments/{assessment.id}").get_data(as_text=True)
+    assert "Mozilla Observatory grade" in body and "Switched off" in body
+    assert "Failed" not in body.split("Mozilla Observatory grade")[-1][:300]
+
+
+def test_the_tls_and_http_sections_link_to_the_independent_tests_of_the_host(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(db_session, scan, WEB_HOST, healthy())
+    body = host_page(client, assessment, host)
+    ssllabs = f"https://www.ssllabs.com/ssltest/analyze.html?d={WEB_HOST}&amp;hideResults=on"
+    mozilla = f"https://developer.mozilla.org/en-US/observatory/analyze?host={WEB_HOST}"
+    assert f'href="{ssllabs}"' in body and f'href="{mozilla}"' in body
+    assert body.count('rel="noopener noreferrer" target="_blank"') >= 2
+    assert "the result stays off their public boards" in body  # SSL Labs: not published
+    assert "cannot be hidden" in body  # Mozilla: it is
+    assert "Use it only where you may test the host." in body
+
+
+def test_the_links_to_other_tests_carry_only_the_host_name_and_it_is_encoded(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    odd = "a&b=c.example.com"  # cannot be a real host name, but nothing may be injected
+    host = add_host(db_session, scan, odd, healthy())
+    body = host_page(client, assessment, host)
+    assert "d=a%26b%3Dc.example.com&amp;hideResults=on" in body
+    assert "host=a%26b%3Dc.example.com" in body and "d=a&b=c" not in body
 
 
 # ------------------------------------------------------------------------------ reputation

@@ -14,7 +14,7 @@ from typing import Any, Literal, Protocol
 
 import httpx
 
-from app.config import EXTERNAL_LOOKUP_KEYS
+from app.config import EXTERNAL_LOOKUP_DEFAULTS
 
 # ok: collected · no_data: asked, nothing there · unavailable: not configured, no key, quota,
 # disabled · error: failed · skipped: a prerequisite was not ok. Never show these as "clean".
@@ -87,8 +87,9 @@ class Check(Protocol):
 
 
 def lookup_enabled(config: Mapping[str, Any], name: str) -> bool:
-    """May the domain be looked up at this third party (``EXTERNAL_DOMAIN_LOOKUPS``)?"""
-    return name in config.get("EXTERNAL_DOMAIN_LOOKUPS", EXTERNAL_LOOKUP_KEYS)
+    """May the domain be looked up at this third party (``EXTERNAL_DOMAIN_LOOKUPS``)? A
+    configuration that does not say has the default ones on, and the opt-in ones off."""
+    return name in config.get("EXTERNAL_DOMAIN_LOOKUPS", EXTERNAL_LOOKUP_DEFAULTS)
 
 
 def waits_for(check: Check) -> tuple[str, ...]:

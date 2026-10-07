@@ -23,6 +23,7 @@ from app.checks.email import EmailCheck
 from app.checks.hsts_preload import HstsPreloadCheck
 from app.checks.http import HttpCheck
 from app.checks.ip import IpCheck
+from app.checks.observatory import ObservatoryCheck
 from app.checks.ports import PortsCheck
 from app.checks.registration import RegistrationCheck
 from app.checks.reputation import ReputationCheck
@@ -51,6 +52,7 @@ REGISTRY: dict[str, Check] = {
         SecurityTxtCheck(),
         HstsPreloadCheck(),
         BreachesCheck(),
+        ObservatoryCheck(),
     )
 }
 

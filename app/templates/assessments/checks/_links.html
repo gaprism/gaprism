@@ -1,0 +1,8 @@
+{# Links to other people's tests of a host. A click opens their website in a new tab: nothing is sent from here, and the person who clicks decides. #}
+{% macro ssllabs(hostname) -%}
+<p class="mt-4 text-xs text-muted">{{ _('Second opinion') }}: <a class="link" href="https://www.ssllabs.com/ssltest/analyze.html?d={{ hostname|urlencode }}&amp;hideResults=on" rel="noopener noreferrer" target="_blank">{{ _('Qualys SSL Labs server test') }}</a> · {{ _('opens their website; the test then runs from their servers against this host and takes minutes, and the result stays off their public boards. Use it only where you may test the host.') }}</p>
+{%- endmacro %}
+
+{% macro observatory(hostname) -%}
+<p class="mt-4 text-xs text-muted">{{ _('Second opinion') }}: <a class="link" href="https://developer.mozilla.org/en-US/observatory/analyze?host={{ hostname|urlencode }}" rel="noopener noreferrer" target="_blank">{{ _('Mozilla HTTP Observatory') }}</a> · {{ _('opens their website; its scanner then requests this host’s home page, and the scan and its grade are public there and cannot be hidden.') }}</p>
+{%- endmacro %}

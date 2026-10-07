@@ -555,6 +555,17 @@ def test_the_security_resolvers_are_named_when_the_reputation_check_ran() -> Non
     assert unknown[0].name == "Security DNS resolvers: ?"  # never invents a resolver
 
 
+def test_the_observatory_is_credited_only_when_the_name_was_sent_to_it() -> None:
+    found = {a.key: a for a in export_service.attributions_for({"mdn-observatory"}, {})}
+    assert list(found) == ["observatory"]
+    credit = found["observatory"]
+    assert credit.url == "https://developer.mozilla.org/en-US/observatory"
+    assert "public on MDN" in credit.terms and "not part of the findings" in credit.terms
+    assert (
+        export_service.attributions_for({"queued"}, {}) == ()
+    )  # a switched-off check has no source
+
+
 def test_a_scan_that_used_shodan_and_no_third_party_names_only_what_it_used() -> None:
     assert [a.key for a in export_service.attributions_for({"shodan"}, {})] == ["shodan"]
     assert export_service.attributions_for(set(), {}) == ()

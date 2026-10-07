@@ -22,8 +22,10 @@ CT_SOURCES = {
     "crtsh": ("crt.sh", "crt.sh"),
 }
 
-# The optional lookups of EXTERNAL_DOMAIN_LOOKUPS, in the order they are listed.
+# The optional lookups of EXTERNAL_DOMAIN_LOOKUPS that are on by default, in the order they are
+# listed, and the ones that are off until somebody adds them to the setting.
 OPTIONAL_LOOKUPS = ("rdap", "hsts_preload", "hibp")
+OPT_IN_LOOKUPS = ("observatory",)
 
 # Where `flask datasets update` downloads public files from (the IP location databases, with a
 # mirror as a fallback, and the exploitation data). Nothing about an assessment is sent there.
@@ -58,6 +60,22 @@ class Disclosure:
 
 
 def _optional(key: str) -> Recipient:
+    if key == "observatory":
+        return Recipient(
+            "observatory",
+            _("Mozilla's HTTP Observatory"),
+            ("observatory-api.mdn.mozilla.net",),
+            _(
+                "The domain name. Mozilla's scanner then requests the home page and a few "
+                "well-known files from the domain's own servers, which see Mozilla; the scan and "
+                "its grade are public on MDN and cannot be hidden"
+            ),
+            _("An independent grade of the security headers"),
+            "EXTERNAL_DOMAIN_LOOKUPS",
+            third_party=True,
+            learns_domain=True,
+            optional=True,
+        )
     if key == "rdap":
         return Recipient(
             "rdap",
@@ -100,6 +118,7 @@ def _optional_name(key: str) -> str:
         "rdap": _("the registry (RDAP)"),
         "hsts_preload": "hstspreload.org",
         "hibp": "Have I Been Pwned",
+        "observatory": _("Mozilla's HTTP Observatory"),
     }[key]
 
 
@@ -202,7 +221,8 @@ def describe(config: Mapping[str, Any]) -> Disclosure:
     reputation = _reputation(security)
     if reputation is not None:
         rows.append(reputation)
-    enabled = [key for key in OPTIONAL_LOOKUPS if key in config.get("EXTERNAL_DOMAIN_LOOKUPS", [])]
+    chosen = config.get("EXTERNAL_DOMAIN_LOOKUPS", [])
+    enabled = [key for key in (*OPTIONAL_LOOKUPS, *OPT_IN_LOOKUPS) if key in chosen]
     rows.extend(_optional(key) for key in enabled)
 
     domain_to = [

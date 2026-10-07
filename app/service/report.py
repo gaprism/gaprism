@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.checks.observatory import SOURCE as OBSERVATORY_SOURCE
 from app.checks.reputation import SECURITY_RESOLVERS
 from app.checks.reputation import SOURCE as SECURITY_SOURCE
 from app.i18n import gettext as _
@@ -64,6 +65,7 @@ class Method:
     location_databases: tuple[tuple[str, str], ...]  # (type, build date)
     resolvers: str | None
     security_resolvers: tuple[str, ...]  # the security DNS resolvers every host name went to
+    observatory: bool  # the domain name went to Mozilla's HTTP Observatory
     evaluated_at: str | None
     findings_errors: tuple[str, ...]  # rules that crashed: their findings are missing
 
@@ -147,6 +149,10 @@ def _method(data: ExportData) -> Method:
                 security = tuple(
                     SECURITY_RESOLVERS[key].name for key in keys if key in SECURITY_RESOLVERS
                 )
+    asked_mozilla = any(
+        check.key == "observatory" and check.source == OBSERVATORY_SOURCE
+        for check in data.domain_checks
+    )
     limit = data.scan_options.get("max_hosts")
     return Method(
         discovery=sources,
@@ -156,6 +162,7 @@ def _method(data: ExportData) -> Method:
         location_databases=tuple(databases),
         resolvers=resolvers,
         security_resolvers=security,
+        observatory=asked_mozilla,
         evaluated_at=data.findings_info.get("evaluated_at"),
         findings_errors=tuple(str(rule) for rule in data.findings_info.get("errors", [])),
     )

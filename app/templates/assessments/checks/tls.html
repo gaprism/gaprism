@@ -1,4 +1,5 @@
 {% from 'components/ui.html' import badge, notice %}
+{% from 'assessments/checks/_links.html' import ssllabs %}
 {% set d = section.data %}
 {% set c = d.certificate %}
 {% if d.forensic %}
@@ -33,3 +34,4 @@
 <div class="mt-4">{{ notice(_('Serial number is not positive'), _('RFC 5280 requires the serial number of a certificate to be a positive integer. Its serial number is %(serial)s, which an old or faulty certificate authority can produce. Libraries and browsers may refuse such certificates in the future.', serial=c.serial), 'warning') }}</div>
 {% endif %}
 {% if c.fingerprint_sha256 %}<p class="mt-4 text-xs text-muted">{{ _('SHA-256 fingerprint') }}: <bdi class="font-mono break-all">{{ c.fingerprint_sha256 }}</bdi></p>{% endif %}
+{{ ssllabs(detail.host.hostname) }}

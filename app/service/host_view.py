@@ -42,6 +42,7 @@ DOMAIN_CHECK_ORDER = (
     "security_txt",
     "hsts_preload",
     "breaches",
+    "observatory",
 )
 MAX_RAW_JSON_CHARS = 100_000
 
@@ -66,6 +67,7 @@ CHECK_TITLES = {
     "security_txt": N_("security.txt"),
     "hsts_preload": N_("HSTS preload list"),
     "breaches": N_("Public breach history"),
+    "observatory": N_("Mozilla Observatory grade"),
 }
 
 REASONS = {
@@ -132,6 +134,11 @@ REASONS = {
     "no_answer": N_("Answered without an address"),
     "bad_response": N_("The answer came from the wrong source or was malformed"),
     "unexpected_rcode": N_("An answer that means nothing here"),
+    "invalid_hostname_lookup": N_("Mozilla could not resolve the name"),
+    "invalid_site": N_("Mozilla does not accept the name"),
+    "invalid_hostname_ip": N_("Mozilla does not scan IP addresses"),
+    "scan_failed": N_("Mozilla's scan failed: the site did not answer as expected"),
+    "not_scannable": N_("Mozilla could not scan the site"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.
@@ -602,6 +609,19 @@ def _reputation_cell(data: Mapping[str, Any]) -> CheckCell:
     return CheckCell("ok", "ok", text)
 
 
+def _observatory_cell(data: Mapping[str, Any]) -> CheckCell:
+    grade = str(data.get("grade") or "?")
+    tone = {"A": "ok", "B": "ok", "C": "medium", "D": "high", "F": "high"}.get(grade[:1], "muted")
+    total = int(data.get("tests_quantity") or 0)
+    tests = ngettext(
+        "%(failed)s of %(num)s test failed",
+        "%(failed)s of %(num)s tests failed",
+        total,
+        failed=int(data.get("tests_failed") or 0),
+    )
+    return CheckCell("ok", tone, f"{grade} · {tests}")
+
+
 _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "dns": _dns_cell,
     "ip": _ip_cell,
@@ -618,6 +638,7 @@ _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "security_txt": _security_txt_cell,
     "hsts_preload": _hsts_preload_cell,
     "breaches": _breaches_cell,
+    "observatory": _observatory_cell,
 }
 
 

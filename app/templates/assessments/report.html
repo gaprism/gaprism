@@ -244,6 +244,7 @@
       <li>{{ _('TLS versions and suites: five more handshakes per host, each offering only one version or one kind of cipher suites, to see what the server accepts. Nothing is sent after a handshake, and the certificate is not verified for these (the certificate check does that).') }}</li>
       <li>{{ _('Subdomain takeover: a host that is an alias for a hosted service is asked for its home page once or twice more, to see whether the service shows its page for an unclaimed name; an alias for a name that does not exist is judged from DNS alone. Nothing is claimed.') }}</li>
       {% if m.security_resolvers %}<li>{{ _('Reputation: the name of every host is asked of security DNS resolvers (%(names)s), which refuse names that their threat intelligence flags as malicious. A plain DNS question; nothing is sent to the host. A name that is not blocked is not a clean bill of health.', names=m.security_resolvers|join(', ')) }}</li>{% endif %}
+      {% if m.observatory %}<li>{{ _('Independent grade: the domain name was sent to Mozilla’s HTTP Observatory, whose scanner requested the home page and a few well-known files from the domain’s servers; the scan and its grade are public on MDN. The grade is Mozilla’s second opinion and not part of the findings.') }}</li>{% endif %}
       <li>{{ _('Domain: email security (SPF, DMARC, DKIM, MTA-STS), registration (RDAP), name servers and CAA, security.txt, HSTS preload status and public breaches.') }}</li>
     </ul>
 

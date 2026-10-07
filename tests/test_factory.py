@@ -8,6 +8,7 @@ import pytest
 
 from app import create_app
 from app.config import (
+    EXTERNAL_LOOKUP_DEFAULTS,
     EXTERNAL_LOOKUP_KEYS,
     MAX_PORTS_CACHE_HOURS,
     PORTS_PROVIDERS,
@@ -247,7 +248,11 @@ def test_external_domain_lookups_come_from_the_environment(monkeypatch: pytest.M
     monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "none")  # an empty line cannot say "none"
     assert create_app("development").config["EXTERNAL_DOMAIN_LOOKUPS"] == []
     monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "")  # an empty line keeps the default
-    assert create_app("development").config["EXTERNAL_DOMAIN_LOOKUPS"] == list(EXTERNAL_LOOKUP_KEYS)
+    assert create_app("development").config["EXTERNAL_DOMAIN_LOOKUPS"] == list(
+        EXTERNAL_LOOKUP_DEFAULTS
+    )  # the opt-in lookups are not among them
+    monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "rdap,observatory")
+    assert create_app("development").config["EXTERNAL_DOMAIN_LOOKUPS"] == ["rdap", "observatory"]
     monkeypatch.setenv("EXTERNAL_DOMAIN_LOOKUPS", "rdap,carrier-pigeon")
     with pytest.raises(ConfigurationError, match="carrier-pigeon"):
         create_app("development")

@@ -81,6 +81,29 @@ def test_what_is_switched_off_is_left_out_and_named() -> None:
     assert none.optional_off[-1] == "the security DNS resolvers"
 
 
+def test_the_observatory_is_opt_in_and_never_listed_as_switched_off() -> None:
+    assert "observatory" not in keys()  # not in a default installation
+    assert described().optional_off == ()  # and not "switched off": nobody had it on
+
+    chosen = ["rdap", "hsts_preload", "hibp", "observatory"]
+    result = described(EXTERNAL_DOMAIN_LOOKUPS=chosen)
+    rows = {row.key: row for row in result.rows}
+    assert list(rows)[-1] == "observatory"
+    assert rows["observatory"].hosts == ("observatory-api.mdn.mozilla.net",)
+    assert rows["observatory"].optional and rows["observatory"].learns_domain
+    assert "public on MDN" in rows["observatory"].receives  # what it costs to ask
+    assert "which see Mozilla" in rows["observatory"].receives  # the assessed servers see it
+    assert result.domain_to[-1] == "Mozilla's HTTP Observatory" and result.optional_off == ()
+
+    only = described(EXTERNAL_DOMAIN_LOOKUPS=["observatory"])
+    assert [row.key for row in only.rows][-1] == "observatory"
+    assert only.optional_off == (  # the three that are on by default are named when removed
+        "the registry (RDAP)",
+        "hstspreload.org",
+        "Have I Been Pwned",
+    )
+
+
 def test_the_security_resolvers_follow_the_configuration() -> None:
     one = {row.key: row for row in described(REPUTATION_RESOLVERS=["quad9"]).rows}
     assert one["reputation"].who == "Security DNS resolvers: Quad9"
@@ -154,6 +177,22 @@ def test_the_page_follows_the_installation_and_says_what_is_off(
     assert "Security DNS resolvers:" not in page
 
 
+def test_the_page_names_the_observatory_once_somebody_has_switched_it_on(
+    app: Flask, client: FlaskClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    login_as(client, create_user(db_session))
+    before = client.get("/assessments/new").get_data(as_text=True)
+    assert "Mozilla" not in before  # the default installation never mentions it
+
+    monkeypatch.setitem(
+        app.config, "EXTERNAL_DOMAIN_LOOKUPS", ["rdap", "hsts_preload", "hibp", "observatory"]
+    )
+    page = client.get("/assessments/new").get_data(as_text=True)
+    assert "Have I Been Pwned, Mozilla&#39;s HTTP Observatory." in page  # in the sentence
+    assert "public on MDN and cannot be hidden" in page and "which see Mozilla" in page
+    assert "Switched off in this installation" not in page
+
+
 def test_what_the_page_shows_is_escaped(
     app: Flask, client: FlaskClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -187,7 +226,8 @@ def deploy_section() -> str:
 def test_the_deploy_doc_names_every_recipient_and_its_setting() -> None:
     """The table in docs/deploy.md and the list the page builds are one list."""
     section = deploy_section()
-    rows = [*described().rows, *described(SHODAN_API_KEY="a-key").rows]
+    opted_in = described(EXTERNAL_DOMAIN_LOOKUPS=["observatory"]).rows
+    rows = [*described().rows, *described(SHODAN_API_KEY="a-key").rows, *opted_in]
     missing = {name for row in rows for name in (*row.hosts, row.setting) if name not in section}
     assert not missing, f"docs/deploy.md does not mention: {sorted(missing)}"
     not_named = [host for host in disclosure.DATASET_DOWNLOADS if host not in section]

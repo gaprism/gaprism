@@ -20,9 +20,12 @@ _SCHEMA_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,62}")
 # Names accepted in CT_SOURCES (kept here so that config validation needs no imports).
 CT_SOURCE_KEYS = ("ctlogs", "certspotter", "crtsh")
 
-# Lookups of the assessed *domain* at a third party: the registry (RDAP), hstspreload.org and
-# Have I Been Pwned. Each can be switched off in EXTERNAL_DOMAIN_LOOKUPS (`none` switches all off).
-EXTERNAL_LOOKUP_KEYS = ("rdap", "hsts_preload", "hibp")
+# Lookups of the assessed *domain* at a third party: the registry (RDAP), hstspreload.org, Have I
+# Been Pwned (on by default) and Mozilla's HTTP Observatory (opt-in: Mozilla's scanner then requests
+# the domain's home page, and its result is public on MDN). EXTERNAL_DOMAIN_LOOKUPS lists the ones
+# that are on (`none` switches all off).
+EXTERNAL_LOOKUP_KEYS = ("rdap", "hsts_preload", "hibp", "observatory")
+EXTERNAL_LOOKUP_DEFAULTS = ("rdap", "hsts_preload", "hibp")
 
 # Security DNS resolvers that refuse names their threat intelligence flags as malicious (the
 # reputation check asks them about every host: Quad9 and Cloudflare's 1.1.1.2). REPUTATION_RESOLVERS
@@ -159,8 +162,9 @@ class BaseConfig:
     BREACH_RECENT_MONTHS: int = 24
 
     # Third-party lookups of the assessed domain (see EXTERNAL_LOOKUP_KEYS); the checks behind a
-    # name that is left out report "unavailable: disabled" instead of asking.
-    EXTERNAL_DOMAIN_LOOKUPS: ClassVar[list[str]] = ["rdap", "hsts_preload", "hibp"]
+    # name that is left out report "unavailable: disabled" instead of asking (the opt-in
+    # observatory: "skipped", so that a lookup nobody asked for does not make a scan partial).
+    EXTERNAL_DOMAIN_LOOKUPS: ClassVar[list[str]] = list(EXTERNAL_LOOKUP_DEFAULTS)
 
     # Security DNS resolvers asked whether they block a host (see REPUTATION_RESOLVER_KEYS). Every
     # host name of a scan is sent to each of them; a plain DNS question, like the DNS check's.

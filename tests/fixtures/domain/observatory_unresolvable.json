@@ -1,0 +1,4 @@
+{
+  "error": "invalid-hostname-lookup",
+  "message": "this-name-does-not-exist-wdd-probe.example.com cannot be resolved"
+}

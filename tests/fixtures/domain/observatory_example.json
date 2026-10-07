@@ -1,0 +1,13 @@
+{
+  "id": 126330114,
+  "details_url": "https://developer.mozilla.org/en-US/observatory/analyze?host=example.com",
+  "algorithm_version": 6,
+  "scanned_at": "2026-10-07T17:48:09.617Z",
+  "error": null,
+  "grade": "F",
+  "score": 10,
+  "status_code": 200,
+  "tests_failed": 5,
+  "tests_passed": 7,
+  "tests_quantity": 12
+}

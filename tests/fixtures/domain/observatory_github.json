@@ -1,0 +1,13 @@
+{
+  "id": 126329522,
+  "details_url": "https://developer.mozilla.org/en-US/observatory/analyze?host=github.com",
+  "algorithm_version": 6,
+  "scanned_at": "2026-10-07T17:45:05.224Z",
+  "error": null,
+  "grade": "A+",
+  "score": 115,
+  "status_code": 200,
+  "tests_failed": 1,
+  "tests_passed": 11,
+  "tests_quantity": 12
+}

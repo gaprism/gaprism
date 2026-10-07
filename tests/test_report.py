@@ -217,6 +217,33 @@ def test_the_security_resolvers_every_host_name_went_to_are_named_in_the_method(
     assert method.security_resolvers == ("Quad9",)
 
 
+def test_the_method_says_when_the_name_went_to_mozillas_observatory(db_session: Session) -> None:
+    scan, _ = evaluated(db_session)
+    assert report_of(db_session, scan).method.observatory is False
+    db_session.add(
+        CheckResult(
+            scan_id=scan.id,
+            host_id=None,
+            check_key="observatory",
+            status="skipped",
+            reason_code="disabled",
+            data={"domain": "example.com"},
+            source=None,  # switched off: nothing was sent
+            collected_at=NOW,
+        )
+    )
+    db_session.commit()
+    assert report_of(db_session, scan).method.observatory is False
+    row = db_session.scalars(
+        select(CheckResult).where(
+            CheckResult.scan_id == scan.id, CheckResult.check_key == "observatory"
+        )
+    ).one()
+    row.status, row.reason_code, row.source = "error", "timeout", "mdn-observatory"
+    db_session.commit()  # asked, and it did not answer: the name was still sent
+    assert report_of(db_session, scan).method.observatory is True
+
+
 def test_a_scan_without_discovery_data_has_an_empty_method_not_a_crash(db_session: Session) -> None:
     scan, _ = evaluated(db_session)
     for row in db_session.scalars(

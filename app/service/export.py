@@ -28,7 +28,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.checks import DISCOVERY_KEY, reputation, takeover_services
+from app.checks import DISCOVERY_KEY, observatory, reputation, takeover_services
 from app.i18n import gettext as _
 from app.models import Assessment, CheckResult, Host, Scan
 from app.models.base import utc_now
@@ -514,6 +514,22 @@ def attributions_for(
                 _("HSTS preload status of the domain"),
                 _("Public API. The domain name is sent to hstspreload.org."),
                 "https://hstspreload.org",
+            )
+        )
+    if observatory.SOURCE in used:
+        found.append(
+            Attribution(
+                "observatory",
+                _("Mozilla HTTP Observatory"),
+                _("An independent grade of the security headers of the domain's home page"),
+                _(
+                    "Used because this installation switched it on. The domain name is sent to "
+                    "Mozilla, whose scanner requests the home page and a few well-known files "
+                    "from the domain's servers; the scan and its grade are public on MDN and "
+                    "cannot be hidden. The grade is Mozilla's: a second opinion, not part of the "
+                    "findings."
+                ),
+                "https://developer.mozilla.org/en-US/observatory",
             )
         )
     return tuple(found)
