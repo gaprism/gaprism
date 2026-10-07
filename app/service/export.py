@@ -43,6 +43,7 @@ FORMAT_NAME = "web-due-diligence-export"
 FORMAT_VERSION = 1
 CSV_BOM = "﻿"
 MAX_EVIDENCE_SHOWN = 3  # evidence references named in a CSV cell
+MAX_TECHNOLOGIES_SHOWN = 40  # technologies named in a CSV cell
 CT_SOURCE_NAMES = {"ctlogs": "ctlogs.dev", "certspotter": "CertSpotter", "crtsh": "crt.sh"}
 
 HOST_COLUMNS = (
@@ -53,6 +54,7 @@ HOST_COLUMNS = (
     "cities",
     "networks",
     "cdn_edge",
+    "cdn_waf",
     "ports",
     "cves",
     "tls",
@@ -60,6 +62,7 @@ HOST_COLUMNS = (
     "tls_days_left",
     "http_status",
     "http_scheme",
+    "technologies",
     "open_findings",
     "top_severity",
     "gaps",
@@ -722,6 +725,20 @@ def host_places(host: HostExport) -> Places:
     )
 
 
+def _technologies(tech: CheckExport | None) -> tuple[list[str], list[str]]:
+    """The CDN, proxy or WAF recognised in front of a host, and its other technologies (with the
+    version where one showed). Nothing when the check did not answer."""
+    if tech is None or tech.status != "ok":
+        return [], []
+    edge = [str(name) for name in tech.data.get("edge", [])]
+    named = [
+        f"{item['name']} {item['version']}" if item.get("version") else str(item["name"])
+        for item in tech.data.get("technologies", [])
+        if isinstance(item, Mapping) and item.get("name") and item.get("category") != "edge"
+    ]
+    return edge, named[:MAX_TECHNOLOGIES_SHOWN]
+
+
 def _host_row(host: HostExport) -> list[Any]:
     dns, ports = host.check("dns"), host.check("ports")
     tls, http = host.check("tls"), host.check("http")
@@ -753,6 +770,7 @@ def _host_row(host: HostExport) -> list[Any]:
 
     status = http.data.get("status") if http and http.status == "ok" else None
     scheme = http.data.get("scheme") if http and http.status == "ok" else None
+    edge, technologies = _technologies(host.check("tech"))
     return [
         host.hostname,
         host.source,
@@ -761,6 +779,7 @@ def _host_row(host: HostExport) -> list[Any]:
         [f"{city}, {country}" for city, country in places.cities],
         list(places.networks),
         places.all_edge,
+        edge,
         sorted(own_ports),
         sorted(cves),
         tls_state,
@@ -768,6 +787,7 @@ def _host_row(host: HostExport) -> list[Any]:
         days_left if isinstance(days_left, int) else None,
         status if isinstance(status, int) else None,
         scheme,
+        technologies,
         host.open_findings,
         host.top_severity,
         host.has_gaps,

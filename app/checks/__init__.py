@@ -27,6 +27,7 @@ from app.checks.ports import PortsCheck
 from app.checks.registration import RegistrationCheck
 from app.checks.securitytxt import SecurityTxtCheck
 from app.checks.takeover import TakeoverCheck
+from app.checks.tech import TechCheck
 from app.checks.tls import TlsCheck
 from app.checks.tls_protocols import TlsProtocolsCheck
 
@@ -40,6 +41,7 @@ REGISTRY: dict[str, Check] = {
         TlsCheck(),
         TlsProtocolsCheck(),
         HttpCheck(),
+        TechCheck(),
         TakeoverCheck(),
         EmailCheck(),
         RegistrationCheck(),

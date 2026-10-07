@@ -103,7 +103,7 @@
 
 {% macro who_card(w) %}
 {% set kinds = {'cdn': _('CDN'), 'cloud': _('Cloud'), 'hosting': _('Hosting')} %}
-{% call card('who', _('Who'), _('Who processes it?'), _('Providers seen from outside in addresses, DNS and mail records. This is not a list of the vendor’s legal processors or sub-processors.')) %}
+{% call card('who', _('Who'), _('Who processes it?'), _('Providers seen from outside in addresses, DNS and mail records and in the first page of each host. This is not a list of the vendor’s legal processors or sub-processors.')) %}
   <div>
     <h4 class="text-sm font-semibold">{{ _('Hosting and networks') }}</h4>
     {% if w.networks %}
@@ -125,6 +125,9 @@
     <p class="mt-1 text-sm text-muted">{{ _('No host has a public address to look up.') }}</p>
     {% endif %}
   </div>
+  {{ group(_('CDN, proxy or WAF in front'), w.edge, _('None was recognised.')) }}
+  {{ group(_('Services the pages load'), w.services, _('No service of another organisation was recognised in the pages that could be read.')) }}
+  {% if w.pages_analysed %}<p class="text-xs text-muted">{{ _('The first page was read for %(read)s of %(total)s hosts; the others are judged from headers, DNS and network alone. Scripts that load other scripts later are not seen.', read=w.pages_read, total=w.pages_analysed) }}</p>{% endif %}
   {{ group(_('DNS operators'), w.dns, _('No name servers found.')) }}
   {{ group(_('Mail'), w.mail, _('The domain publishes no mail servers.')) }}
   {{ group(_('Services allowed to send mail'), w.senders, _('The SPF record names no sending service.')) }}

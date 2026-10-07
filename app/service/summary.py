@@ -32,6 +32,7 @@ MAX_COUNTRIES = 12
 MAX_CITIES = 3  # per country
 MAX_NETWORKS = 8
 MAX_ITEMS = 8  # per provider group
+MAX_SERVICES = 12  # pages load more services than a domain has name servers
 MAX_TOP_RULES = 3
 LOCATION_RULE = "LOCATION_OUTSIDE_EU_CH"  # the finding that says "outside the allowed area"
 DOMAIN_KEYS = ("email", "domain_dns", "registration")
@@ -45,12 +46,22 @@ NOT_LOCATED_STATUSES = ("no_data", "unavailable", "error")
 
 
 @dataclass(frozen=True)
+class Platforms:
+    """What the technology check recognised for one host, as far as the summary reads it."""
+
+    edge: tuple[str, ...] = ()  # CDN, proxy or WAF in front of the host
+    services: tuple[tuple[str, str | None], ...] = ()  # (name, vendor) of what its page loads
+    page_read: bool = False  # the first page could be read: "no service" is then a statement
+
+
+@dataclass(frozen=True)
 class HostChecks:
     """What the checks said about one host, as far as the summary reads it."""
 
     statuses: Mapping[str, tuple[str, str | None]]  # check key -> (status, reason code)
     location: Mapping[str, Any] | None = None  # data of the ``ip`` check when it located something
     scheme: str | None = None  # ``https`` or ``http``: how the HTTP check got its answer
+    platforms: Platforms | None = None  # the ``tech`` check, when it ended with an answer
 
 
 @dataclass(frozen=True)
@@ -325,6 +336,10 @@ class WhoCard:
     mail: Group
     senders: Group
     registrar: Group
+    edge: Group  # CDN, proxy and WAF in front of the hosts (how many hosts)
+    services: Group  # other organisations' services the pages load (how many hosts)
+    pages_read: int  # hosts whose first page was read for the two groups above
+    pages_analysed: int  # hosts the technology check ended with an answer for
 
 
 def _network_lines(hosts: Sequence[HostChecks]) -> list[NetworkLine]:
@@ -419,6 +434,53 @@ def _registrar(data: Mapping[str, Any]) -> list[tuple[str, int | None]] | None:
     return []
 
 
+def _service_label(name: str, vendor: str | None) -> str:
+    """``Google Tag Manager (Google)``: the vendor is the one who processes, the name says what."""
+    return name if not vendor or vendor.lower() in name.lower() else f"{name} ({vendor})"
+
+
+def _platform_groups(hosts: Sequence[HostChecks]) -> tuple[Group, Group, int, int]:
+    """The CDN, proxy or WAF in front of the hosts and the services their pages load, counted by
+    host, with how many hosts were analysed and how many of those had a page that could be read.
+
+    The technology check ends with an answer even when the page was not read, so "no service" is a
+    statement only for pages that were; without any, it is not determined."""
+    analysed = [host.platforms for host in hosts if host.platforms is not None]
+    if not analysed:
+        reasons = Counter(
+            reason or status
+            for status, reason in (host.statuses.get("tech", ("", None)) for host in hosts)
+            if status and status != "ok"
+        )
+        unknown = Group("unknown", reason=reasons.most_common(1)[0][0] if reasons else "not_run")
+        return unknown, unknown, 0, 0
+    edge_counts: Counter[str] = Counter()
+    service_counts: Counter[tuple[str, str | None]] = Counter()
+    for platforms in analysed:
+        edge_counts.update(set(platforms.edge))
+        service_counts.update(set(platforms.services))
+    read = sum(1 for platforms in analysed if platforms.page_read)
+    edge = (
+        Group(
+            "found",
+            tuple(_ranked(edge_counts)[:MAX_ITEMS]),
+            more=max(0, len(edge_counts) - MAX_ITEMS),
+        )
+        if edge_counts
+        else Group("none")
+    )
+    if service_counts:
+        ordered = sorted(service_counts.items(), key=lambda kv: (-kv[1], kv[0][0].lower(), kv[0]))
+        services = Group(
+            "found",
+            tuple((_service_label(*key), count) for key, count in ordered[:MAX_SERVICES]),
+            more=max(0, len(ordered) - MAX_SERVICES),
+        )
+    else:
+        services = Group("none") if read else Group("unknown", reason="no_page")
+    return edge, services, read, len(analysed)
+
+
 def who_of(hosts: Sequence[HostChecks], domain: Mapping[str, DomainResult]) -> WhoCard:
     """The providers that show up: from the hosts' addresses and from the domain's own records."""
     networks = _network_lines(hosts)
@@ -427,6 +489,7 @@ def who_of(hosts: Sequence[HostChecks], domain: Mapping[str, DomainResult]) -> W
         status, reason = host.statuses.get("ip", ("", None))
         if status in NOT_LOCATED_STATUSES:
             reasons[reason or status] += 1
+    edge, services, pages_read, pages_analysed = _platform_groups(hosts)
     return WhoCard(
         networks=tuple(networks[:MAX_NETWORKS]),
         more_networks=max(0, len(networks) - MAX_NETWORKS),
@@ -436,6 +499,10 @@ def who_of(hosts: Sequence[HostChecks], domain: Mapping[str, DomainResult]) -> W
         mail=_group(domain.get("email"), _mail_hosts),
         senders=_group(domain.get("email"), _senders),
         registrar=_group(domain.get("registration"), _registrar),
+        edge=edge,
+        services=services,
+        pages_read=pages_read,
+        pages_analysed=pages_analysed,
     )
 
 
@@ -501,11 +568,48 @@ def load_hosts(session: Session, scan_id: uuid.UUID) -> list[HostChecks]:
         )
         if host_id is not None
     }
+    platforms: dict[uuid.UUID, Platforms] = {
+        host_id: _platforms(edge, services, page_read)
+        for host_id, edge, services, page_read in session.execute(
+            select(  # three small parts of the result: the evidence stays where it is
+                CheckResult.host_id,
+                CheckResult.data["edge"],
+                CheckResult.data["services"],
+                CheckResult.data["page"]["read"],
+            ).where(
+                CheckResult.scan_id == scan_id,
+                CheckResult.check_key == "tech",
+                CheckResult.status == "ok",
+                CheckResult.host_id.is_not(None),
+            )
+        )
+        if host_id is not None
+    }
     host_ids = list(session.scalars(select(Host.id).where(Host.scan_id == scan_id)))
     return [
-        HostChecks(statuses.get(host_id, {}), located.get(host_id), schemes.get(host_id))
+        HostChecks(
+            statuses.get(host_id, {}),
+            located.get(host_id),
+            schemes.get(host_id),
+            platforms.get(host_id),
+        )
         for host_id in host_ids
     ]
+
+
+def _platforms(edge: Any, services: Any, page_read: Any) -> Platforms:
+    """What the three parts of a technology result say (anything malformed counts as none)."""
+    names = tuple(str(name) for name in edge) if isinstance(edge, list) else ()
+    listed = (
+        tuple(
+            (str(item["name"]), str(item["vendor"]) if item.get("vendor") else None)
+            for item in services
+            if isinstance(item, Mapping) and item.get("name")
+        )
+        if isinstance(services, list)
+        else ()
+    )
+    return Platforms(names, listed, page_read is True)
 
 
 def load_domain(session: Session, scan_id: uuid.UUID) -> dict[str, DomainResult]:

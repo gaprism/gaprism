@@ -133,6 +133,8 @@
         {% elif who.addressed %}{{ _('The databases know no network for these addresses.') }}
         {% else %}{{ _('No host has a public address to look up.') }}{% endif %}
       </dd></div>
+      <div><dt>{{ _('CDN, proxy or WAF in front') }}</dt><dd>{{ providers(who.edge, _('None was recognised.')) }}</dd></div>
+      <div><dt>{{ _('Services the pages load') }}</dt><dd>{{ providers(who.services, _('No service of another organisation was recognised in the pages that could be read.')) }}{% if who.pages_analysed %} <span class="report-source">({{ _('first page read for %(read)s of %(total)s hosts; scripts that load other scripts later are not seen', read=who.pages_read, total=who.pages_analysed) }})</span>{% endif %}</dd></div>
       <div><dt>{{ _('DNS operators') }}</dt><dd>{{ providers(who.dns, _('No name servers found.')) }}</dd></div>
       <div><dt>{{ _('Mail') }}</dt><dd>{{ providers(who.mail, _('The domain publishes no mail servers.')) }}</dd></div>
       <div><dt>{{ _('Services allowed to send mail') }}</dt><dd>{{ providers(who.senders, _('The SPF record names no sending service.')) }}</dd></div>

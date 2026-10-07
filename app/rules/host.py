@@ -630,6 +630,126 @@ def server_version_disclosed(host: HostFacts, settings: RuleSettings) -> Iterato
         )
 
 
+# ------------------------------------------------------------------------------ technologies
+
+_RUNS_IN_THE_BROWSER = ("script", "iframe")  # code or a page of the other host, inside the page
+
+
+def _tech_evidence(host: HostFacts, tech: Result) -> tuple[str, ...]:
+    """The technology result and the web result it was read from."""
+    http = host.ok("http")
+    return (tech.id,) if http is None else (tech.id, http.id)
+
+
+@host_rule(
+    "TECH_OUTDATED_VERSION",
+    title=N_("Old software version"),
+    summary=N_("%(host)s shows software that is old: %(outdated)s."),
+    advice=N_(
+        "Find out which version really runs and whether it still receives security fixes, and "
+        "update what has reached its end of life. A version that only a server header or a file "
+        "name shows can be patched without changing the number, or be wrong, so ask rather than "
+        "assume."
+    ),
+    trigger="The technology check read the version of a product that the small own ruleset has "
+    "dates or known flaws for, and that version is past its upstream end of life (PHP, IIS, "
+    "Drupal, Joomla, Apache 2.2 and older, AngularJS 1.x, Bootstrap 4 and older, Python 2) or has "
+    "well-known vulnerabilities (jQuery before 3.5). The version comes from a response header, "
+    "the generator tag or the name of a file the page loads. Always Low: whether a flaw can be "
+    "used depends on how the software is used, and the known vulnerabilities of services are the "
+    "ports check's business. Confidence is Medium when the page shows the version (generator tag, "
+    "file name) and Low when only a server header does, because distributions fix flaws without "
+    "changing the number. A product the ruleset has no dates for is not judged: no finding is no "
+    "statement that the software is current.",
+    severities=("low",),
+    checks=("tech", "http"),
+    labels={
+        "outdated": N_("Software"),
+        "details": N_("What is known"),
+        "version_from": N_("Version read from"),
+    },
+)
+def tech_outdated_version(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    tech = host.ok("tech")
+    if tech is None:
+        return
+    old = [
+        item
+        for item in tech.data.get("outdated", [])
+        if isinstance(item, dict) and item.get("version") and item.get("name")
+    ]
+    if not old:
+        return
+    sources = [str(item.get("version_from") or "") for item in old]
+    yield Draft(
+        _subject(host),
+        "low",
+        "low" if all(source == "header" for source in sources) else "medium",
+        "hostname_supported",
+        {
+            "host": host.hostname,
+            "outdated": [f"{item['name']} {item['version']}" for item in old][:8],
+            "details": [str(item.get("detail") or "") for item in old][:8],
+            "version_from": sorted({source for source in sources if source}),
+        },
+        _tech_evidence(host, tech),
+        host.id,
+    )
+
+
+@host_rule(
+    "SCRIPT_FROM_COMPROMISED_HOST",
+    title=N_("Page loads from a host that served malware"),
+    summary=N_(
+        "%(host)s loads content from %(flagged)s, which is known to have served malicious code "
+        "to the visitors of the pages that load from it."
+    ),
+    advice=N_(
+        "Remove the reference, or replace it with a copy of the file that the site serves itself "
+        "or with a trusted mirror, and review what the page loaded in the meantime. Whoever "
+        "controls such a host can run code in every visitor's browser."
+    ),
+    trigger="The first page of the host names a host that the ruleset lists as having served "
+    "malicious code to the pages that load from it (the polyfill.io supply chain attack of 2024 "
+    "and the networks of hosts that belong to the same campaign). High with Medium confidence "
+    "when a script or a frame loads from it: the page was seen to hand the visitor's browser "
+    "over, but whether the host still serves the malicious file is not known (several were taken "
+    "down). Medium with Low confidence when only a style sheet, an image, a form or an inline "
+    "script names it. Only what the first page shows is read: scripts that load other scripts "
+    "are not followed.",
+    severities=("medium", "high"),
+    checks=("tech", "http"),
+    labels={"flagged": N_("Hosts"), "loaded_as": N_("Loaded as")},
+)
+def script_from_compromised_host(host: HostFacts, settings: RuleSettings) -> Iterator[Draft]:
+    tech = host.ok("tech")
+    if tech is None:
+        return
+    flagged = [item for item in tech.data.get("flagged", []) if isinstance(item, dict)]
+    flagged = [item for item in flagged if item.get("host")]
+    if not flagged:
+        return
+    runs = [
+        item
+        for item in flagged
+        if any(kind in _RUNS_IN_THE_BROWSER for kind in item.get("kinds", []))
+    ]
+    kinds = sorted({str(kind) for item in flagged for kind in item.get("kinds", [])})
+    yield Draft(
+        _subject(host),
+        "high" if runs else "medium",
+        "medium" if runs else "low",
+        "hostname_supported",
+        {
+            "host": host.hostname,
+            "flagged": [str(item["host"]) for item in (runs or flagged)][:6],
+            "loaded_as": kinds,
+        },
+        _tech_evidence(host, tech),
+        host.id,
+    )
+
+
 # ------------------------------------------------------------------------------ DNS
 
 

@@ -29,6 +29,8 @@ from tests.checks.test_registration_check import Registry
 from tests.checks.test_registration_check import run as run_registration
 from tests.rules import scenario
 from tests.rules.helpers import http_only, web
+from tests.rules.test_tech_finding_rules import judged as judged_page
+from tests.rules.test_tech_finding_rules import script as script_tag
 from tests.test_engine import new_scan
 from tests.test_findings_service import RULES_CONFIG, add_host, populated_scan
 
@@ -264,6 +266,109 @@ def test_the_provider_lists_are_bounded() -> None:
     data: dict[str, Any] = {"mx": {"found": True, "records": records}}
     who = summary.who_of([], {"email": DomainResult("ok", None, data)})
     assert len(who.mail.items) == summary.MAX_ITEMS and who.mail.more == 4
+
+
+# ----- what the pages show: the CDN or WAF in front, the services they load
+
+
+def seen(
+    edge: tuple[str, ...] = (),
+    services: tuple[tuple[str, str | None], ...] = (),
+    *,
+    read: bool = True,
+) -> HostChecks:
+    """A host whose technology check ended with an answer."""
+    return HostChecks(
+        {"tech": ("ok", None)}, platforms=summary.Platforms(edge, services, page_read=read)
+    )
+
+
+def test_the_edge_and_the_services_are_counted_by_host_busiest_first() -> None:
+    analytics = ("Google Analytics (gtag.js)", "Google")
+    hosts = [
+        seen(("Cloudflare",), (analytics, ("Hotjar", "Hotjar"), ("Facebook Pixel", "Meta"))),
+        seen(("Cloudflare", "Cloudflare"), (analytics, analytics)),  # twice on one host: once
+        seen(("Akamai",), ()),
+    ]
+    who = summary.who_of(hosts, {})
+    assert who.edge == summary.Group("found", (("Cloudflare", 2), ("Akamai", 1)))
+    assert who.services == summary.Group(
+        "found",
+        (
+            ("Google Analytics (gtag.js)", 2),  # the vendor is already in the name
+            ("Facebook Pixel (Meta)", 1),  # the vendor processes, the name says what
+            ("Hotjar", 1),
+        ),
+    )
+    assert (who.pages_read, who.pages_analysed) == (3, 3)
+
+
+def test_pages_that_could_not_be_read_say_nothing_about_the_services_they_load() -> None:
+    nothing = [seen(read=False), seen(read=False)]
+    who = summary.who_of(nothing, {})
+    assert who.edge == summary.Group("none")  # DNS, headers and networks were looked at
+    assert who.services == summary.Group("unknown", reason="no_page")  # the page is where they are
+    assert (who.pages_read, who.pages_analysed) == (0, 2)
+
+    one_page = summary.who_of([*nothing, seen()], {})
+    assert one_page.services == summary.Group("none")  # a page that was read shows none
+    assert (one_page.pages_read, one_page.pages_analysed) == (1, 3)
+
+    platform = summary.who_of([seen(services=(("Shopify", "Shopify"),), read=False)], {})
+    assert platform.services.items == (("Shopify", 1),)  # a header can show it without the page
+
+
+def test_without_a_technology_result_the_platforms_are_not_determined_never_none() -> None:
+    who = summary.who_of([checks_of(dns=DNS_OK)], {})
+    assert who.edge == who.services == summary.Group("unknown", reason="not_run")
+    assert (who.pages_read, who.pages_analysed) == (0, 0)
+
+    failed = HostChecks({"tech": ("error", "timeout")})
+    skipped = HostChecks({"tech": ("skipped", "no_public_address")})
+    who = summary.who_of([failed, failed, skipped], {})
+    assert who.edge == who.services == summary.Group("unknown", reason="timeout")  # the common one
+    assert summary.who_of([], {}).edge == summary.Group("unknown", reason="not_run")
+
+
+def test_the_services_are_bounded() -> None:
+    many = seen(services=tuple((f"Service {n:02d}", f"Vendor {n:02d}") for n in range(20)))
+    who = summary.who_of([many], {})
+    assert len(who.services.items) == summary.MAX_SERVICES and who.services.more == 8
+    crowded = seen(tuple(f"Edge {n}" for n in range(11)))
+    assert len(summary.who_of([crowded], {}).edge.items) == summary.MAX_ITEMS
+
+
+def test_the_platforms_of_a_host_are_read_from_its_stored_technology_result(
+    db_session: Session,
+) -> None:
+    page = judged_page(
+        script_tag("https://www.googletagmanager.com/gtm.js?id=GTM-ABC"),
+        headers=[("CF-RAY", "7d1-FRA"), ("Server", "cloudflare")],
+    )
+    scan = new_scan(db_session, "example.com")
+    stored = {
+        key: CheckOutcome(r.status, r.reason_code, dict(r.data)) for key, r in page.results.items()
+    }
+    add_host(db_session, scan, "www.example.com", stored)
+    add_host(db_session, scan, "old.example.com", {"dns": CheckOutcome("no_data", "nxdomain")})
+
+    loaded = {h.platforms is not None: h for h in summary.load_hosts(db_session, scan.id)}
+    assert set(loaded) == {True, False}  # the host without a technology result has none
+    platforms = loaded[True].platforms
+    assert platforms is not None and platforms.page_read is True
+    assert platforms.edge == ("Cloudflare",)
+    assert ("Google Tag Manager", "Google") in platforms.services
+
+    who = summary.who_of(list(loaded.values()), {})
+    assert who.edge == summary.Group("found", (("Cloudflare", 1),))
+    assert (who.pages_read, who.pages_analysed) == (1, 1)
+
+
+def test_a_malformed_technology_result_counts_as_nothing_seen() -> None:
+    assert summary._platforms("x", {"a": 1}, "yes") == summary.Platforms((), (), False)
+    assert summary._platforms(["Cloudflare"], [{"vendor": "v"}, "x", {"name": "n"}], True) == (
+        summary.Platforms(("Cloudflare",), (("n", None),), True)
+    )
 
 
 # ------------------------------------------------------------------------------ coverage
@@ -513,6 +618,7 @@ def test_the_summary_of_a_scan_is_built_from_what_is_stored(db_session: Session)
     assert {n.name for n in who.networks} == {"Swisscom", "Cloudflare"}
     assert who.registrar.state == "found" and who.mail.items == (("Google Workspace", 2),)
     assert who.dns == summary.Group("unknown", reason="not_run")  # this scan stored no such check
+    assert who.edge == who.services == summary.Group("unknown", reason="not_run")  # nor this one
 
     secure = built.secure
     assert secure.state == "ready" and secure.accepted == 1

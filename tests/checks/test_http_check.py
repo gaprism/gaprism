@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import ssl
 from collections.abc import Callable
 from typing import Any
@@ -147,6 +148,44 @@ def test_a_healthy_site_reports_status_headers_cookies_and_the_http_redirect() -
     )
     assert "SECRET-VALUE" not in str(data)  # cookie values are never stored
     assert all(h["name"] != "set-cookie" for h in data["headers"])
+
+
+def test_the_first_page_is_read_for_what_it_names_and_its_text_is_not_kept() -> None:
+    body = (
+        '<html><head><meta name="generator" content="WordPress 6.4.2">'
+        '<script src="https://cdn.example.net/app.js?ver=1.2&token=SECRET"></script></head>'
+        "<body>Private page text</body></html>"
+    )
+    site = Site({("https", HOST, "/"): page(body=body), ("http", HOST, "/"): page()})
+    data = run(site).data
+    assert data["page"]["generator"] == ["WordPress 6.4.2"]
+    assert data["page"]["resources"] == [
+        {"kind": "script", "host": "cdn.example.net", "path": "/app.js", "version": "1.2"}
+    ]
+    assert data["page"]["truncated"] is False
+    stored = json.dumps(data)
+    assert "SECRET" not in stored and "Private page text" not in stored
+
+
+def test_a_response_that_is_not_html_has_no_page_facts() -> None:
+    document = httpx.Response(
+        200,
+        headers={"content-type": "application/json"},
+        text='{"html": "<script src=https://x.example/a.js></script>"}',
+    )
+    site = Site({("https", HOST, "/"): document, ("http", HOST, "/"): page()})
+    assert run(site).data["page"] is None
+
+
+def test_a_page_that_is_cut_is_read_as_far_as_it_goes_and_says_so() -> None:
+    body = '<script src="https://cdn.example.net/a.js"></script>' + "<p>x</p>" * (
+        MAX_BODY_BYTES // 8
+    )
+    site = Site({("https", HOST, "/"): page(body=body), ("http", HOST, "/"): page()})
+    data = run(site).data
+    assert data["body_truncated"] is True
+    assert data["page"]["resources"][0]["host"] == "cdn.example.net"
+    assert data["page"]["truncated"] is True  # more tags than are read
 
 
 def test_requests_go_to_the_screened_address_with_our_identity_and_no_credentials() -> None:

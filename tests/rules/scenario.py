@@ -38,6 +38,8 @@ from tests.checks.test_takeover_check import html as takeover_html
 from tests.checks.test_takeover_check import run as run_takeover
 from tests.checks.test_tls_protocols_check import answers as protocol_answers
 from tests.rules.helpers import DOMAIN, domain_facts, expired, host, http_only, tls, web
+from tests.rules.test_tech_finding_rules import judged as judged_page
+from tests.rules.test_tech_finding_rules import script as script_tag
 
 T = TypeVar("T")
 
@@ -169,6 +171,17 @@ def protocol_hosts() -> list[Any]:
 
 
 @cached
+def tech_hosts() -> list[Any]:
+    """A first page that runs old software and loads a script from a host that served malware."""
+    return [
+        judged_page(
+            script_tag("https://cdn.polyfill.io/v3/polyfill.min.js"),
+            headers=[("X-Powered-By", "PHP/7.4.33")],
+        )
+    ]
+
+
+@cached
 def sound_domain() -> dict[str, CheckOutcome]:
     """The checks of a domain with nothing to complain about."""
     return {
@@ -265,4 +278,5 @@ def scans() -> list[ScanFacts]:
         ScanFacts(DOMAIN, [], domain_facts(**domain_with_broken_records()).results),
         ScanFacts(DOMAIN, takeover_hosts(), {}),
         ScanFacts(DOMAIN, protocol_hosts(), {}),
+        ScanFacts(DOMAIN, tech_hosts(), {}),
     ]

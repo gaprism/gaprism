@@ -61,6 +61,7 @@ All CSV files are UTF-8 with a byte order mark (so that Excel reads umlauts corr
 | `cities` | `City, CC` for each city the location database knows for them |
 | `networks` | the networks or organisations the databases name for the addresses |
 | `cdn_edge` | `true` if every address is a CDN or anycast edge |
+| `cdn_waf` | the CDN, proxy or WAF recognised in front of the host, from its response headers, cookies, DNS alias and the network of its addresses; empty if none was recognised (which is not the same as none) or the check did not answer |
 | `ports` | open ports a scanner saw on the addresses that speak for the host |
 | `cves` | CVE identifiers the scanner associated with them (leads to verify, not confirmed vulnerabilities) |
 | `tls` | `valid`; or why the certificate is not (`expired`, `not_yet_valid`, `hostname_mismatch`, `untrusted`, `verify_failed`, `handshake_failed`, `not_verified`); or `<status>:<reason>` when the check did not answer (`error:timeout`) |
@@ -68,6 +69,7 @@ All CSV files are UTF-8 with a byte order mark (so that Excel reads umlauts corr
 | `tls_days_left` | days until then; negative if it has passed |
 | `http_status` | the status code of the final response |
 | `http_scheme` | `https` or `http`: the scheme that answered |
+| `technologies` | what the response headers and the first page show the host is built with or loads (web server, language, CMS, libraries, analytics, ...), with the version where one showed (`PHP 8.4.26`); the CDN or WAF is in `cdn_waf`. A technology that is not listed is not recognised rather than absent |
 | `open_findings` | open findings about the host and the addresses it resolves to |
 | `top_severity` | the highest severity among them |
 | `gaps` | `true` if a check of this host failed, was unavailable, did not finish or was cancelled |

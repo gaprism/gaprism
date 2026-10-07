@@ -24,6 +24,7 @@ import httpx
 
 from app.checks.base import CheckContext, CheckOutcome, CheckScope
 from app.checks.dns import SHARED_RESOLVERS, lookup_addresses
+from app.checks.page_facts import page_facts
 from runner.dns import DNSResolutionError, SSRFBlockedError
 from runner.egress import EgressHTTPClient, EgressResponse
 
@@ -239,9 +240,12 @@ def _cookies(responses: list[EgressResponse]) -> list[dict[str, Any]]:
     return cookies
 
 
+def _is_html(response: EgressResponse) -> bool:
+    return "html" in (_first(response.raw_headers, "content-type") or "").lower()
+
+
 def _title(response: EgressResponse) -> str | None:
-    content_type = _first(response.raw_headers, "content-type") or ""
-    if "html" not in content_type.lower():
+    if not _is_html(response):
         return None
     match = _TITLE.search(response.text[:TITLE_SCAN_CHARS])
     if match is None:
@@ -364,6 +368,7 @@ class HttpCheck:
             ][:MAX_HEADERS],
             "cookies": _cookies(main.responses),
             "html_title": _title(final),
+            "page": page_facts(final.text) if _is_html(final) else None,
             "body_bytes": len(final.content),
             "body_truncated": final.truncated,
             "timing_ms": main.elapsed_ms,

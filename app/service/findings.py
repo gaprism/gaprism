@@ -490,6 +490,30 @@ def _takeover_claim_label(code: str) -> str:
     return labels.get(code) or code
 
 
+def _version_source_label(code: str) -> str:
+    labels = {
+        "header": _("a server header"),
+        "generator": _("the generator tag"),
+        "path": _("a file name"),
+        "cookie": _("a cookie"),
+        "marker": _("a script call"),
+    }
+    return labels.get(code) or code
+
+
+def _loaded_as_label(code: str) -> str:
+    labels = {
+        "redirect": _("redirect"),
+        "script": _("script"),
+        "iframe": _("frame"),
+        "link": _("style sheet or link"),
+        "img": _("image"),
+        "form": _("form"),
+        "inline": _("named in an inline script"),
+    }
+    return labels.get(code) or code
+
+
 # Parameter values that are codes get translated before they go into a sentence.
 TRANSLATORS = {
     "failures": _failure_label,
@@ -499,6 +523,8 @@ TRANSLATORS = {
     "max_epss": _epss_label,
     "takeover_how": _takeover_how_label,
     "takeover_claim": _takeover_claim_label,
+    "version_from": _version_source_label,
+    "loaded_as": _loaded_as_label,
 }
 
 

@@ -47,6 +47,7 @@ assessments_bp.add_app_template_global(findings_service.confidence_label, "confi
 assessments_bp.add_app_template_global(findings_service.attribution_label, "attribution_label")
 assessments_bp.add_app_template_global(findings_service.status_label, "status_label")
 assessments_bp.add_app_template_global(host_view_service.check_title, "check_title")
+assessments_bp.add_app_template_global(host_view_service.category_label, "category_label")
 assessments_bp.add_app_template_global(decision_service.review_window, "review_window")
 assessments_bp.add_app_template_global(exploit_service.epss_percent, "epss_percent")
 assessments_bp.add_app_template_global(exploit_service.sources_used, "exploit_sources")

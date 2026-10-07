@@ -19,6 +19,7 @@ from app.service import decisions
 from app.service import export as export_service
 from app.service.export import CSV_BOM, ExportData
 from tests.helpers import create_user
+from tests.rules.test_tech_finding_rules import judged as judged_page
 from tests.test_decisions import SPF, TLS, user_of
 from tests.test_findings_service import RULES_CONFIG, add_host, populated_scan
 from tests.test_summary import evaluated
@@ -246,6 +247,29 @@ def test_the_hosts_csv_has_one_row_per_host_with_where_and_who(db_session: Sessi
         "Cloudflare",
         "true",
     )
+
+
+def test_the_hosts_csv_names_the_cdn_or_waf_and_the_technologies(db_session: Session) -> None:
+    scan, _ = evaluated(db_session)
+    shown = judged_page(
+        '<html><head><meta name="generator" content="WordPress 6.4.2">'
+        '<script src="https://www.googletagmanager.com/gtm.js?id=GTM-ABC"></script></head></html>',
+        headers=[("CF-RAY", "7d1-FRA"), ("Server", "cloudflare"), ("X-Powered-By", "PHP/8.3.1")],
+    )
+    stored = {
+        key: CheckOutcome(r.status, r.reason_code, dict(r.data)) for key, r in shown.results.items()
+    }
+    add_host(db_session, scan, "shop.example.com", stored)
+    add_host(db_session, scan, "silent.example.com", {"tech": CheckOutcome("error", "timeout")})
+    rows = {r["hostname"]: r for r in parse_csv(export_service.hosts_csv(build(db_session, scan)))}
+
+    shop = rows["shop.example.com"]
+    assert shop["cdn_waf"] == "Cloudflare"
+    listed = shop["technologies"].split("; ")
+    assert {"WordPress 6.4.2", "PHP 8.3.1", "Google Tag Manager"} <= set(listed)
+    assert "Cloudflare" not in listed  # the CDN has its own column
+    for name in ("bad-tls.example.com", "silent.example.com"):  # not looked at, not "none"
+        assert (rows[name]["cdn_waf"], rows[name]["technologies"]) == ("", "")
 
 
 def test_checks_that_gave_no_answer_show_their_status_not_an_empty_cell(

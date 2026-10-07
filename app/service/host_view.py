@@ -23,7 +23,7 @@ from app.i18n import gettext as _
 from app.i18n import ngettext
 from app.models import Assessment, CheckResult, Host, Scan
 
-CHECK_ORDER = ("dns", "ip", "ports", "tls", "tls_protocols", "http", "takeover")
+CHECK_ORDER = ("dns", "ip", "ports", "tls", "tls_protocols", "http", "tech", "takeover")
 # The checks of the domain itself (they run once per scan), in display order.
 DOMAIN_CHECK_ORDER = (
     "email",
@@ -47,6 +47,7 @@ CHECK_TITLES = {
     "tls": N_("TLS certificate"),
     "tls_protocols": N_("TLS versions and suites"),
     "http": N_("HTTP"),
+    "tech": N_("Technologies"),
     "takeover": N_("Subdomain takeover"),
     "email": N_("Email security"),
     "registration": N_("Domain registration"),
@@ -109,6 +110,7 @@ REASONS = {
     "not_run": N_("This check did not run"),
     "not_determined": N_("This part of the check could not be answered"),
     "no_country": N_("The location database knows the network but not the country"),
+    "no_page": N_("No web page could be read, so the services it loads are not known"),
 }
 
 # Longer advice for the reasons a person can act on; shown on the host page.
@@ -460,6 +462,53 @@ def _http_cell(data: Mapping[str, Any]) -> CheckCell:
     return CheckCell("ok", tone, str(status))
 
 
+TECH_CATEGORY_NAMES = {
+    "edge": N_("CDN, proxy or WAF"),
+    "platform": N_("Hosting platform"),
+    "server": N_("Web server"),
+    "language": N_("Language or runtime"),
+    "framework": N_("Framework"),
+    "cms": N_("CMS or site generator"),
+    "ecommerce": N_("E-commerce"),
+    "js": N_("JavaScript library"),
+    "library_cdn": N_("Library CDN"),
+    "analytics": N_("Analytics"),
+    "tag_manager": N_("Tag manager"),
+    "advertising": N_("Advertising"),
+    "marketing": N_("Marketing and CRM"),
+    "support": N_("Chat and help desk"),
+    "payments": N_("Payments"),
+    "captcha": N_("Bot check"),
+    "consent": N_("Consent"),
+    "fonts": N_("Fonts and icons"),
+    "maps": N_("Maps"),
+    "video": N_("Video"),
+    "monitoring": N_("Monitoring"),
+    "social": N_("Social widgets"),
+}
+
+
+def category_label(key: str) -> str:
+    """The name of a technology category (the ruleset's key if it is not one the page knows)."""
+    return _(TECH_CATEGORY_NAMES[key]) if key in TECH_CATEGORY_NAMES else key
+
+
+def _tech_cell(data: Mapping[str, Any]) -> CheckCell:
+    technologies = [t for t in data.get("technologies", []) if isinstance(t, Mapping)]
+    if data.get("flagged"):
+        return CheckCell("ok", "high", _("Loads code from a host that served malware"))
+    outdated = [str(o.get("name")) for o in data.get("outdated", []) if isinstance(o, Mapping)]
+    if outdated:
+        return CheckCell(
+            "ok", "medium", _("Old software: %(names)s", names=", ".join(outdated[:3]))
+        )
+    if not technologies:
+        return CheckCell("ok", "muted", _("None recognised"))
+    text = ngettext("%(num)s technology", "%(num)s technologies", len(technologies))
+    edge = [str(name) for name in data.get("edge", [])]
+    return CheckCell("ok", "ok", f"{text} · {', '.join(edge[:2])}" if edge else text)
+
+
 def _takeover_cell(data: Mapping[str, Any]) -> CheckCell:
     candidates = [c for c in data.get("candidates", []) if isinstance(c, Mapping)]
     flagged = [c for c in candidates if c.get("verdict") in ("unclaimed", "claimable")]
@@ -483,6 +532,7 @@ _SUMMARIES: dict[str, Callable[[Mapping[str, Any]], CheckCell]] = {
     "tls": _tls_cell,
     "tls_protocols": _tls_protocols_cell,
     "http": _http_cell,
+    "tech": _tech_cell,
     "takeover": _takeover_cell,
     "email": _email_cell,
     "registration": _registration_cell,

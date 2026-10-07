@@ -1,0 +1,106 @@
+{% from 'components/ui.html' import badge, notice %}
+{% set d = section.data %}
+{% set how = {
+  'header': _('response header'),
+  'cookie': _('cookie'),
+  'generator': _('generator tag'),
+  'host': _('host named'),
+  'path': _('file'),
+  'marker': _('script call'),
+  'network': _('network of the address'),
+  'cname': _('CNAME'),
+  'implied': _('comes with')} %}
+{% set loaded = {
+  'redirect': _('redirect'),
+  'script': _('script'),
+  'link': _('style sheet or link'),
+  'iframe': _('frame'),
+  'img': _('image'),
+  'form': _('form'),
+  'inline': _('named in an inline script')} %}
+{% set why = {
+  'end_of_life': _('past its end of life upstream'),
+  'known_vulnerable': _('known vulnerabilities')} %}
+
+{% if d.flagged %}
+<div class="mb-4">{{ notice(_('Loads code from a host that served malware'), _('The page references %(hosts)s. These hosts are known to have delivered malicious code to the visitors of the pages that load from them (the supply chain attack of 2024). Whoever controls them can run code in the visitor’s browser.', hosts=d.flagged|map(attribute='host')|join(', ')), 'danger') }}</div>
+{% endif %}
+{% if d.page.redirected_to %}
+<div class="mb-4">{{ notice(_('This host sends visitors elsewhere'), _('The page that answers is the one of %(host)s. What it shows belongs to that host, so it is not read as this host’s: only DNS, the network of the addresses and the name of the host it leads to speak here.', host=d.page.redirected_to), 'info') }}</div>
+{% elif not d.page.read %}
+<div class="mb-4">{{ notice(_('The page was not read'), _('No web page could be read from this host, so only response headers (if any), DNS and the network speak. What the page itself would show is not listed.'), 'warning') }}</div>
+{% elif d.page.truncated %}
+<p class="mb-3 text-xs text-muted">{{ _('The page is larger than what is read of it; the list below may be incomplete.') }}</p>
+{% endif %}
+
+<p class="text-sm">
+  {% if d.edge %}{{ _('In front of the site:') }} {% for name in d.edge %}{{ badge(name, 'info') }} {% endfor %}
+  {% else %}<span class="text-muted">{{ _('No CDN, proxy or WAF was recognised. That is not the same as none.') }}</span>{% endif %}
+</p>
+
+{% if d.outdated %}
+<h3 class="mt-5 text-sm">{{ _('Old versions') }}</h3>
+<div class="table-scroll mt-1">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('Versions that are old or known to be vulnerable') }}</caption>
+    <thead><tr><th scope="col">{{ _('Technology') }}</th><th scope="col">{{ _('Version') }}</th><th scope="col">{{ _('Why') }}</th></tr></thead>
+    <tbody>
+      {% for o in d.outdated %}
+      <tr>
+        <td>{{ o.name }}</td>
+        <td><bdi class="font-mono">{{ o.version }}</bdi></td>
+        <td>{{ why.get(o.reason, o.reason) }}: {{ o.detail }}{% if o.version_from == 'header' %} <span class="text-xs text-muted">({{ _('read from a server header: a distribution may still patch it') }})</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if d.technologies %}
+<h3 class="mt-5 text-sm">{{ _('Technologies recognised') }}</h3>
+<div class="table-scroll mt-1">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('Technologies recognised on this host') }}</caption>
+    <thead><tr><th scope="col">{{ _('Kind') }}</th><th scope="col">{{ _('Technology') }}</th><th scope="col">{{ _('Version') }}</th><th scope="col">{{ _('How it showed') }}</th></tr></thead>
+    <tbody>
+      {% for t in d.technologies %}
+      <tr>
+        <td>{{ category_label(t.category) }}</td>
+        <td>{{ t.name }}{% if t.vendor and t.service and t.vendor.lower() not in t.name.lower() %} <span class="text-xs text-muted">· {{ t.vendor }}</span>{% endif %}{% if t.confidence != 'high' %} {{ badge(_('probable'), 'muted') }}{% endif %}</td>
+        <td>{% if t.version %}<bdi class="font-mono">{{ t.version }}</bdi>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-xs">
+          {% for e in t.evidence[:3] %}<div>{{ how.get(e.kind, e.kind) }}: <bdi class="font-mono break-all">{{ e.detail }}</bdi></div>{% endfor %}
+          {% if t.evidence|length > 3 %}<div class="text-muted">{{ _('and %(n)s more', n=t.evidence|length - 3) }}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="mt-3 text-sm text-muted">{{ _('No technology was recognised from what could be read.') }}</p>
+{% endif %}
+
+{% if d.third_parties %}
+<h3 class="mt-5 text-sm">{{ _('Other hosts the page loads from') }}</h3>
+<div class="table-scroll mt-1">
+  <table class="data-table">
+    <caption class="sr-only">{{ _('Hosts of other organisations that the page names') }}</caption>
+    <thead><tr><th scope="col">{{ _('Host') }}</th><th scope="col">{{ _('Operated by') }}</th><th scope="col">{{ _('As') }}</th></tr></thead>
+    <tbody>
+      {% for p in d.third_parties %}
+      <tr>
+        <td><bdi class="font-mono break-all">{{ p.host }}</bdi></td>
+        <td>{% if p.vendor %}{{ p.vendor }}{% else %}<span class="text-muted">{{ _('not recognised') }}</span>{% endif %}</td>
+        <td class="text-xs">{% for kind in p.kinds %}{{ loaded.get(kind, kind) }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<p class="mt-4 text-xs text-muted">
+  {{ _('This is read from what the first page and the response headers name, nothing was requested for it. Scripts that load other scripts later are not seen (a browser would see more), a technology that is not listed is not recognised rather than absent, and a listed one can be hidden or imitated. Only some products are judged for old versions (those the ruleset has dates or known flaws for), so a version that is not marked is not necessarily current. The ruleset is a small own list, last looked at %(date)s.', date=d.ruleset) }}
+</p>

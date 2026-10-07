@@ -7,10 +7,12 @@ import uuid
 from typing import Any
 
 import pytest
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
 from app.checks.base import CheckOutcome
+from app.checks.tech_rules import CATEGORIES, TECHNOLOGIES
 from app.checks.tls import outcome_from_probe
 from app.checks.tls_protocols import outcome_from_protocols
 from app.models import Assessment, CheckResult, Host, Scan
@@ -62,6 +64,7 @@ from tests.checks.test_tls_check import no_certificate, probe_result
 from tests.checks.test_tls_protocols_check import answers as protocol_answers
 from tests.exploit_helpers import FakeExploits, listed, scored
 from tests.helpers import create_assessment, create_user, login_as
+from tests.rules.test_tech_finding_rules import judged as judged_page
 from tests.test_engine import CONFIG
 
 SCRIPT = "<script>alert(1)</script>"
@@ -1822,6 +1825,139 @@ def test_the_takeover_section_of_a_host_that_is_not_an_alias_says_so(
     host = add_host(db_session, scan, TAKEOVER_HOST, takeover_results(TakeoverWeb()))
     body = host_page(client, assessment, host)
     assert "This host is not an alias" in body and "No alias for a hosted service" in body
+
+
+# ------------------------------------------------------------------------------ technologies
+
+
+def tech_results(
+    body: str = "<html></html>",
+    headers: list[tuple[str, str]] | None = None,
+    http: CheckOutcome | None = None,
+) -> dict[str, CheckOutcome]:
+    """The stored results of a host: what the real HTTP check saw and the technology check made
+    of it."""
+    facts_of_host = judged_page(body, headers, http=http)
+    return {
+        key: CheckOutcome(r.status, r.reason_code, dict(r.data))
+        for key, r in facts_of_host.results.items()
+    }
+
+
+def test_the_technologies_section_lists_what_was_recognised_and_how_it_showed(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    body = (
+        '<html><head><meta name="generator" content="WordPress 6.4.2">'
+        '<script src="/wp-includes/js/jquery/jquery.min.js?ver=3.7.1"></script>'
+        '<script src="https://www.googletagmanager.com/gtm.js?id=GTM-ABC"></script>'
+        '<link rel="stylesheet" href="https://cdn.unknown-vendor.example/site.css"></head></html>'
+    )
+    headers = [("CF-RAY", "7d1-FRA"), ("Server", "cloudflare"), ("X-Powered-By", "PHP/8.3.1")]
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **tech_results(body, headers)})
+    page_text = host_page(client, assessment, host)
+
+    assert "Technologies" in page_text and "In front of the site:" in page_text
+    assert "Cloudflare" in page_text and "WordPress" in page_text and "6.4.2" in page_text
+    assert "CMS or site generator" in page_text and "Language or runtime" in page_text
+    assert "generator tag" in page_text and "response header" in page_text
+    assert "Other hosts the page loads from" in page_text
+    assert "www.googletagmanager.com" in page_text and "cdn.unknown-vendor.example" in page_text
+    assert "not recognised" in page_text  # the vendor of the second host is not known
+    assert "not recognised rather than absent" in page_text  # what the list cannot say
+    assert "Old versions" not in page_text and "served malware" not in page_text
+
+
+def test_the_technologies_section_names_old_versions_and_a_host_that_served_malware(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    body = '<html><script src="https://cdn.polyfill.io/v3/polyfill.min.js"></script></html>'
+    results = tech_results(body, [("X-Powered-By", "PHP/7.4.33")])
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **results})
+    page_text = host_page(client, assessment, host)
+
+    assert "Old versions" in page_text and "7.4.33" in page_text
+    assert (
+        "past its end of life upstream" in page_text and "PHP 7.4 ended on 2022-11-28" in page_text
+    )
+    assert "read from a server header" in page_text  # a distribution may still patch it
+    assert "Loads code from a host that served malware" in page_text
+    assert "cdn.polyfill.io" in page_text
+
+
+def test_the_technologies_section_says_when_the_page_could_not_be_read(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    refused = CheckOutcome("no_data", "no_web_server", {"https_error": "refused"})
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **tech_results(http=refused)})
+    page_text = host_page(client, assessment, host)
+    assert "The page was not read" in page_text
+    assert "No technology was recognised from what could be read" in page_text
+
+
+def test_the_technologies_section_does_not_read_the_page_of_another_host_as_this_hosts(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    site = Site(
+        {
+            ("https", WEB_HOST, "/"): redirect("https://www.example.org/"),
+            ("https", "www.example.org", "/"): page(headers=[("Server", "nginx/1.24.0")]),
+            ("http", WEB_HOST, "/"): page(),
+        }
+    )
+    elsewhere = run_http(site, names={"www.example.org": ["93.184.216.99"]})
+    assert elsewhere.data["cross_host_final"] is True
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **tech_results(http=elsewhere)})
+    page_text = host_page(client, assessment, host)
+    section = re.search(
+        r'<section[^>]*aria-labelledby="check-tech".*?</section>', page_text, re.DOTALL
+    )
+    assert section is not None
+    ours = section.group(0)
+    assert "This host sends visitors elsewhere" in ours and "www.example.org" in ours
+    assert "nginx" in page_text and "nginx" not in ours  # the web section shows the other host's
+
+
+def test_the_names_of_the_kinds_on_the_page_follow_the_ruleset(app: Flask) -> None:
+    assert dict(CATEGORIES) == {k: str(v) for k, v in host_view.TECH_CATEGORY_NAMES.items()}
+    assert {t.category for t in TECHNOLOGIES} <= set(host_view.TECH_CATEGORY_NAMES)
+    with app.test_request_context():
+        assert host_view.category_label("cms") == "CMS or site generator"
+        assert host_view.category_label("something_new") == "something_new"  # never an empty cell
+
+
+@pytest.mark.parametrize(
+    ("body", "headers", "badge"),
+    [
+        ("<html></html>", [("Server", "nginx/1.24.0")], "1 technology"),
+        (
+            "<html></html>",
+            [("CF-RAY", "7d1-FRA"), ("Server", "cloudflare")],
+            "1 technology · Cloudflare",
+        ),
+        ("<html></html>", [("X-Powered-By", "PHP/7.4.33")], "Old software: PHP"),
+        (
+            '<html><script src="https://cdn.polyfill.io/p.js"></script></html>',
+            [],
+            "Loads code from a host that served malware",
+        ),
+        ("<html></html>", [], "None recognised"),
+    ],
+)
+def test_the_badge_of_the_technologies_section_sums_it_up(
+    signed_in: Any, db_session: Session, body: str, headers: list[tuple[str, str]], badge: str
+) -> None:
+    client, assessment, scan = signed_in
+    host = add_host(db_session, scan, WEB_HOST, {**healthy(), **tech_results(body, headers)})
+    page_text = host_page(client, assessment, host)
+    section = re.search(
+        r'<section[^>]*aria-labelledby="check-tech".*?</section>', page_text, re.DOTALL
+    )
+    assert section is not None and f">{badge}</span>" in section.group(0)
 
 
 # ------------------------------------------------------------------------ TLS versions and suites

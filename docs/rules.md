@@ -64,6 +64,8 @@ this file. Wording changes keep the rule's version; a change in *what* it flags 
 | [`FRAME_PROTECTION_MISSING`](#frame_protection_missing) | Low | No clickjacking protection |
 | [`COOKIE_INSECURE`](#cookie_insecure) | Medium | Session cookie without protection flags |
 | [`SERVER_VERSION_DISCLOSED`](#server_version_disclosed) | Informational | Software version disclosed |
+| [`TECH_OUTDATED_VERSION`](#tech_outdated_version) | Low | Old software version |
+| [`SCRIPT_FROM_COMPROMISED_HOST`](#script_from_compromised_host) | High or Medium | Page loads from a host that served malware |
 | [`DANGLING_CNAME`](#dangling_cname) | Medium | Alias points nowhere |
 | [`TAKEOVER_LIKELY`](#takeover_likely) | High | Alias may be taken over |
 | [`DNS_PRIVATE_ADDRESS`](#dns_private_address) | Low | Public name points to a private address |
@@ -296,6 +298,30 @@ Run once per host of the scan, over what that host's checks collected.
 *Says:* {host} reveals software versions in its response headers: {versions}.
 
 *Advice:* Hide version numbers from Server and X-Powered-By; they help attackers.
+
+### `TECH_OUTDATED_VERSION`
+
+**Old software version** · Low · reads the `tech`, `http` checks · version 1
+
+*Fires when:* The technology check read the version of a product that the small own ruleset has dates or known flaws for, and that version is past its upstream end of life (PHP, IIS, Drupal, Joomla, Apache 2.2 and older, AngularJS 1.x, Bootstrap 4 and older, Python 2) or has well-known vulnerabilities (jQuery before 3.5). The version comes from a response header, the generator tag or the name of a file the page loads. Always Low: whether a flaw can be used depends on how the software is used, and the known vulnerabilities of services are the ports check's business. Confidence is Medium when the page shows the version (generator tag, file name) and Low when only a server header does, because distributions fix flaws without changing the number. A product the ruleset has no dates for is not judged: no finding is no statement that the software is current.
+
+*Says:* {host} shows software that is old: {outdated}.
+
+*Advice:* Find out which version really runs and whether it still receives security fixes, and update what has reached its end of life. A version that only a server header or a file name shows can be patched without changing the number, or be wrong, so ask rather than assume.
+
+*Facts shown:* Software, What is known, Version read from
+
+### `SCRIPT_FROM_COMPROMISED_HOST`
+
+**Page loads from a host that served malware** · High or Medium · reads the `tech`, `http` checks · version 1
+
+*Fires when:* The first page of the host names a host that the ruleset lists as having served malicious code to the pages that load from it (the polyfill.io supply chain attack of 2024 and the networks of hosts that belong to the same campaign). High with Medium confidence when a script or a frame loads from it: the page was seen to hand the visitor's browser over, but whether the host still serves the malicious file is not known (several were taken down). Medium with Low confidence when only a style sheet, an image, a form or an inline script names it. Only what the first page shows is read: scripts that load other scripts are not followed.
+
+*Says:* {host} loads content from {flagged}, which is known to have served malicious code to the visitors of the pages that load from it.
+
+*Advice:* Remove the reference, or replace it with a copy of the file that the site serves itself or with a trusted mirror, and review what the page loaded in the meantime. Whoever controls such a host can run code in every visitor's browser.
+
+*Facts shown:* Hosts, Loaded as
 
 ### `DANGLING_CNAME`
 
