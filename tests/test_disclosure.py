@@ -20,6 +20,7 @@ DEFAULTS: dict[str, Any] = {
     "SHODAN_API_KEY": "",
     "EXTERNAL_DOMAIN_LOOKUPS": ["rdap", "hsts_preload", "hibp"],
     "REPUTATION_RESOLVERS": ["quad9", "cloudflare"],
+    "BLOCKLIST_PROVIDERS": ["phishing", "feodo"],
 }
 
 
@@ -34,15 +35,14 @@ def keys(**changes: Any) -> list[str]:
 # ------------------------------------------------------------------------------ the list
 
 
-def test_a_default_installation_names_every_recipient() -> None:
+def test_a_default_installation_names_its_recipients_and_what_waits_for_a_decision() -> None:
     result = described()
-    assert keys() == ["ct", "dns", "hosts", "ports", "reputation", "rdap", "hsts_preload", "hibp"]
+    # No ports row: without a key `auto` is off, because InternetDB's terms need a decision.
+    assert keys() == ["ct", "dns", "hosts", "reputation", "rdap", "hsts_preload", "hibp"]
     by_key = {row.key: row for row in result.rows}
     assert "ctlogs.dev, CertSpotter, crt.sh" in by_key["ct"].who
     assert by_key["ct"].hosts == ("api.ctlogs.dev", "api.certspotter.com", "crt.sh")
     assert by_key["dns"].hosts == ("1.1.1.1", "8.8.8.8")
-    assert by_key["ports"].who == "Shodan InternetDB"  # no key: the keyless provider
-    assert by_key["ports"].learns_domain is False  # it gets addresses, not the name
     assert by_key["reputation"].hosts == ("9.9.9.9", "1.1.1.2")  # and every host name
     assert by_key["reputation"].who == "Security DNS resolvers: Quad9, Cloudflare (1.1.1.2)"
     assert by_key["reputation"].optional and by_key["reputation"].setting == "REPUTATION_RESOLVERS"
@@ -56,6 +56,7 @@ def test_a_default_installation_names_every_recipient() -> None:
         "Have I Been Pwned",
     )
     assert result.optional_off == ()
+    assert [item.key for item in result.not_enabled] == ["internetdb", "urlhaus"]
 
 
 def test_what_is_switched_off_is_left_out_and_named() -> None:
@@ -64,7 +65,6 @@ def test_what_is_switched_off_is_left_out_and_named() -> None:
         "ct",
         "dns",
         "hosts",
-        "ports",
         "reputation",
         "hibp",
     ]
@@ -134,12 +134,39 @@ def test_the_named_provider_follows_the_key_and_the_key_never_shows() -> None:
     host_api = ports()  # auto with a key: the host API
     assert host_api is not None and host_api.who == "Shodan (host API)"
     assert host_api.hosts == ("api.shodan.io",)
-    keyless = ports(PORTS_PROVIDER="internetdb")
+    keyless = ports(PORTS_PROVIDER="internetdb")  # asked for: the keyless provider
     assert keyless is not None and keyless.hosts == ("internetdb.shodan.io",)
+    assert keyless.who == "Shodan InternetDB" and keyless.learns_domain is False  # addresses only
     assert ports(PORTS_PROVIDER="off") is None
     no_key = {r.key for r in described(PORTS_PROVIDER="shodan").rows}
     assert "ports" not in no_key  # shodan without a key sends nothing
+    assert "ports" not in keys()  # auto without a key sends nothing either
+    asked = {r.key: r for r in described(PORTS_PROVIDER="internetdb").rows}
+    assert asked["ports"].who == "Shodan InternetDB"  # no key needed when it is asked for
     assert secret not in repr(described(SHODAN_API_KEY=secret))
+
+
+def test_the_sources_whose_terms_need_a_decision_are_named_while_they_are_off() -> None:
+    items = {item.key: item for item in described().not_enabled}
+    assert list(items) == ["internetdb", "urlhaus"]
+    assert items["internetdb"].enable == "PORTS_PROVIDER=internetdb"
+    assert "non-commercial" in items["internetdb"].terms
+    assert items["urlhaus"].enable == "BLOCKLIST_PROVIDERS=urlhaus,phishing,feodo"
+    assert "paid licence" in items["urlhaus"].terms
+
+
+def test_a_decision_that_has_been_made_is_not_listed() -> None:
+    def waiting(**changes: Any) -> list[str]:
+        return [item.key for item in described(**changes).not_enabled]
+
+    assert waiting(PORTS_PROVIDER="internetdb") == ["urlhaus"]  # asked for
+    assert waiting(PORTS_PROVIDER="off") == ["urlhaus"]  # switched off on purpose
+    assert waiting(SHODAN_API_KEY="a-key") == ["urlhaus"]  # auto with a key is the host API
+    assert waiting(BLOCKLIST_PROVIDERS=["urlhaus", "phishing", "feodo"]) == ["internetdb"]
+    assert waiting(BLOCKLIST_PROVIDERS=[]) == ["internetdb"]  # the check is off on purpose
+    assert waiting(PORTS_PROVIDER="internetdb", BLOCKLIST_PROVIDERS=["urlhaus"]) == []
+    subset = {item.key: item for item in described(BLOCKLIST_PROVIDERS=["phishing"]).not_enabled}
+    assert subset["urlhaus"].enable == "BLOCKLIST_PROVIDERS=urlhaus,phishing"  # keeps their choice
 
 
 def test_the_assessed_servers_row_names_the_user_agent() -> None:
@@ -162,6 +189,29 @@ def test_the_new_assessment_page_says_who_receives_the_domain(
     assert "Each of them also sees the address this server connects from." in page
     assert "Show who receives what" in page and "<code>EXTERNAL_DOMAIN_LOOKUPS</code>" in page
     assert "Switched off in this installation" not in page
+
+
+def test_the_page_names_the_sources_that_wait_for_a_decision_until_somebody_decides(
+    app: Flask, client: FlaskClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(app.config, "PORTS_PROVIDER", "auto")
+    monkeypatch.setitem(app.config, "SHODAN_API_KEY", "")
+    monkeypatch.setitem(app.config, "BLOCKLIST_PROVIDERS", ["phishing", "feodo"])
+    login_as(client, create_user(db_session))
+    page = client.get("/assessments/new").get_data(as_text=True)
+    assert "Not enabled, because their terms need your decision:" in page
+    assert "Shodan InternetDB" in page and "free for non-commercial use only" in page
+    assert "<code>PORTS_PROVIDER=internetdb</code>" in page
+    assert "may need a paid licence" in page
+    assert "<code>BLOCKLIST_PROVIDERS=urlhaus,phishing,feodo</code>" in page
+    assert "<bdi>Shodan InternetDB</bdi>" not in page  # nothing is sent there: no row for it
+    assert "Switched off in this installation" not in page  # that is another statement
+
+    monkeypatch.setitem(app.config, "PORTS_PROVIDER", "internetdb")
+    monkeypatch.setitem(app.config, "BLOCKLIST_PROVIDERS", ["urlhaus", "phishing", "feodo"])
+    decided = client.get("/assessments/new").get_data(as_text=True)
+    assert "Not enabled, because their terms" not in decided
+    assert "<bdi>Shodan InternetDB</bdi>" in decided  # and now it is one of the recipients
 
 
 def test_the_page_follows_the_installation_and_says_what_is_off(
@@ -227,7 +277,8 @@ def test_the_deploy_doc_names_every_recipient_and_its_setting() -> None:
     """The table in docs/deploy.md and the list the page builds are one list."""
     section = deploy_section()
     opted_in = described(EXTERNAL_DOMAIN_LOOKUPS=["observatory"]).rows
-    rows = [*described().rows, *described(SHODAN_API_KEY="a-key").rows, *opted_in]
+    keyless = described(PORTS_PROVIDER="internetdb").rows  # off by default, so asked for here
+    rows = [*described().rows, *described(SHODAN_API_KEY="a-key").rows, *keyless, *opted_in]
     missing = {name for row in rows for name in (*row.hosts, row.setting) if name not in section}
     assert not missing, f"docs/deploy.md does not mention: {sorted(missing)}"
     not_named = [host for host in disclosure.DATASET_DOWNLOADS if host not in section]

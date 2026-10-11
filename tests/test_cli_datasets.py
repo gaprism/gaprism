@@ -53,16 +53,28 @@ def test_status_says_what_is_missing_and_how_to_fix_it(
     assert f"Directory: {datasets_dir}" in result.output
     assert "city: not installed" in result.output and "asn: not installed" in result.output
     assert "kev: not installed" in result.output and "epss: not installed" in result.output
-    for key in ("urlhaus", "phishing", "feodo"):
+    for key in ("phishing", "feodo"):  # the lists that are on by default
         assert f"{key}: not installed" in result.output
     assert "Run `flask datasets update`" in result.output
     assert "IP geolocation by DB-IP.com (CC BY 4.0), https://db-ip.com" in result.output
     assert "Known Exploited Vulnerabilities Catalog, CISA" in result.output
     assert "Exploit Prediction Scoring System (EPSS), FIRST.Org, Inc." in result.output
-    assert "URLhaus, abuse.ch" in result.output and "Feodo Tracker, abuse.ch" in result.output
+    assert "Feodo Tracker, abuse.ch" in result.output
     assert "Phishing.Database (https://github.com/Phishing-Database/Phishing.Database" in (
         result.output
     )
+
+
+def test_urlhaus_is_off_by_default_and_the_status_says_why(
+    cli_runner: FlaskCliRunner, datasets_dir: Path
+) -> None:
+    """Its terms need the operator's decision, so the list is neither used nor credited."""
+    status = cli_runner.invoke(args=["datasets", "status"]).output
+    assert "urlhaus: switched off (BLOCKLIST_PROVIDERS)" in status
+    assert "not on by default" in status and "may need a paid licence" in status
+    assert "urlhaus: not installed" not in status  # it is not expected to be there
+    assert "URLhaus, abuse.ch" not in status.split("Data:")[1]  # not credited: not used
+    assert "phishing: switched off" not in status and "feodo: switched off" not in status
 
 
 def test_status_shows_build_age_and_staleness(
@@ -131,8 +143,9 @@ def test_a_failed_download_is_reported_and_the_exit_code_says_so(
     assert result.exit_code == 1
     assert "city: FAILED" in result.output and "http_503" in result.output
     assert "kev: FAILED" in result.output and "epss: FAILED" in result.output
-    for key in ("urlhaus", "phishing", "feodo"):
+    for key in ("phishing", "feodo"):
         assert f"{key}: FAILED" in result.output
+    assert "urlhaus" not in result.output.lower()  # off by default: not even asked for
     assert "At least one database could not be installed." in result.output
 
 
@@ -202,4 +215,4 @@ def test_with_the_blocklists_switched_off_nothing_of_them_is_downloaded_or_credi
     status = cli_runner.invoke(args=["datasets", "status"]).output
     for key in ("urlhaus", "phishing", "feodo"):
         assert f"{key}: switched off (BLOCKLIST_PROVIDERS)" in status
-    assert "abuse.ch" not in status
+    assert "abuse.ch" not in status.split("Data:")[1]  # no credit for lists that are not used

@@ -14,6 +14,7 @@ import pytest
 from dotenv import dotenv_values
 
 from app import create_app
+from app.config import BLOCKLIST_PROVIDER_DEFAULTS
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
@@ -150,6 +151,17 @@ def test_the_example_settings_are_accepted_for_development(monkeypatch: pytest.M
     values = load_example(monkeypatch)
     app = create_app("development")  # empty lines mean "not set"; nothing may be rejected
     assert app.config["TRUSTED_PROXY_COUNT"] == int(values["TRUSTED_PROXY_COUNT"]) == 0
+
+
+def test_a_copy_of_the_example_leaves_the_sources_with_terms_to_decide_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """InternetDB (non-commercial) and URLhaus (fair use) are opt-in, also from the template."""
+    values = load_example(monkeypatch)
+    assert values["PORTS_PROVIDER"] == "auto" and not values.get("SHODAN_API_KEY")
+    assert values["BLOCKLIST_PROVIDERS"].split(",") == list(BLOCKLIST_PROVIDER_DEFAULTS)
+    config = create_app("development").config
+    assert config["PORTS_PROVIDER"] == "auto" and "urlhaus" not in config["BLOCKLIST_PROVIDERS"]
 
 
 def test_the_quickstart_secrets_pass_the_production_checks(monkeypatch: pytest.MonkeyPatch) -> None:

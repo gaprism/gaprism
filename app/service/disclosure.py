@@ -57,10 +57,21 @@ class Recipient:
 
 
 @dataclass(frozen=True)
+class NotEnabled:
+    """A source that is off until the operator enables it, because its terms need a decision."""
+
+    key: str  # "internetdb" | "urlhaus"
+    name: str  # as shown
+    terms: str  # what its terms say, in a few words
+    enable: str  # the setting that enables it, as it is written in .env
+
+
+@dataclass(frozen=True)
 class Disclosure:
     rows: tuple[Recipient, ...]
     domain_to: tuple[str, ...]  # the third parties that learn the domain name
     optional_off: tuple[str, ...]  # the optional lookups that are switched off here
+    not_enabled: tuple[NotEnabled, ...] = ()  # the sources that wait for the operator's decision
 
 
 def _optional(key: str) -> Recipient:
@@ -129,12 +140,12 @@ def _optional_name(key: str) -> str:
 def _ports(config: Mapping[str, Any]) -> Recipient | None:
     provider = str(config.get("PORTS_PROVIDER", "auto"))
     has_key = bool(config.get("SHODAN_API_KEY"))
-    if provider == "off" or (provider == "shodan" and not has_key):
-        return None  # nothing is sent (the check says why it has no answer)
-    if provider == "shodan" or (provider == "auto" and has_key):
+    if provider == "internetdb":
+        who, host = _("Shodan InternetDB"), "internetdb.shodan.io"
+    elif provider in ("shodan", "auto") and has_key:
         who, host = _("Shodan (host API)"), "api.shodan.io"
     else:
-        who, host = _("Shodan InternetDB"), "internetdb.shodan.io"
+        return None  # off, no key, or the opt-in InternetDB not asked for: nothing is sent
     return Recipient(
         "ports",
         who,
@@ -146,6 +157,35 @@ def _ports(config: Mapping[str, Any]) -> Recipient | None:
         learns_domain=False,
         optional=True,
     )
+
+
+def _not_enabled(config: Mapping[str, Any]) -> tuple[NotEnabled, ...]:
+    """The sources that are off only because their terms need the operator's decision.
+
+    A source the operator switched off on purpose (``PORTS_PROVIDER=off``, or an empty blocklist
+    setting) is a decision already made and is not listed.
+    """
+    items: list[NotEnabled] = []
+    if str(config.get("PORTS_PROVIDER", "auto")) == "auto" and not config.get("SHODAN_API_KEY"):
+        items.append(
+            NotEnabled(
+                "internetdb",
+                _("Shodan InternetDB for open ports and known vulnerabilities"),
+                _("free for non-commercial use only"),
+                "PORTS_PROVIDER=internetdb",
+            )
+        )
+    blocklists = [str(key) for key in config.get("BLOCKLIST_PROVIDERS", [])]
+    if blocklists and "urlhaus" not in blocklists:
+        items.append(
+            NotEnabled(
+                "urlhaus",
+                _("The URLhaus blocklist of abuse.ch"),
+                _("free under fair use; use by companies may need a paid licence"),
+                "BLOCKLIST_PROVIDERS=" + ",".join(["urlhaus", *blocklists]),
+            )
+        )
+    return tuple(items)
 
 
 def _security_resolvers(config: Mapping[str, Any]) -> list[SecurityResolver]:
@@ -245,4 +285,4 @@ def describe(config: Mapping[str, Any]) -> Disclosure:
             *([] if security else [_("the security DNS resolvers")]),
         ]
     )
-    return Disclosure(tuple(rows), tuple(domain_to), off)
+    return Disclosure(tuple(rows), tuple(domain_to), off, _not_enabled(config))

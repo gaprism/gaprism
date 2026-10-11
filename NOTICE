@@ -40,13 +40,15 @@ Data the application downloads or queries (not part of this repository)
   request by `flask datasets update` and matched offline (`BLOCKLIST_PROVIDERS` chooses them): the
   URLhaus host file of abuse.ch, https://urlhaus.abuse.ch, which abuse.ch offers free of charge
   under its fair use principles (use by companies and for-profit needs may require a subscription
-  to its commercial API, so check before using this application commercially); the Feodo Tracker
+  to its commercial API, so it is off by default: add it to `BLOCKLIST_PROVIDERS` once you have
+  checked the terms for your use); the Feodo Tracker
   blocklist of abuse.ch, https://feodotracker.abuse.ch/blocklist/, which abuse.ch releases as CC0;
   and Phishing.Database, https://github.com/Phishing-Database/Phishing.Database, MIT licence. The
   application names them wherever it shows a listing, in the report's list of sources and in the
   JSON export.
 - Everything else is queried, not redistributed. Its terms are listed in docs/checks-catalog.md
-  (sections 3 and 5); the Shodan InternetDB, for one, is free for non-commercial use only.
+  (sections 3 and 5); the Shodan InternetDB, for one, is free for non-commercial use only, so the
+  application uses it only when `PORTS_PROVIDER=internetdb` asks for it.
 
 Python dependencies are installed from PyPI under their own licences (permissive ones, MPL-2.0 for
 certifi and publicsuffixlist, LGPL-3.0 for psycopg, used as an unmodified library); uv.lock lists

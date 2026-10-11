@@ -8,6 +8,7 @@ import pytest
 
 from app import create_app
 from app.config import (
+    BLOCKLIST_PROVIDER_DEFAULTS,
     BLOCKLIST_PROVIDER_KEYS,
     EXTERNAL_LOOKUP_DEFAULTS,
     EXTERNAL_LOOKUP_KEYS,
@@ -288,7 +289,10 @@ def test_the_blocklist_providers_must_be_known_names() -> None:
         validate_config(unknown)
     for chosen in ([], ["feodo"], list(BLOCKLIST_PROVIDER_KEYS)):
         validate_config(type("Chosen", (TestingConfig,), {"BLOCKLIST_PROVIDERS": chosen}))
-    assert TestingConfig.BLOCKLIST_PROVIDERS == list(BLOCKLIST_PROVIDER_KEYS)  # on by default
+    # The lists whose terms need no decision are on by default; URLhaus is opt-in (S5.9).
+    assert TestingConfig.BLOCKLIST_PROVIDERS == list(BLOCKLIST_PROVIDER_DEFAULTS)
+    assert set(BLOCKLIST_PROVIDER_DEFAULTS) == {"phishing", "feodo"}
+    assert set(BLOCKLIST_PROVIDER_DEFAULTS) < set(BLOCKLIST_PROVIDER_KEYS)
 
 
 def test_the_blocklist_providers_of_the_configuration_are_the_ones_the_service_knows() -> None:
@@ -303,7 +307,9 @@ def test_the_blocklist_providers_come_from_the_environment(monkeypatch: pytest.M
     monkeypatch.setenv("BLOCKLIST_PROVIDERS", "none")  # an empty line cannot say "none"
     assert create_app("development").config["BLOCKLIST_PROVIDERS"] == []
     monkeypatch.setenv("BLOCKLIST_PROVIDERS", "")  # an empty line keeps the default
-    assert create_app("development").config["BLOCKLIST_PROVIDERS"] == list(BLOCKLIST_PROVIDER_KEYS)
+    assert create_app("development").config["BLOCKLIST_PROVIDERS"] == list(
+        BLOCKLIST_PROVIDER_DEFAULTS
+    )
     monkeypatch.setenv("BLOCKLIST_PROVIDERS", "urlhaus,carrier-pigeon")
     with pytest.raises(ConfigurationError, match="carrier-pigeon"):
         create_app("development")

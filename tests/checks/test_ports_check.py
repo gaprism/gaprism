@@ -473,7 +473,7 @@ def test_with_a_key_the_shodan_host_api_is_used_and_the_key_stays_out_of_the_res
     assert KEY not in json.dumps(outcome.data)
 
 
-def test_without_a_key_the_keyless_internetdb_is_used() -> None:
+def test_the_keyless_internetdb_is_used_only_when_it_is_asked_for() -> None:
     seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -483,7 +483,7 @@ def test_without_a_key_the_keyless_internetdb_is_used() -> None:
     ctx = CheckContext(
         domain="example.com",
         hostname=HOST,
-        config={"INTERNETDB_RATE_PER_SECOND": 1000},
+        config={"PORTS_PROVIDER": "internetdb", "INTERNETDB_RATE_PER_SECOND": 1000},
         http=httpx.Client(transport=httpx.MockTransport(handler)),
         previous={"dns": dns(IP1)},
     )
@@ -491,6 +491,28 @@ def test_without_a_key_the_keyless_internetdb_is_used() -> None:
 
     assert outcome.status == "ok" and outcome.source == "internetdb"
     assert str(seen[0].url) == f"https://internetdb.shodan.io/{IP1}"
+
+
+@pytest.mark.parametrize("config", [{}, {"PORTS_PROVIDER": "auto", "SHODAN_API_KEY": ""}])
+def test_auto_without_a_key_is_off_and_sends_nothing(config: dict[str, Any]) -> None:
+    """InternetDB's terms need the operator's decision, so `auto` never falls back to it."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"ports": [80], "vulns": [], "tags": []})
+
+    ctx = CheckContext(
+        domain="example.com",
+        hostname=HOST,
+        config=config,
+        http=httpx.Client(transport=httpx.MockTransport(handler)),
+        previous={"dns": dns(IP1)},
+    )
+    outcome = PortsCheck().run(ctx)
+
+    assert (outcome.status, outcome.reason_code) == ("skipped", "disabled")
+    assert seen == []  # not a single request left
 
 
 def test_a_shodan_choice_without_a_key_is_reported_not_silently_downgraded() -> None:

@@ -167,7 +167,8 @@ HELP = {
     ),
     "missing_api_key": N_(
         "PORTS_PROVIDER is set to shodan but SHODAN_API_KEY is empty. Add the key to `.env`, "
-        "or set PORTS_PROVIDER=auto to use the keyless InternetDB, and scan again."
+        "or set PORTS_PROVIDER=internetdb to use the keyless InternetDB (free for non-commercial "
+        "use only), and scan again."
     ),
     "no_handshake": N_(
         "None of the questions got a handshake. The server may offer only versions or suites "
@@ -189,9 +190,12 @@ HELP = {
         "PORTS_PROVIDER=internetdb."
     ),
     "disabled": N_(
-        "This lookup is switched off: ports and CVEs by PORTS_PROVIDER=off, lookups of the "
-        "domain at a third party by EXTERNAL_DOMAIN_LOOKUPS, the security DNS resolvers by "
-        "REPUTATION_RESOLVERS, the blocklists by BLOCKLIST_PROVIDERS."
+        "This lookup is switched off: ports and CVEs by PORTS_PROVIDER=off, or by "
+        "PORTS_PROVIDER=auto without a SHODAN_API_KEY (the keyless InternetDB is free for "
+        "non-commercial use only, so it runs only when PORTS_PROVIDER=internetdb asks for it), "
+        "lookups of the domain at a third party by EXTERNAL_DOMAIN_LOOKUPS, the security DNS "
+        "resolvers by REPUTATION_RESOLVERS, the blocklists by BLOCKLIST_PROVIDERS (the URLhaus "
+        "list is not in the default; add it once you have read its terms)."
     ),
     "no_verdict": N_(
         "The resolvers answered, but not in a way that says whether they block the name (an "

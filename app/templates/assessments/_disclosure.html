@@ -5,6 +5,11 @@
   {% if disclosure.optional_off %}
   <p class="mt-1 text-sm text-muted">{{ _('Switched off in this installation:') }} {{ disclosure.optional_off|join(', ') }}.</p>
   {% endif %}
+  {% if disclosure.not_enabled %}
+  <p class="mt-1 text-sm text-muted">{{ _('Not enabled, because their terms need your decision:') }}
+    {% for item in disclosure.not_enabled %}<bdi>{{ item.name }}</bdi> ({{ item.terms }}), {{ _('turned on with') }} <code>{{ item.enable }}</code>{% if not loop.last %}; {% endif %}{% endfor %}.
+    {{ _('Details: docs/deploy.md, section "What leaves your network".') }}</p>
+  {% endif %}
   <details class="mt-3">
     <summary class="link cursor-pointer text-sm">{{ _('Show who receives what') }}</summary>
     <div class="table-scroll mt-3">

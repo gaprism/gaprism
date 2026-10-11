@@ -27,20 +27,22 @@ class PortsProvider(Protocol):
 def build_provider(config: Mapping[str, Any], client: httpx.Client) -> PortsProvider | str:
     """The provider the configuration asks for, or the reason there is none.
 
-    ``auto`` uses the Shodan host API when a key is configured and the keyless InternetDB
-    otherwise. The returned string is a reason code (``disabled``, ``missing_api_key``).
+    ``auto`` uses the Shodan host API when a key is configured and is off otherwise. The keyless
+    InternetDB is free for non-commercial use only, so it is used only when ``internetdb`` asks
+    for it: a source whose terms need the operator's decision is opt-in. The returned string is a
+    reason code (``disabled``, ``missing_api_key``).
     """
     choice = str(config.get("PORTS_PROVIDER", "auto"))
     key = str(config.get("SHODAN_API_KEY", "") or "")
-    if choice == "off":
-        return "disabled"
     if choice == "shodan" or (choice == "auto" and key):
         if not key:
             return "missing_api_key"
         rate = float(config.get("SHODAN_RATE_PER_SECOND", 1.0))
         return ShodanProvider(client, key, LIMITERS.get("shodan", rate))
-    rate = float(config.get("INTERNETDB_RATE_PER_SECOND", 2.0))
-    return InternetDbProvider(client, LIMITERS.get("internetdb", rate))
+    if choice == "internetdb":
+        rate = float(config.get("INTERNETDB_RATE_PER_SECOND", 2.0))
+        return InternetDbProvider(client, LIMITERS.get("internetdb", rate))
+    return "disabled"  # off, or auto without a key
 
 
 __all__ = [

@@ -36,8 +36,11 @@ REPUTATION_RESOLVER_KEYS = ("quad9", "cloudflare")
 # Offline blocklists of hosts and addresses that serve malware or phishing: `flask datasets update`
 # downloads them and the blocklists check matches them on this machine. BLOCKLIST_PROVIDERS lists
 # the ones to download and use (`none` switches the check off); app/service/blocklists.py knows
-# where each comes from (URLhaus and Feodo Tracker of abuse.ch, Phishing.Database).
+# where each comes from (URLhaus and Feodo Tracker of abuse.ch, Phishing.Database). URLhaus is free
+# under abuse.ch's fair use principles and use for commercial needs may require a paid licence, so
+# it is off until the operator adds it: a source whose terms need a decision is opt-in.
 BLOCKLIST_PROVIDER_KEYS = ("urlhaus", "phishing", "feodo")
+BLOCKLIST_PROVIDER_DEFAULTS = ("phishing", "feodo")
 
 # Where the assessed hosts may be located (ISO 3166-1 alpha-2, upper case): the EU-27, the EEA
 # (IS, LI, NO) and CH. Hosts outside this area raise LOCATION_OUTSIDE_EU_CH (see docs/rules.md).
@@ -49,7 +52,8 @@ DEFAULT_DATA_LOCATION_ALLOWED = (
 )  # fmt: skip
 _COUNTRY_CODE = re.compile(r"[A-Z]{2}")
 
-# Values of PORTS_PROVIDER: `auto` is the Shodan host API when a key is set, else InternetDB.
+# Values of PORTS_PROVIDER: `auto` is the Shodan host API when a key is set and off otherwise. The
+# keyless InternetDB is free for non-commercial use only, so it runs only when `internetdb` asks.
 PORTS_PROVIDERS = ("auto", "shodan", "internetdb", "off")
 MAX_PORTS_CACHE_HOURS = 30 * 24  # the worker deletes cache entries after 30 days
 MAX_TRUSTED_PROXIES = 5  # reverse proxies in front of the app that TRUSTED_PROXY_COUNT may name
@@ -178,13 +182,15 @@ class BaseConfig:
 
     # Blocklists of malware, phishing and botnet hosts (see BLOCKLIST_PROVIDER_KEYS), downloaded by
     # `flask datasets update` and matched on this machine: nothing about an assessment is sent
-    # anywhere. A provider that is left out is neither downloaded nor looked at.
-    BLOCKLIST_PROVIDERS: ClassVar[list[str]] = list(BLOCKLIST_PROVIDER_KEYS)
+    # anywhere. A provider that is left out is neither downloaded nor looked at; URLhaus is not in
+    # the default list (see BLOCKLIST_PROVIDER_DEFAULTS).
+    BLOCKLIST_PROVIDERS: ClassVar[list[str]] = list(BLOCKLIST_PROVIDER_DEFAULTS)
 
     # Ports and CVEs that Shodan has observed on a host's addresses. `auto` uses the Shodan host
-    # API when SHODAN_API_KEY is set and the keyless InternetDB (free for non-commercial use only)
-    # otherwise. The rates are requests per second towards each provider (shared by all worker
-    # threads); answers are reused for PORTS_CACHE_HOURS per address.
+    # API when SHODAN_API_KEY is set and is off otherwise: the keyless InternetDB is free for
+    # non-commercial use only, so it runs only when PORTS_PROVIDER=internetdb asks for it. The
+    # rates are requests per second towards each provider (shared by all worker threads); answers
+    # are reused for PORTS_CACHE_HOURS per address.
     PORTS_PROVIDER: str = "auto"
     SHODAN_API_KEY: str = ""
     SHODAN_RATE_PER_SECOND: float = 1.0

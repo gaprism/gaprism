@@ -271,9 +271,10 @@ def test_the_facts_survive_a_round_trip_through_the_cache_form() -> None:
 @pytest.mark.parametrize(
     ("config", "expected"),
     [
-        ({}, "internetdb"),  # no key: the keyless database
+        ({}, "disabled"),  # no key: InternetDB's terms need a decision, so it is not used
         ({"PORTS_PROVIDER": "auto", "SHODAN_API_KEY": KEY}, "shodan"),
-        ({"PORTS_PROVIDER": "auto", "SHODAN_API_KEY": ""}, "internetdb"),
+        ({"PORTS_PROVIDER": "auto", "SHODAN_API_KEY": ""}, "disabled"),  # never a silent fallback
+        ({"PORTS_PROVIDER": "internetdb", "SHODAN_API_KEY": ""}, "internetdb"),  # asked for
         ({"PORTS_PROVIDER": "internetdb", "SHODAN_API_KEY": KEY}, "internetdb"),  # explicit wins
         ({"PORTS_PROVIDER": "shodan", "SHODAN_API_KEY": KEY}, "shodan"),
         ({"PORTS_PROVIDER": "shodan", "SHODAN_API_KEY": ""}, "missing_api_key"),

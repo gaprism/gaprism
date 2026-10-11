@@ -42,6 +42,15 @@ def _dataset_date(kind: str) -> str:
     return "build" if kind in ("city", "asn") else "as of"
 
 
+# Blocklists that are off by default because their terms need the operator's decision.
+_TERMS_HINT = {
+    "urlhaus": (
+        " - not on by default: free under abuse.ch's fair use principles, use by companies may "
+        "need a paid licence; add it to BLOCKLIST_PROVIDERS once you have read its terms"
+    ),
+}
+
+
 def register_cli_commands(app: Flask) -> None:
     """Register custom Click CLI commands with the Flask application."""
 
@@ -74,7 +83,7 @@ def register_cli_commands(app: Flask) -> None:
             click.echo(f"      sha256: {item.sha256 or 'unknown'}")
         for key in blocklists_service.PROVIDERS:
             if key not in enabled:
-                click.echo(f"  {key}: switched off (BLOCKLIST_PROVIDERS)")
+                click.echo(f"  {key}: switched off (BLOCKLIST_PROVIDERS){_TERMS_HINT.get(key, '')}")
         if missing:
             click.echo("Run `flask datasets update` to install the missing data.")
         click.echo(_attribution(enabled))
