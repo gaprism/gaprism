@@ -29,7 +29,8 @@ role cannot write to `public`, set `DB_SCHEMA` for the development database. The
 uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest
 ```
 
-CI runs the same on Python 3.11 and 3.13 with PostgreSQL 16, and `pip-audit` next to it. Unit tests
+CI runs the same on Python 3.11 and 3.13 with PostgreSQL 16, `pip-audit` next to it and, on pull
+requests, a check that every commit is signed off (see below). Unit tests
 never touch the network; a test that needs the real network is marked `@pytest.mark.live` and runs
 only with `-m live`.
 
@@ -60,9 +61,33 @@ only with `-m live`.
 - Change the docs, the `.env.example` and the roadmap's notes together with the code.
 - A change to the security boundary (egress, sign-in, SQL, secrets) gets a short review note in
   the description: what could go wrong and why it cannot.
-- Dependencies: only what the code imports (`tests/test_dependencies.py` checks it); add one with
-  `uv add`. On Windows stop a running worker or web server first, or `uv sync` cannot replace the
-  compiled files they have loaded.
+- Dependencies: only what the code imports (`tests/test_dependencies.py` checks it), and only under
+  a permissive licence: add one with `uv add`, then its licence to the table in
+  `tests/test_licences.py` (Apache-2.0, MIT, BSD, ISC, PSF, MPL-2.0 and public-domain licences are
+  accepted; GPL and AGPL are not, and anything else needs a review first). On Windows stop a
+  running worker or web server first, or `uv sync` cannot replace the compiled files they have
+  loaded.
+- A new place the application sends something to (a provider, a download) is listed in
+  [docs/deploy.md](docs/deploy.md#what-leaves-your-network) with its setting, and in
+  `app/service/disclosure.py`; `tests/test_outbound.py` fails otherwise. The application does not
+  phone home (no telemetry, no crash reports, no update or licence checks) and its pages load
+  nothing from outside; a pull request cannot change that quietly.
+
+## Sign your commits (DCO)
+
+Every commit of a pull request carries a sign-off under the
+[Developer Certificate of Origin 1.1](https://developercertificate.org/): by signing off you certify
+that you wrote the change, or have the right to submit it, under the project's licence.
+`git commit -s` adds the line (`Signed-off-by: Your Name <you@example.org>`, from your `user.name`
+and `user.email`), and the address must be the one of the commit's author. CI checks every commit
+of a pull request, merges and bots aside, and says which ones lack it. To fix commits that exist
+already:
+
+```bash
+git commit --amend --no-edit -s     # the last commit only
+git rebase --signoff main           # every commit of the branch
+git push --force-with-lease
+```
 
 ## Licence of contributions
 

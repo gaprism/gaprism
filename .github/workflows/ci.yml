@@ -42,6 +42,20 @@ jobs:
       - run: uv run mypy
       - run: uv run pytest
 
+  dco:
+    # Contributions are signed off under the Developer Certificate of Origin (CONTRIBUTING.md).
+    # Pull requests only: the maintainers' own pushes are not checked. Needs nothing but Python.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the commits of the pull request must be there
+      - run: python3 scripts/check-dco.py "$BASE_SHA" "$HEAD_SHA"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
   audit:
     # Advisories change independently of our commits, so this reports without blocking merges.
     runs-on: ubuntu-latest
