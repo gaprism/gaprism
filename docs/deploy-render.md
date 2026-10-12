@@ -51,18 +51,20 @@ The application accepts the `postgresql://…` form as Neon gives it (it adds th
 
 ## 3. Accounts
 
-There is no sign-up and, on the free tier, no shell. Create the accounts from your machine against the Neon database, in the checkout. The password is stored together with the service's `SECURITY_PASSWORD_SALT`, so use the service's own value (*Environment* tab of the service; do not change it afterwards, it would lock everybody out). PowerShell:
+There is no sign-up and, on the free tier, no shell. Create the accounts from your machine against the Neon database, in the checkout, **once the service is *Live***: the tables are created when it starts for the first time. The password is stored together with the service's `SECURITY_PASSWORD_SALT`, so use the service's own value (*Environment* tab of the service; do not change it afterwards, it would lock everybody out). PowerShell:
 
 ```powershell
+$env:FLASK_SKIP_DOTENV = "1"     # do not read .env: it names the schema of the development database
 $env:DATABASE_URL = Read-Host "Neon connection string"
 $env:SECURITY_PASSWORD_SALT = Read-Host "SECURITY_PASSWORD_SALT of the Render service"
-$env:DB_SCHEMA = ""        # your .env may name a schema of the development database
 uv run flask --app app users create-admin
 uv run flask --app app users create colleague@example.org
-Remove-Item Env:DATABASE_URL, Env:SECURITY_PASSWORD_SALT, Env:DB_SCHEMA
+Remove-Item Env:FLASK_SKIP_DOTENV, Env:DATABASE_URL, Env:SECURITY_PASSWORD_SALT
 ```
 
 Each command asks for the password at a hidden prompt (12 characters at least). The other commands, `users list`, `set-password`, `deactivate`, `reset-mfa`, are the ones in [Team accounts](deploy.md#team-accounts); run them the same way. The first sign-in asks for an authenticator app (`REQUIRE_MFA`). Send each person the address and the e-mail they sign in with, and the initial password by another route.
+
+**Why `FLASK_SKIP_DOTENV`.** `flask` reads the `.env` of the checkout, and its `DB_SCHEMA` points every command at the schema of your development database, which does not exist at Neon (the error is `relation "role" does not exist`). Blanking the variable does not help in PowerShell: `$env:DB_SCHEMA = ""` deletes it, and `.env` wins. If the tables are missing because the service has not started (or failed to), `uv run flask --app app db upgrade` with the same variables creates them; once they exist it does nothing.
 
 ## 4. Check once: the client address
 
@@ -95,6 +97,7 @@ The log of the service (the *Logs* tab) holds the output of the start script, th
 |---|---|
 | The build fails in `flask datasets update` | One of the downloads failed (the log names it). Deploy again |
 | The deploy ends with `the schema is not up to date after 5 attempts` | `DATABASE_URL` is wrong, or the Neon project is suspended (storage or compute quota). The line above it in the log says what the database answered |
+| Creating an account fails with `relation "role" does not exist` | The command read `DB_SCHEMA` from your `.env` (set `FLASK_SKIP_DOTENV` as in *Accounts*), or the database has no tables yet because the service has not started: wait until it is *Live*, or run `db upgrade` as described there |
 | `SECRET_KEY cannot contain weak/default patterns` | About one generated key in 800 contains `dev`, `test` or the like. Replace `SECRET_KEY` with any other long random value |
 | "Bad gateway" or a waiting page on the first request | The service is waking up; wait two minutes |
 | Nobody can sign in after a deploy | `SECURITY_PASSWORD_SALT` or `MFA_ENCRYPTION_KEY` changed. Put the old value back; with a new one the accounts must be created again |

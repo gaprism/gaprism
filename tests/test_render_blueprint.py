@@ -16,6 +16,7 @@ import shlex
 from pathlib import Path
 
 import pytest
+from flask.helpers import get_load_dotenv
 
 from app import create_app
 from app.service.discovery.scope import is_in_scope
@@ -135,6 +136,20 @@ def test_the_documentation_says_what_the_blueprint_sets() -> None:
     for blocked in variables["BLOCKED_DOMAINS"][1].split(","):
         assert f"`{blocked}`" in guide
     assert "deploy/render-start.sh" in guide and "BAKE_DATASETS" in guide
+
+
+def test_the_account_recipe_does_not_depend_on_an_empty_variable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PowerShell deletes `$env:X = ""`, so `.env` would win: its DB_SCHEMA (the schema of the
+    development database) then points every command at a schema that Neon does not have."""
+    guide = (ROOT / "docs" / "deploy-render.md").read_text(encoding="utf-8")
+    recipe = guide.split("```powershell", 1)[1].split("```", 1)[0]
+    assert '$env:FLASK_SKIP_DOTENV = "1"' in recipe  # nothing from .env reaches the command
+    assert 'DB_SCHEMA = ""' not in recipe
+    assert recipe.index("FLASK_SKIP_DOTENV") < recipe.index("flask --app app users")
+    monkeypatch.setenv("FLASK_SKIP_DOTENV", "1")  # and Flask honours it
+    assert get_load_dotenv() is False
 
 
 # ------------------------------------------------------------------------------ the container
