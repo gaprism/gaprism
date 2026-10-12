@@ -9,6 +9,7 @@ Start with [`CLAUDE.md`](../CLAUDE.md) in the repository root (commands, layout,
 | [rules.md](rules.md) | You change or review a rule: what each one flags, how serious, what it says (generated from the code, do not edit) |
 | [export-format.md](export-format.md) | You read or change an export: the JSON structure, the CSV columns, the printable report, and what none of them say |
 | [deploy.md](deploy.md) | You run it with Docker Compose: quickstart, HTTPS and reverse proxies, upgrades, backups, what is hardened and what is left to you |
+| [deploy-render.md](deploy-render.md) | You give colleagues a test installation on Render's free tier with a Neon database: the Blueprint, accounts, limits, what to tell the testers |
 | [superpowers/specs/2026-10-04-mvp-restart-design.md](superpowers/specs/2026-10-04-mvp-restart-design.md) | You need the design: data model, execution model, security baseline, decisions D1–D13 |
 | [archive/](archive/README.md) | You need history: the first plan (architecture, design contracts, epics M0–M7) and [the review that led to the restart](archive/2026-10-baseline-1/improvement-plan.md) (what was kept, ported or replaced) |
 

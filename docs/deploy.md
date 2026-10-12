@@ -1,6 +1,6 @@
 # Deploying with Docker Compose
 
-`docker-compose.yml` runs the application next to its own PostgreSQL: **web** (gunicorn), **worker** (the scan queue) and **migrate** (brings the schema up to date before either starts). One image, built from the `Dockerfile`, serves all three. An optional **proxy** (Caddy) puts HTTPS in front.
+`docker-compose.yml` runs the application next to its own PostgreSQL: **web** (gunicorn), **worker** (the scan queue) and **migrate** (brings the schema up to date before either starts). One image, built from the `Dockerfile`, serves all three. An optional **proxy** (Caddy) puts HTTPS in front. (A test installation for colleagues on Render's free tier is described in [deploy-render.md](deploy-render.md).)
 
 | Service | What it does | Reaches |
 |---|---|---|

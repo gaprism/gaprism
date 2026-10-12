@@ -1,0 +1,80 @@
+# Render Blueprint for a shared demo of Web Due Diligence on Render's free tier: ONE web service
+# (the web app and the scan worker in one container) next to a PostgreSQL database that you
+# create at Neon. Steps, limits and what to tell your peers: docs/deploy-render.md.
+# For trying the tool with colleagues, not for real assessments: the free tier sleeps, is slow
+# and keeps no backups.
+#
+# Code is deployed by hand: Dashboard > the service > Manual Deploy. A push that changes THIS file
+# is synced to the service and redeploys it, unless Auto Sync is switched off on the Blueprint's
+# Settings page (then use Manual Sync): docs/deploy-render.md.
+
+services:
+  - type: web
+    name: web-due-diligence-demo
+    runtime: docker
+    plan: free
+    region: frankfurt # next to Neon's aws-eu-central-1
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Migrations, the scan worker and the web server in one container (deploy/render-start.sh):
+    # the free tier has no background worker and no pre-deploy command.
+    dockerCommand: sh /app/deploy/render-start.sh
+    healthCheckPath: /healthz
+    autoDeployTrigger: "off" # peers never see a half-finished commit
+    envVars:
+      # The address of the database. Asked for when the Blueprint is applied and kept out of this
+      # file: Neon's DIRECT connection string (the host name without "-pooler").
+      - key: DATABASE_URL
+        sync: false
+
+      # Made up by Render once, when the service is created. Keep SECURITY_PASSWORD_SALT and
+      # MFA_ENCRYPTION_KEY as they are once people have accounts: changing them locks everybody out.
+      # The accounts are created on your machine with the salt of this service (the docs say how).
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SECURITY_PASSWORD_SALT
+        generateValue: true
+      - key: MFA_ENCRYPTION_KEY
+        generateValue: true
+      - key: AUTH_RATE_LIMIT_KEY
+        generateValue: true
+
+      # In front of the application stands Render's proxy; the sign-in limit counts failures per
+      # client address, which is only known from X-Forwarded-For. One is the safe number: a client
+      # cannot choose an address the nearest proxy appended. If the audit log shows addresses that
+      # are not the visitors', see docs/deploy-render.md before changing it.
+      - key: TRUSTED_PROXY_COUNT
+        value: "1"
+
+      # The free instance has 0.1 CPU and 512 MB: one web process (four threads) and two checks
+      # at a time. A scan of 30 hosts takes minutes, not seconds.
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: WORKER_THREADS
+        value: "2"
+      - key: PER_TARGET_CONCURRENCY
+        value: "2"
+
+      # Limits that keep a shared demo small. Peers' scans start from Render's addresses.
+      - key: MAX_HOSTS_PER_RUN
+        value: "30"
+      - key: MAX_SCANS_PER_USER_PER_HOUR
+        value: "10"
+      # Render's acceptable-use policy lets you test your own services, not other customers'.
+      - key: BLOCKED_DOMAINS
+        value: render.com,onrender.com
+      - key: REQUIRE_MFA
+        value: "true"
+
+      # The two sources with terms to decide stay off (docs/deploy.md "Off until you decide"):
+      # without a Shodan key there are no ports and CVEs, and URLhaus is not in the list.
+      - key: PORTS_PROVIDER
+        value: auto
+      - key: BLOCKLIST_PROVIDERS
+        value: phishing,feodo
+
+      # The disk of a free service is gone after every restart, so the build installs the IP
+      # location, exploitation and blocklist data into the image (80 MB to download, 160 MB in
+      # the image, as old as the build). Deploy with "Clear build cache" to refresh it.
+      - key: BAKE_DATASETS
+        value: "1"

@@ -1,10 +1,12 @@
 """Tests for the application factory and configuration validation."""
 
+import secrets
 import subprocess
 import sys
 from typing import ClassVar
 
 import pytest
+import sqlalchemy
 
 from app import create_app
 from app.config import (
@@ -18,6 +20,7 @@ from app.config import (
     ConfigurationError,
     ProductionConfig,
     TestingConfig,
+    normalise_database_url,
     validate_config,
 )
 
@@ -174,6 +177,51 @@ def test_production_still_fails_fast_when_a_secret_is_empty(
     monkeypatch.setenv("SECRET_KEY", "")
     with pytest.raises(ConfigurationError, match="SECRET_KEY must be set in production"):
         create_app("production")
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        ("postgres://u:p@host/db", "postgresql+psycopg://u:p@host/db"),
+        (
+            "postgresql://u:p@ep-1.eu-central-1.aws.neon.tech/db?sslmode=require",
+            "postgresql+psycopg://u:p@ep-1.eu-central-1.aws.neon.tech/db?sslmode=require",
+        ),
+        ("postgresql+psycopg://u:p@host/db", "postgresql+psycopg://u:p@host/db"),
+        ("postgresql+psycopg2://u:p@host/db", "postgresql+psycopg2://u:p@host/db"),  # their choice
+        ("mysql://u:p@host/db", "mysql://u:p@host/db"),
+        ("", ""),
+    ],
+)
+def test_the_address_of_a_hosted_database_names_the_driver(given: str, expected: str) -> None:
+    assert normalise_database_url(given) == expected
+
+
+def test_a_hosted_database_address_works_as_it_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neon and Render hand out postgres:// or postgresql://; SQLAlchemy would look for psycopg2."""
+    monkeypatch.setenv("DB_SCHEMA", "")
+    monkeypatch.setenv("DATABASE_URL", "  postgresql://u:p@ep-1.neon.tech/db?sslmode=require \n")
+    uri = create_app("development").config["SQLALCHEMY_DATABASE_URI"]
+    assert uri == "postgresql+psycopg://u:p@ep-1.neon.tech/db?sslmode=require"
+    engine = sqlalchemy.create_engine(uri)  # lazy: nothing connects
+    try:
+        assert engine.dialect.driver == "psycopg"
+    finally:
+        engine.dispose()
+
+
+def test_production_accepts_the_postgres_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in (
+        "SECRET_KEY",
+        "SECURITY_PASSWORD_SALT",
+        "MFA_ENCRYPTION_KEY",
+        "AUTH_RATE_LIMIT_KEY",
+    ):
+        monkeypatch.setenv(name, secrets.token_hex(32))
+    monkeypatch.setenv("DB_SCHEMA", "")
+    monkeypatch.setenv("DATABASE_URL", "postgres://u:p@host/db")
+    uri = create_app("production").config["SQLALCHEMY_DATABASE_URI"]
+    assert uri == "postgresql+psycopg://u:p@host/db"
 
 
 @pytest.mark.parametrize(

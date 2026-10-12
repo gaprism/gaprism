@@ -264,6 +264,19 @@ def validate_db_schema(schema: str) -> None:
         raise ConfigurationError("DB_SCHEMA must be a plain identifier (letters, digits, _).")
 
 
+def normalise_database_url(url: str) -> str:
+    """Name the driver in the address of a hosted database.
+
+    Neon, Render and the like hand out ``postgres://`` or ``postgresql://`` addresses, which
+    SQLAlchemy opens with psycopg2; this project installs psycopg 3. An address that names a
+    driver itself is the operator's choice and stays as it is.
+    """
+    for scheme in ("postgres://", "postgresql://"):
+        if url.startswith(scheme):
+            return "postgresql+psycopg://" + url[len(scheme) :]
+    return url
+
+
 def validate_config(config_obj: Any) -> None:
     """Validate configuration settings, enforcing security invariants and mandatory settings."""
     env = getattr(config_obj, "ENV", "base")
@@ -493,6 +506,8 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
                     raise ConfigurationError(f"{env_key} must be a number.") from exc
             elif isinstance(values[key], list):
                 values[key] = [part.strip().lower() for part in raw.split(",") if part.strip()]
+            elif key == "SQLALCHEMY_DATABASE_URI":
+                values[key] = normalise_database_url(raw.strip())  # pasted values carry spaces
             else:
                 values[key] = raw
         if values["EGRESS_DNS_RESOLVERS"] == ["system"]:

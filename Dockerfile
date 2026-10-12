@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 #
 # One image for everything that runs the application: docker-compose.yml starts it as the web app,
-# as the scan worker and for one-off commands (migrations, accounts, location data).
-# Quickstart and operations: docs/deploy.md.
+# as the scan worker and for one-off commands (migrations, accounts, location data); render.yaml
+# starts it as one container that does all of that, for a hosted demo.
+# Quickstart and operations: docs/deploy.md. The demo on Render: docs/deploy-render.md.
 
 ARG PYTHON_VERSION=3.13
 ARG NODE_VERSION=22
@@ -61,10 +62,21 @@ COPY app ./app
 COPY runner ./runner
 COPY migrations ./migrations
 COPY --from=assets /src/app/static ./app/static
+# The start command of the hosted demo (render.yaml); docker-compose.yml never runs it.
+COPY deploy/render-start.sh ./deploy/render-start.sh
 RUN python -m compileall -q app runner
 
 USER app
 EXPOSE 8000
+
+# A host without a persistent disk (the free web service of Render) cannot install the data after
+# it has started, so the build can carry it: BAKE_DATASETS=1 runs `flask datasets update` (80 MB
+# to download, 160 MB in the image; the data is as old as the build) for the blocklists the service
+# is set to use. Off by default, and compose keeps the data in a volume. The development profile
+# only because this command needs neither secrets nor a database.
+ARG BAKE_DATASETS=0
+ARG BLOCKLIST_PROVIDERS
+RUN if [ "$BAKE_DATASETS" = "1" ]; then FLASK_ENV=development flask datasets update; fi
 
 # The query string stays out of the access log: it can hold the name of a vendor somebody is
 # assessing. Behind a proxy the logged address is the proxy's. No control socket: nothing here
