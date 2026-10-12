@@ -64,6 +64,8 @@ Remove-Item Env:FLASK_SKIP_DOTENV, Env:DATABASE_URL, Env:SECURITY_PASSWORD_SALT
 
 Each command asks for the password at a hidden prompt (12 characters at least). The other commands, `users list`, `set-password`, `deactivate`, `reset-mfa`, are the ones in [Team accounts](deploy.md#team-accounts); run them the same way. The first sign-in asks for an authenticator app (`REQUIRE_MFA`). Send each person the address and the e-mail they sign in with, and the initial password by another route.
 
+**Where is the salt?** You do not set it: Render generated it when the Blueprint was deployed. In the dashboard open the service, click **Environment** in the left pane and look under **Environment Variables** for `SECURITY_PASSWORD_SALT`; copy its value into the prompt of the recipe. If the variable is missing (the service was not created from the Blueprint) or its value cannot be read, and nobody has an account yet, set your own: generate one with `uv run python -c "import secrets; print(secrets.token_hex(32))"`, add or edit the variable on that page, choose **Save and deploy**, and use the same value in the recipe. Once accounts exist, never change it.
+
 **Why `FLASK_SKIP_DOTENV`.** `flask` reads the `.env` of the checkout, and its `DB_SCHEMA` points every command at the schema of your development database, which does not exist at Neon (the error is `relation "role" does not exist`). Blanking the variable does not help in PowerShell: `$env:DB_SCHEMA = ""` deletes it, and `.env` wins. If the tables are missing because the service has not started (or failed to), `uv run flask --app app db upgrade` with the same variables creates them; once they exist it does nothing.
 
 ## 4. Check once: the client address
