@@ -34,7 +34,7 @@
           <td><a class="link" href="{{ url_for('assessments.detail', assessment_id=item.id) }}"><bdi class="font-mono">{{ item.domain_display }}</bdi></a></td>
           <td>{{ item.label or '—' }}</td>
           <td>{% if item.created_by == current_user.id %}{{ _('You') }}{% else %}<bdi>{{ owners.get(item.id, '—') }}</bdi>{% endif %}</td>
-          <td>{{ badge(_('Team') if item.visibility == 'team' else _('Private'), 'ok' if item.visibility == 'team' else 'muted') }}</td>
+          <td>{{ badge(_('Shared') if item.visibility == 'shared' else _('Private'), 'ok' if item.visibility == 'shared' else 'muted') }}</td>
           <td><time datetime="{{ item.created_at.isoformat() }}">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></td>
           {% if viewing_archive %}<td><time datetime="{{ item.archived_at.isoformat() }}">{{ item.archived_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></td>{% endif %}
         </tr>

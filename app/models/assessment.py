@@ -15,7 +15,9 @@ from app.models.base import JSONB_EMPTY_ARRAY, BaseUUIDModel, TimestampMixin, sq
 if TYPE_CHECKING:
     from app.models.scan import Scan
 
-VISIBILITIES = ("private", "team")
+# Private: the owner and the administrators. Shared: every signed-in user (an installation is one
+# group of people; it was called "team" until migration 0005).
+VISIBILITIES = ("private", "shared")
 
 
 class Assessment(BaseUUIDModel, TimestampMixin):

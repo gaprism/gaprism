@@ -202,7 +202,7 @@ def test_only_the_owner_and_the_administrators_may_archive_or_delete(
         create_user(db_session),
     )
     boss = administrator(db_session)
-    shared = create_assessment(db_session, owner, "shared.example", visibility="team")
+    shared = create_assessment(db_session, owner, "shared.example", visibility="shared")
     private = create_assessment(db_session, owner, "private.example")
 
     def manage_urls(a: Assessment) -> list[tuple[str, str]]:
@@ -240,7 +240,7 @@ def test_the_owner_sees_the_buttons_and_a_colleague_does_not(
     client: FlaskClient, db_session: Session
 ) -> None:
     owner, colleague = create_user(db_session), create_user(db_session)
-    shared = create_assessment(db_session, owner, "shared.example", visibility="team")
+    shared = create_assessment(db_session, owner, "shared.example", visibility="shared")
     url = f"/assessments/{shared.id}"
     login_as(client, owner)
     assert "Archive or delete" in page(client, url)

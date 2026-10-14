@@ -1,4 +1,4 @@
-"""Sharing an assessment with the team (decision D4) and seeing whose it is."""
+"""Sharing an assessment with everyone here (decision D4) and seeing whose it is."""
 
 from __future__ import annotations
 
@@ -33,12 +33,12 @@ def share(client: FlaskClient, assessment: Assessment, visibility: str) -> int:
 # ------------------------------------------------------------------------------ the rules
 
 
-def test_the_owner_and_the_administrators_manage_an_assessment_not_the_team(
+def test_the_owner_and_the_administrators_manage_an_assessment_not_the_colleagues(
     db_session: Session,
 ) -> None:
     owner, colleague = create_user(db_session), create_user(db_session)
     admin = boss(db_session)
-    shared = create_assessment(db_session, owner, "shared.example", "team")
+    shared = create_assessment(db_session, owner, "shared.example", "shared")
 
     assert assessment_service.can_manage(owner, shared)
     assert assessment_service.can_manage(admin, shared)  # type: ignore[arg-type]
@@ -62,15 +62,15 @@ def test_the_owner_of_each_assessment_is_found_with_one_query(db_session: Sessio
     assert assessment_service.owner_emails(db_session, []) == {}
 
 
-def test_sharing_is_refused_when_the_team_already_has_that_domain(db_session: Session) -> None:
+def test_sharing_is_refused_when_that_domain_is_already_shared(db_session: Session) -> None:
     ann, bob = create_user(db_session), create_user(db_session)
-    create_assessment(db_session, ann, "vendor.example", "team")
+    create_assessment(db_session, ann, "vendor.example", "shared")
     mine = create_assessment(
         db_session, bob, "vendor.example", "private"
     )  # private: not visible to ann
 
     with pytest.raises(assessment_service.DuplicateAssessmentError):
-        assessment_service.set_visibility(db_session, mine, "team", bob)
+        assessment_service.set_visibility(db_session, mine, "shared", bob)
     assert mine.visibility == "private"
     with pytest.raises(ValueError, match="Unknown visibility"):
         assessment_service.set_visibility(db_session, mine, "everyone", bob)
@@ -79,8 +79,8 @@ def test_sharing_is_refused_when_the_team_already_has_that_domain(db_session: Se
 def test_the_change_is_in_the_audit_log_with_who_made_it(db_session: Session) -> None:
     owner = create_user(db_session)
     assessment = create_assessment(db_session, owner, "logged.example")
-    assessment_service.set_visibility(db_session, assessment, "team", owner)
-    assessment_service.set_visibility(db_session, assessment, "team", owner)  # nothing changed
+    assessment_service.set_visibility(db_session, assessment, "shared", owner)
+    assessment_service.set_visibility(db_session, assessment, "shared", owner)  # nothing changed
     assessment_service.set_visibility(db_session, assessment, "private", owner)
 
     entries = audit_rows(db_session, "assessment.shared", "assessment.unshared")
@@ -102,9 +102,9 @@ def test_the_owner_sees_who_can_open_it_and_can_change_that(
     html = page(client, f"/assessments/{assessment.id}")
     assert "Owner: <bdi>owner@example.org</bdi>" in html
     assert "Only the owner and the administrators can open this assessment." in html
-    assert 'name="visibility" value="team"' in html and "Share with the team" in html
+    assert 'name="visibility" value="shared"' in html and "Share with everyone here" in html
 
-    assessment.visibility = "team"
+    assessment.visibility = "shared"
     db_session.commit()
     html = page(client, f"/assessments/{assessment.id}")
     assert "Every signed-in user can open this assessment." in html
@@ -116,21 +116,21 @@ def test_a_colleague_sees_whose_it_is_but_cannot_change_who_sees_it(
 ) -> None:
     owner = create_user(db_session, "owner@example.org")
     colleague = create_user(db_session, "colleague@example.org")
-    assessment = create_assessment(db_session, owner, "shared.example", "team")
+    assessment = create_assessment(db_session, owner, "shared.example", "shared")
     login_as(client, colleague)
 
     html = page(client, f"/assessments/{assessment.id}")
     assert "owner@example.org" in html and "Make private" not in html
     assert share(client, assessment, "private") == 403  # not even by a hand-made request
     db_session.refresh(assessment)
-    assert assessment.visibility == "team"
+    assert assessment.visibility == "shared"
 
 
 def test_the_list_says_whose_each_assessment_is(client: FlaskClient, db_session: Session) -> None:
     me = create_user(db_session, "me@example.org")
     colleague = create_user(db_session, "colleague@example.org")
     create_assessment(db_session, me, "mine.example", "private")
-    create_assessment(db_session, colleague, "theirs.example", "team")
+    create_assessment(db_session, colleague, "theirs.example", "shared")
     login_as(client, me)
 
     html = page(client, "/assessments/")
@@ -148,11 +148,13 @@ def test_the_owner_shares_and_unshares(client: FlaskClient, db_session: Session)
     assessment = create_assessment(db_session, owner, "sharing.example", "private")
     login_as(client, owner)
 
-    response = client.post(f"/assessments/{assessment.id}/visibility", data={"visibility": "team"})
+    response = client.post(
+        f"/assessments/{assessment.id}/visibility", data={"visibility": "shared"}
+    )
     assert response.status_code == 302 and response.headers["Location"].endswith(
         f"/{assessment.id}"
     )
-    assert "Shared with the team" in page(client, response.headers["Location"])
+    assert "Shared with everyone here" in page(client, response.headers["Location"])
     login_as(client, colleague)
     assert (
         client.get(f"/assessments/{assessment.id}").status_code == 200
@@ -170,9 +172,9 @@ def test_an_administrator_can_share_anyones_assessment(
     owner = create_user(db_session)
     assessment = create_assessment(db_session, owner, "orphaned.example", "private")
     login_as(client, boss(db_session))  # type: ignore[arg-type]
-    assert share(client, assessment, "team") == 302
+    assert share(client, assessment, "shared") == 302
     db_session.refresh(assessment)
-    assert assessment.visibility == "team"
+    assert assessment.visibility == "shared"
 
 
 def test_somebody_who_cannot_open_it_is_told_nothing(
@@ -181,7 +183,7 @@ def test_somebody_who_cannot_open_it_is_told_nothing(
     owner, stranger = create_user(db_session), create_user(db_session)
     assessment = create_assessment(db_session, owner, "hidden.example", "private")
     login_as(client, stranger)
-    assert share(client, assessment, "team") == 404  # not 403: it does not exist for them
+    assert share(client, assessment, "shared") == 404  # not 403: it does not exist for them
     db_session.refresh(assessment)
     assert assessment.visibility == "private"
 
@@ -190,7 +192,7 @@ def test_only_the_two_visibilities_are_accepted(client: FlaskClient, db_session:
     owner = create_user(db_session)
     assessment = create_assessment(db_session, owner, "values.example")
     login_as(client, owner)
-    for value in ("everyone", "", "TEAM"):
+    for value in ("everyone", "", "TEAM", "team"):  # "team" is the retired name of "shared"
         assert share(client, assessment, value) == 400, value
 
 
@@ -198,13 +200,13 @@ def test_a_second_shared_assessment_of_a_domain_is_refused_with_a_message(
     client: FlaskClient, db_session: Session
 ) -> None:
     ann, bob = create_user(db_session), create_user(db_session)
-    create_assessment(db_session, ann, "vendor.example", "team")
+    create_assessment(db_session, ann, "vendor.example", "shared")
     mine = create_assessment(db_session, bob, "vendor.example", "private")
     login_as(client, bob)
 
-    response = client.post(f"/assessments/{mine.id}/visibility", data={"visibility": "team"})
+    response = client.post(f"/assessments/{mine.id}/visibility", data={"visibility": "shared"})
     assert response.status_code == 302
-    assert "already has a shared assessment for vendor.example" in page(
+    assert "A shared assessment for vendor.example already exists" in page(
         client, response.headers["Location"]
     )
     db_session.refresh(mine)
@@ -223,7 +225,7 @@ def test_changing_who_sees_an_assessment_needs_a_csrf_token(
         client = app.test_client()
         login_as(client, owner)
         response = client.post(
-            f"/assessments/{assessment.id}/visibility", data={"visibility": "team"}
+            f"/assessments/{assessment.id}/visibility", data={"visibility": "shared"}
         )
         assert response.status_code == 400
         db.session.refresh(assessment)

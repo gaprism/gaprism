@@ -16,7 +16,7 @@
   {{ text_field(form.label, _('Label (optional)'), help=_('A name to recognise the assessment, for example the vendor or the project.')) }}
   {{ radio_group(form.visibility, _('Who can see it'), {
        'private': (_('Only me'), _('Administrators can always see it.')),
-       'team': (_('The whole team'), _('Every signed-in user can open it.'))
+       'shared': (_('Everyone here'), _('Every signed-in user can open it.'))
      }) }}
   <div class="mt-5 flex flex-wrap gap-2">
     {{ action(_('Create assessment'), variant='primary', type='submit') }}

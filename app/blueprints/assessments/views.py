@@ -153,7 +153,7 @@ def detail(assessment_id: uuid.UUID) -> str:
 @assessments_bp.post("/<uuid:assessment_id>/visibility")
 @login_required
 def set_visibility(assessment_id: uuid.UUID) -> Response:
-    """Share the assessment with the whole team, or make it private again (owner and
+    """Share the assessment with every signed-in user, or make it private again (owner and
     administrators only)."""
     assessment = _get_accessible(assessment_id)
     user = _current_user()
@@ -168,7 +168,7 @@ def set_visibility(assessment_id: uuid.UUID) -> Response:
         db.session.rollback()
         flash(
             _(
-                "The team already has a shared assessment for %(domain)s, so this one cannot be "
+                "A shared assessment for %(domain)s already exists, so this one cannot be "
                 "shared as well.",
                 domain=assessment.domain_display,
             ),
@@ -177,8 +177,8 @@ def set_visibility(assessment_id: uuid.UUID) -> Response:
     else:
         db.session.commit()
         flash(
-            _("Shared with the team: every signed-in user can open it.")
-            if wanted == "team"
+            _("Shared with everyone here: every signed-in user can open it.")
+            if wanted == "shared"
             else _("Now private: only the owner and the administrators can open it."),
             "info",
         )

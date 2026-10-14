@@ -130,7 +130,7 @@ def test_an_entry_is_also_one_safe_line_in_the_log(
 def test_creating_sharing_and_hosts_are_in_the_log(db_session: Session) -> None:
     owner = create_user(db_session, "owner@example.org")
     assessment = assessment_service.create_assessment(db_session, owner, "vendor.example")
-    assessment_service.set_visibility(db_session, assessment, "team", owner)
+    assessment_service.set_visibility(db_session, assessment, "shared", owner)
     assessment_service.add_manual_hosts(
         db_session, assessment, "vpn.vendor.example, mail.vendor.example"
     )

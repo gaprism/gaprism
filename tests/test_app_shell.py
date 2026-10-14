@@ -72,7 +72,7 @@ def test_assessments_list_shows_only_what_the_user_may_open(
     me = create_user(db_session)
     colleague = create_user(db_session)
     create_assessment(db_session, me, "mine.example", "private")
-    create_assessment(db_session, colleague, "shared.example", "team")
+    create_assessment(db_session, colleague, "shared.example", "shared")
     create_assessment(db_session, colleague, "secret.example", "private")
     login_as(client, me)
 
@@ -80,6 +80,7 @@ def test_assessments_list_shows_only_what_the_user_may_open(
     assert "mine.example" in page
     assert "shared.example" in page
     assert "secret.example" not in page
+    assert "Shared" in page and "Private" in page  # the badges of the two visible assessments
 
 
 def test_target_controlled_text_is_escaped(client: FlaskClient, db_session: Session) -> None:

@@ -46,13 +46,13 @@ def is_admin(user: User) -> bool:
 
 
 def can_access(user: User, assessment: Assessment) -> bool:
-    """Owners and administrators always; everyone else only for team-shared assessments."""
-    return assessment.created_by == user.id or assessment.visibility == "team" or is_admin(user)
+    """Owners and administrators always; everyone else only for shared assessments."""
+    return assessment.created_by == user.id or assessment.visibility == "shared" or is_admin(user)
 
 
 def can_manage(user: User, assessment: Assessment) -> bool:
     """Who decides how widely an assessment is shared: its owner and the administrators. Everyone
-    who can open a team assessment may work on it (scan, decide, add hosts), but not hide it from
+    who can open a shared assessment may work on it (scan, decide, add hosts), but not hide it from
     the others."""
     return assessment.created_by == user.id or is_admin(user)
 
@@ -67,22 +67,22 @@ def owner_emails(session: Session, assessments: Collection[Assessment]) -> dict[
 
 
 def set_visibility(session: Session, assessment: Assessment, visibility: str, user: User) -> None:
-    """Share an assessment with the whole team, or make it private again. The caller checks that
-    ``user`` may manage it and commits.
+    """Share an assessment with every signed-in user, or make it private again. The caller checks
+    that ``user`` may manage it and commits.
 
     Raises ``DuplicateAssessmentError`` when another assessment of the domain is already shared:
-    the team would then have two.
+    everyone would then have two.
     """
     if visibility not in VISIBILITIES:
         raise ValueError(f"Unknown visibility: {visibility!r}")
     if visibility == assessment.visibility:
         return
-    if visibility == "team":
+    if visibility == "shared":
         existing = session.scalar(
             select(Assessment)
             .where(
                 Assessment.domain == assessment.domain,
-                Assessment.visibility == "team",
+                Assessment.visibility == "shared",
                 Assessment.id != assessment.id,
             )
             .limit(1)
@@ -93,7 +93,7 @@ def set_visibility(session: Session, assessment: Assessment, visibility: str, us
     session.flush()
     audit_service.record(
         session,
-        "assessment.shared" if visibility == "team" else "assessment.unshared",
+        "assessment.shared" if visibility == "shared" else "assessment.unshared",
         actor=user,
         assessment=assessment,
     )
@@ -104,7 +104,7 @@ def list_visible(session: Session, user: User, archived: bool | None = False) ->
     ones with ``archived=True``, all of them with ``None``."""
     stmt = select(Assessment).order_by(Assessment.created_at.desc())
     if not is_admin(user):
-        stmt = stmt.where(or_(Assessment.created_by == user.id, Assessment.visibility == "team"))
+        stmt = stmt.where(or_(Assessment.created_by == user.id, Assessment.visibility == "shared"))
     if archived is True:
         stmt = stmt.where(Assessment.archived_at.is_not(None))
     elif archived is False:

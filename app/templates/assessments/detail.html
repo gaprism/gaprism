@@ -7,7 +7,7 @@
     <a class="link text-sm" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
     <div class="mt-2 flex flex-wrap items-center gap-3">
       <h1><bdi class="font-mono">{{ assessment.domain_display }}</bdi></h1>
-      {{ badge(_('Team') if assessment.visibility == 'team' else _('Private'), 'ok' if assessment.visibility == 'team' else 'muted') }}
+      {{ badge(_('Shared') if assessment.visibility == 'shared' else _('Private'), 'ok' if assessment.visibility == 'shared' else 'muted') }}
     </div>
     <p class="mt-1 text-sm text-muted">
       {% if assessment.domain != assessment.domain_display %}<bdi class="font-mono">{{ assessment.domain }}</bdi> · {% endif %}
@@ -18,12 +18,12 @@
     {% if can_manage %}
     <form method="post" action="{{ url_for('assessments.set_visibility', assessment_id=assessment.id) }}" class="mt-2 flex flex-wrap items-center gap-2 text-sm">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% if assessment.visibility == 'team' %}
+      {% if assessment.visibility == 'shared' %}
       <span class="text-muted">{{ _('Every signed-in user can open this assessment.') }}</span>
       <button class="btn btn-secondary" type="submit" name="visibility" value="private">{{ _('Make private') }}</button>
       {% else %}
       <span class="text-muted">{{ _('Only the owner and the administrators can open this assessment.') }}</span>
-      <button class="btn btn-secondary" type="submit" name="visibility" value="team">{{ _('Share with the team') }}</button>
+      <button class="btn btn-secondary" type="submit" name="visibility" value="shared">{{ _('Share with everyone here') }}</button>
       {% endif %}
     </form>
     {% endif %}

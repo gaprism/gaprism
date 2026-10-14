@@ -51,7 +51,7 @@ ACTIONS: dict[str, str] = {
     "auth.password_changed": N_("Changed the password"),
     "auth.mfa_changed": N_("Changed the two-factor setup"),
     "assessment.created": N_("Created the assessment"),
-    "assessment.shared": N_("Shared the assessment with the team"),
+    "assessment.shared": N_("Shared the assessment with everyone here"),
     "assessment.unshared": N_("Made the assessment private"),
     "assessment.archived": N_("Archived the assessment"),
     "assessment.unarchived": N_("Restored the assessment from the archive"),
