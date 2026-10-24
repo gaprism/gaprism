@@ -27,7 +27,7 @@ docker compose run --rm cli flask users create-admin  # first account
 docker compose run --rm cli flask datasets update     # IP location data (65 MB) and exploitation data (5 MB)
 ```
 
-Then open <http://localhost:8080>; for anything but a local trial put HTTPS in front (`docker compose --profile proxy up -d`). A demo for on Render's free tier, with a free Neon database: [docs/deploy-render.md](docs/deploy-render.md).
+Then open <http://localhost:8080>; for anything but a local trial put HTTPS in front (`docker compose --profile proxy up -d`). A demo on Render's free tier, with a free Neon database: [docs/deploy-render.md](docs/deploy-render.md).
 
 More accounts, switching them off, resetting a password or a lost authenticator: `flask users --help` (with Docker: `docker compose run --rm cli flask users --help`); who sees which assessment: [docs/deploy.md](docs/deploy.md#team-accounts).
 
