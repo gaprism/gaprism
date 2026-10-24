@@ -58,7 +58,7 @@ $env:FLASK_SKIP_DOTENV = "1"     # do not read .env: it names the schema of the 
 $env:DATABASE_URL = Read-Host "Neon connection string"
 $env:SECURITY_PASSWORD_SALT = Read-Host "SECURITY_PASSWORD_SALT of the Render service"
 uv run flask --app app users create-admin
-uv run flask --app app users create colleague@example.org
+uv run flask --app app users create user@example.org
 Remove-Item Env:FLASK_SKIP_DOTENV, Env:DATABASE_URL, Env:SECURITY_PASSWORD_SALT
 ```
 
