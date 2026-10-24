@@ -37,7 +37,11 @@ IP geolocation: [DB-IP.com](https://db-ip.com) Lite databases (CC BY 4.0), insta
 
 ## Development
 
-Commands and conventions: [CLAUDE.md](CLAUDE.md). How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md). Found a vulnerability: [SECURITY.md](SECURITY.md). Documentation index: [docs/README.md](docs/README.md).
+Commands and conventions: [CLAUDE.md](CLAUDE.md). How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md). Found a vulnerability: [SECURITY.md](SECURITY.md). What the project promises its users and contributors: [STEWARDSHIP.md](STEWARDSHIP.md). Documentation index: [docs/README.md](docs/README.md).
+
+## Contact
+
+Questions, bugs and ideas: open an issue. Security problems: privately, as [SECURITY.md](SECURITY.md) describes. If you use the tool in an organisation, or want to talk about a commercial edition (monitoring over time, portfolio and workflow, single sign-on, hosting for many), write to <gaprism@protonmail.com>.
 
 ## Licence
 
