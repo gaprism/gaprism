@@ -62,8 +62,9 @@ work, and there is no backup maintainer yet. That is why these commitments are s
 - a first reply to an issue or pull request within 7 days;
 - an acknowledgement of a security report within 3 days ([SECURITY.md](SECURITY.md)).
 
-If the maintainer can no longer look after the project, the repository is archived with a notice
-saying so, instead of going silent. The licence lets anyone carry on from a fork.
+If the maintainer can no longer look after the project, they hand the repository over to a new
+maintainer and say so publicly before stepping back. Only if nobody can be found is it archived with
+a notice, instead of going silent. The licence lets anyone carry on from a fork.
 
 ## What this page does not promise
 
