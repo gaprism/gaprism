@@ -1,4 +1,4 @@
-# Web Due Diligence — project guide
+# Gaprism — project guide
 
 Internal tool for security teams: enter a domain → discover hosts via Certificate Transparency → run technical checks per host → answer *Where is the data? Who processes it? How secure is the external posture?* Flask + Jinja/HTMX/Tailwind + PostgreSQL. Start with the doc index, `docs/README.md`.
 

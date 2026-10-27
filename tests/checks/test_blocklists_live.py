@@ -29,9 +29,7 @@ def installed(tmp_path_factory: pytest.TempPathFactory) -> Path:
     with httpx.Client(
         follow_redirects=True,
         timeout=httpx.Timeout(30.0, read=120.0),
-        headers={
-            "User-Agent": "WebDueDiligence/0.1 (+https://github.com/stalpers/web_due_diligence)"
-        },
+        headers={"User-Agent": "Gaprism/0.1 (+https://github.com/stalpers/web_due_diligence)"},
         trust_env=False,
     ) as client:
         reports = blocklists.update(directory, client)

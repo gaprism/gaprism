@@ -17,7 +17,7 @@ The date is the day the scan was created. File names are ASCII whatever the doma
 
 ## JSON
 
-`format.name` is `web-due-diligence-export`; `format.version` is `1`. The version changes only when a key is removed, renamed or changes its meaning; new keys can appear without a new version, so readers should ignore keys they do not know.
+`format.name` is `gaprism-export`; `format.version` is `1`. The version changes only when a key is removed, renamed or changes its meaning; new keys can appear without a new version, so readers should ignore keys they do not know.
 
 | Key | Content |
 |---|---|

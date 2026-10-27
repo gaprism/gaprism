@@ -6,7 +6,7 @@ how the project is run and where its limits are.
 
 ## Who it is for, and where the line is
 
-Web Due Diligence is built for the **analyst** who runs assessments of a domain and has to judge
+Gaprism is built for the **analyst** who runs assessments of a domain and has to judge
 what they find. Everything that serves that person is open source: the evidence engine, the rules
 and findings, the exports and the printable report, accounts, sign-in with two steps, the audit
 log, the command line and the translations.

@@ -85,7 +85,7 @@ class EgressHTTPClient:
             key in supplied_headers for key in ("authorization", "cookie", "proxy-authorization")
         ):
             raise SSRFBlockedError("Target collection must not send credentials.")
-        supplied_headers.setdefault("User-Agent", "TechnicalDueDiligenceBot/1.0")
+        supplied_headers.setdefault("User-Agent", "Gaprism/0.1")
 
         while True:
             try:

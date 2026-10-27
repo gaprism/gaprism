@@ -308,7 +308,7 @@ class HttpCheck:
         client = self._client_factory(ctx.config, resolve)
         headers = {
             **REQUEST_HEADERS,
-            "User-Agent": str(ctx.config.get("USER_AGENT", "WebDueDiligence")),
+            "User-Agent": str(ctx.config.get("USER_AGENT", "Gaprism")),
         }
 
         https = _follow(client, f"https://{host}/", headers)

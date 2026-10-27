@@ -78,7 +78,7 @@ Behind Render's proxy the application learns the visitor's address from `X-Forwa
 
 ## An invitation to paste
 
-> **Web Due Diligence, test environment**
+> **Gaprism, test environment**
 >
 > Address: https://… (the first request after a pause can take two minutes)
 > Sign in with your e-mail address; I send the initial password separately. At your first sign-in you set up an authenticator app (two-step sign-in is mandatory).

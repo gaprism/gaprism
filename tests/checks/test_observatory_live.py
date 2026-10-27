@@ -19,7 +19,7 @@ CONFIG = {"EXTERNAL_DOMAIN_LOOKUPS": ["observatory"]}
 
 
 def scan(domain: str) -> CheckOutcome:
-    with httpx.Client(timeout=60, headers={"User-Agent": "WebDueDiligence-live-test"}) as client:
+    with httpx.Client(timeout=60, headers={"User-Agent": "Gaprism-live-test"}) as client:
         context = CheckContext(domain=domain, hostname=None, config=CONFIG, http=client)
         return ObservatoryCheck().run(context)
 

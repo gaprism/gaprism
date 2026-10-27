@@ -1,5 +1,5 @@
 [project]
-name = "web-due-diligence"
+name = "gaprism"
 version = "0.1.0"
 description = "Technical due diligence from a single pane of glass"
 readme = "README.md"

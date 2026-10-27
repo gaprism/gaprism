@@ -21,7 +21,7 @@ CONFIG: dict[str, Any] = {
     "EGRESS_READ_TIMEOUT_SEC": 15.0,
     "EGRESS_CONNECT_TIMEOUT_SEC": 8.0,
 }
-HTTP = httpx.Client(timeout=20, headers={"User-Agent": "WebDueDiligence-tests/0.1"})
+HTTP = httpx.Client(timeout=20, headers={"User-Agent": "Gaprism-tests/0.1"})
 
 
 def run(check: Any, domain: str) -> Any:

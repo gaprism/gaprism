@@ -20,7 +20,7 @@ pytestmark = pytest.mark.live
 
 CONFIG = {
     "EGRESS_DNS_RESOLVERS": ["1.1.1.1", "8.8.8.8"],
-    "USER_AGENT": "WebDueDiligence-live-test",
+    "USER_AGENT": "Gaprism-live-test",
     "EGRESS_CONNECT_TIMEOUT_SEC": 8,
     "EGRESS_READ_TIMEOUT_SEC": 15,
 }

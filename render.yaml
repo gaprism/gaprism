@@ -1,4 +1,4 @@
-# Render Blueprint for a shared demo of Web Due Diligence on Render's free tier: ONE web service
+# Render Blueprint for a shared demo of Gaprism on Render's free tier: ONE web service
 # (the web app and the scan worker in one container) next to a PostgreSQL database that you
 # create at Neon. Steps, limits and what to tell your peers: docs/deploy-render.md.
 # For trying the tool with colleagues, not for real assessments: the free tier sleeps, is slow

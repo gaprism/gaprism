@@ -22,7 +22,7 @@ DOMAIN = "web-check.xyz"  # small: a handful of certificates
 @pytest.fixture(scope="module")
 def client() -> httpx.Client:
     with httpx.Client(
-        timeout=30, headers={"User-Agent": "WebDueDiligence-live-test/0.1"}, follow_redirects=False
+        timeout=30, headers={"User-Agent": "Gaprism-live-test/0.1"}, follow_redirects=False
     ) as http:
         yield http
 

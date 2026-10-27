@@ -98,7 +98,7 @@ class BaseConfig:
     SECURITY_TWO_FACTOR: bool = True
     SECURITY_TWO_FACTOR_REQUIRED: bool = True
     SECURITY_TWO_FACTOR_ENABLED_METHODS: ClassVar[list[str]] = ["authenticator"]
-    SECURITY_TOTP_ISSUER: str = "Web Due Diligence"
+    SECURITY_TOTP_ISSUER: str = "Gaprism"
     SECURITY_PASSWORD_HASH: str = "argon2"
     SECURITY_TRACKABLE: bool = True
     SECURITY_CHANGEABLE: bool = True
@@ -198,7 +198,7 @@ class BaseConfig:
     PORTS_CACHE_HOURS: float = 24.0
 
     # Outgoing requests to public provider APIs
-    USER_AGENT: str = "WebDueDiligence/0.1 (+https://github.com/stalpers/web_due_diligence)"
+    USER_AGENT: str = "Gaprism/0.1 (+https://github.com/stalpers/web_due_diligence)"
     PROVIDER_TIMEOUT_SECONDS: float = 20.0
 
     # Anti-SSRF & network settings. The DNS check asks EGRESS_DNS_RESOLVERS (empty list = the

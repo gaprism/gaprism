@@ -23,7 +23,7 @@ from runner.egress import EgressHTTPClient
 HOST = "shop.vendor.example"
 IP = "93.184.216.34"
 ELSEWHERE = "93.184.216.99"
-AGENT = "WebDueDiligence-test"
+AGENT = "Gaprism-test"
 
 GITHUB_UNCLAIMED = (
     "<!DOCTYPE html><html><head><title>Site not found &middot; GitHub Pages</title></head>"

@@ -26,7 +26,7 @@ CONFIG = {
 
 
 def client() -> httpx.Client:
-    return httpx.Client(timeout=20.0, headers={"User-Agent": "WebDueDiligence-tests/0.1"})
+    return httpx.Client(timeout=20.0, headers={"User-Agent": "Gaprism-tests/0.1"})
 
 
 def test_an_address_internetdb_has_never_seen_is_no_data() -> None:

@@ -18,7 +18,7 @@ CONFIG: dict[str, Any] = {
     "DNS_TIMEOUT_SECONDS": 5.0,
     "EGRESS_CONNECT_TIMEOUT_SEC": 10.0,
     "EGRESS_READ_TIMEOUT_SEC": 20.0,
-    "USER_AGENT": "WebDueDiligence-tests/0.1",
+    "USER_AGENT": "Gaprism-tests/0.1",
 }
 
 

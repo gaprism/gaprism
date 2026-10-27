@@ -3,7 +3,7 @@
 {% block body %}
 <div class="shell">
   <aside class="sidebar flex flex-col border-b border-line bg-panel lg:border-r">
-    <a href="{{ url_for('assessments.index') }}" class="flex min-h-16 items-center gap-2 px-5 font-semibold tracking-tight">{{ icon('shield') }} {{ _('Web Due Diligence') }}</a>
+    <a href="{{ url_for('assessments.index') }}" class="flex min-h-16 items-center gap-2 px-5 font-semibold tracking-tight">{{ icon('shield') }} {{ _('Gaprism') }}</a>
     <div class="px-3 pb-3 lg:pt-5">
       <nav aria-label="{{ _('Main navigation') }}" class="flex flex-wrap gap-1 lg:flex-col">
         <a class="nav-link" href="{{ url_for('assessments.index') }}" {% if request.blueprint == 'assessments' %}aria-current="page"{% endif %}>{{ icon('grid') }}{{ _('Assessments') }}</a>

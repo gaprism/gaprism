@@ -41,7 +41,7 @@ from app.service.blocklists import PROVIDERS as BLOCKLIST_PROVIDERS
 from app.service.decisions import Decision
 from app.service.host_view import CHECK_ORDER, DOMAIN_CHECK_ORDER, blocklist_about
 
-FORMAT_NAME = "web-due-diligence-export"
+FORMAT_NAME = "gaprism-export"
 FORMAT_VERSION = 1
 CSV_BOM = "﻿"
 MAX_EVIDENCE_SHOWN = 3  # evidence references named in a CSV cell
@@ -664,7 +664,7 @@ def to_dict(data: ExportData) -> dict[str, Any]:
     return {
         "format": {"name": FORMAT_NAME, "version": FORMAT_VERSION},
         "generated_at": _iso(data.generated_at),
-        "tool": {"name": "Web Due Diligence", "ruleset": data.ruleset, "rules": dict(data.rules)},
+        "tool": {"name": "Gaprism", "ruleset": data.ruleset, "rules": dict(data.rules)},
         "assessment": {
             "id": str(data.assessment_id),
             "domain": data.domain,

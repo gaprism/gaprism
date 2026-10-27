@@ -1,4 +1,4 @@
-# Web Due Diligence: the web app, the scan worker and PostgreSQL, plus an optional HTTPS proxy.
+# Gaprism: the web app, the scan worker and PostgreSQL, plus an optional HTTPS proxy.
 # Quickstart, upgrades, backups and security notes: docs/deploy.md
 #
 #   cp .env.example .env          # then fill in POSTGRES_PASSWORD and the four secrets
@@ -6,12 +6,14 @@
 #   docker compose run --rm cli flask users create-admin
 #   docker compose run --rm cli flask datasets update
 
+# The project name is also the prefix of the volumes (pgdata, datasets): renaming it would start an
+# empty database next to the old one, so it keeps its earlier value.
 name: web-due-diligence
 
 # What every container of the application shares (one image, three ways to start it).
 x-app: &app
   build: .
-  image: web-due-diligence:local
+  image: gaprism:local
   env_file: .env
   environment: &app-environment
     FLASK_ENV: production

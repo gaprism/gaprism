@@ -45,7 +45,7 @@ def test_login_page_renders_in_the_public_layout(client: FlaskClient) -> None:
     response = client.get("/auth/login")
     assert response.status_code == 200
     page = response.get_data(as_text=True)
-    assert "Web Due Diligence" in page
+    assert "Gaprism" in page
     assert 'name="email"' in page and 'name="password"' in page
     assert "Sign out" not in page  # public layout has no account header
     assert "/static/css/app.css" in page and "/static/js/htmx.min.js" in page

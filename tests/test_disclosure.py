@@ -15,7 +15,7 @@ from tests.helpers import PROJECT_ROOT, create_user, login_as
 DEFAULTS: dict[str, Any] = {
     "CT_SOURCES": ["ctlogs", "certspotter", "crtsh"],
     "EGRESS_DNS_RESOLVERS": ["1.1.1.1", "8.8.8.8"],
-    "USER_AGENT": "WebDueDiligence/0.1 (+https://example.org)",
+    "USER_AGENT": "Gaprism/0.1 (+https://example.org)",
     "PORTS_PROVIDER": "auto",
     "SHODAN_API_KEY": "",
     "EXTERNAL_DOMAIN_LOOKUPS": ["rdap", "hsts_preload", "hibp"],
@@ -171,7 +171,7 @@ def test_a_decision_that_has_been_made_is_not_listed() -> None:
 
 def test_the_assessed_servers_row_names_the_user_agent() -> None:
     row = next(r for r in described().rows if r.key == "hosts")
-    assert "WebDueDiligence/0.1 (+https://example.org)" in row.receives
+    assert "Gaprism/0.1 (+https://example.org)" in row.receives
     assert row.setting == "USER_AGENT"
 
 

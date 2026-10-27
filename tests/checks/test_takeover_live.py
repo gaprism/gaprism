@@ -36,7 +36,7 @@ EDGES = {
 S3_WEBSITE = "s3-website-us-east-1.amazonaws.com"
 CONFIG = {
     "EGRESS_DNS_RESOLVERS": ["1.1.1.1", "8.8.8.8"],
-    "USER_AGENT": "WebDueDiligence-live-test",
+    "USER_AGENT": "Gaprism-live-test",
 }
 
 

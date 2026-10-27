@@ -139,7 +139,7 @@ def test_the_json_holds_everything_and_parses_back(db_session: Session) -> None:
     data = build(db_session, scan)
     document = json.loads(export_service.to_json(data))
 
-    assert document["format"] == {"name": "web-due-diligence-export", "version": 1}
+    assert document["format"] == {"name": "gaprism-export", "version": 1}
     assert document["generated_at"] == "2026-10-05T12:30:00+00:00"
     assert document["assessment"]["domain"] == "example.com" and document["scan"]["id"] == str(
         scan.id

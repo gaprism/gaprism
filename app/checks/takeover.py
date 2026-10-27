@@ -196,7 +196,7 @@ class TakeoverCheck:
         client = self._client_factory(ctx.config, resolve)
         headers = {
             **REQUEST_HEADERS,
-            "User-Agent": str(ctx.config.get("USER_AGENT", "WebDueDiligence")),
+            "User-Agent": str(ctx.config.get("USER_AGENT", "Gaprism")),
         }
         observations: list[Observation] = []
         for url in (f"http://{host}/", f"https://{host}/"):
