@@ -9,7 +9,7 @@ from collections.abc import Generator
 
 import pytest
 
-pytest.importorskip("playwright.sync_api", reason="needs the 'screenshots' extra (roadmap S4.6)")
+pytest.importorskip("playwright.sync_api", reason="needs the 'screenshots' extra")
 
 from playwright.sync_api import Route, sync_playwright
 

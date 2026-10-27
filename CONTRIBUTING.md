@@ -1,8 +1,7 @@
 # Contributing
 
-Thanks for helping. This is a small tool for security teams, and the [roadmap](docs/roadmap.md)
-says what is planned and what is deliberately left out. For anything bigger than a fix, open an
-issue first so that we agree on the shape before you write code. Found a vulnerability? Please
+Thanks for helping. This is a small tool for security teams. For anything bigger than a fix, open an issue first so
+that we agree on the shape before you write code. Found a vulnerability? Please
 follow [SECURITY.md](SECURITY.md) instead of opening an issue.
 
 ## Set up
@@ -58,7 +57,7 @@ only with `-m live`.
 ## Pull requests
 
 - Keep them small and about one thing; say why in the description.
-- Change the docs, the `.env.example` and the roadmap's notes together with the code.
+- Change the docs and the `.env.example` together with the code.
 - A change to the security boundary (egress, sign-in, SQL, secrets) gets a short review note in
   the description: what could go wrong and why it cannot.
 - Dependencies: only what the code imports (`tests/test_dependencies.py` checks it), and only under

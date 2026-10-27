@@ -1,7 +1,7 @@
 """The ports providers against the real, keyless Shodan InternetDB. Run with ``pytest -m live``.
 
 The Shodan host API is deliberately not called here: it needs the owner's key, which is only used
-with their say-so (see docs/roadmap.md, S2.2).
+with their say-so.
 """
 
 from __future__ import annotations

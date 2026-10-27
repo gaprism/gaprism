@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Screenshots and the browser-based checks arrive in roadmap stories S4.6 / S4.7.
+# Screenshots and the browser-based checks are not built yet; the extra only prepares them.
 screenshots = ["playwright>=1.40.0"]
 
 [dependency-groups]

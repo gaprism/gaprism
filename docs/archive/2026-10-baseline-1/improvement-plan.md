@@ -1,6 +1,6 @@
 # Code review and improvement plan
 
-> 2026-10-04 · Basis: static review of `app/` and `runner/`, a run of the tests that do not need DB-admin rights, probes against the configured WSL Postgres, and the new [roadmap](../../roadmap.md). Findings are **verified** unless marked *(inference)*.
+> 2026-10-04 · Basis: static review of `app/` and `runner/`, a run of the tests that do not need DB-admin rights, probes against the configured WSL Postgres, and the new roadmap (no longer in the repository). Findings are **verified** unless marked *(inference)*.
 
 ## 1. Verdict: selective rebuild
 

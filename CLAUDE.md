@@ -1,6 +1,6 @@
 # Web Due Diligence — project guide
 
-Internal tool for security teams: enter a domain → discover hosts via Certificate Transparency → run technical checks per host → answer *Where is the data? Who processes it? How secure is the external posture?* Flask + Jinja/HTMX/Tailwind + PostgreSQL. Start with `docs/roadmap.md`; the doc index is `docs/README.md`.
+Internal tool for security teams: enter a domain → discover hosts via Certificate Transparency → run technical checks per host → answer *Where is the data? Who processes it? How secure is the external posture?* Flask + Jinja/HTMX/Tailwind + PostgreSQL. Start with the doc index, `docs/README.md`.
 
 ## Commands (PowerShell, Python via uv)
 - Install: `uv sync` · assets: `npm ci` then `npm run build`. Declared dependencies are what the code imports (`tests/test_dependencies.py`); add one with `uv add`, and stop the worker and the web first: on Windows `uv sync` cannot replace a compiled package a running process has loaded (`markupsafe`) and a failed run leaves `.venv` half-installed (repair: rename the locked `.pyd` aside, then `uv sync --reinstall-package <name>`)
@@ -33,6 +33,6 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 9. Every state change somebody could ask "who did that?" about calls `app.service.audit.record` in the same transaction (add the action to `ACTIONS` with its label, test it in the style of `tests/test_audit_log.py`). Details are small facts (ids, counts, rule ids), never passwords, secrets or text people typed.
 
 ## Process
-- Small vertical slices (stories `S*.*` in the roadmap); one commit per story on branch `mvp`; ask before pushing.
+- Small vertical slices; one commit per slice on branch `mvp`; ask before pushing.
 - Strings in templates and flash messages go through `_()`; English first, de-CH later.
 - UI uses the existing design tokens (`assets/tokens.css`, `assets/app.css`); rebuild the CSS after template changes.

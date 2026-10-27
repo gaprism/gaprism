@@ -2,7 +2,7 @@
 
 Technical due diligence from a single pane of glass. Enter a vendor's domain; the tool discovers its hosts from Certificate Transparency logs and reviews each one — DNS, TLS, HTTP security headers, network and location, open ports and CVEs, subdomain takeover, the technologies and CDN or WAF it shows, whether security DNS resolvers block it, email security, registration data — judges what it found with a documented set of rules ([docs/rules.md](docs/rules.md): findings with severity, confidence and a link to their evidence), and answers three questions: **Where is the data? Who processes it? How secure is the external posture?**
 
-> **Status:** MVP under construction (branch `mvp`). Plan: [docs/roadmap.md](docs/roadmap.md).
+> **Status:** MVP under construction (branch `mvp`).
 
 **Responsible use.** Only assess domains you are allowed to assess. The tool sends standard, low-impact requests (DNS, a few TLS handshakes, one HTTP GET) and queries public data sources; it never logs in, scans ports or exploits anything.
 

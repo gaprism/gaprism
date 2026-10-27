@@ -1,7 +1,7 @@
 # MVP restart — design
 
-> 2026-10-04 · **Status: approved 2026-10-04 — implementation started on branch `mvp`.** Confirmed by the owner: D2 (Apache-2.0), D3/D4 (lean access defaults), D9 (24 months), D10 (CDN → Medium, low confidence), baseline snapshot (`baseline-1`). The change list (city, Shodan key, three CT sources, breach and location rules, finding acceptance) is folded into the roadmap, catalogue and plan. · Supersedes `docs/architecture.md`, `docs/design/*`, `docs/implementation/*`, `docs/backlog.md` (archived by S0.1)
-> Companions: [roadmap](../../roadmap.md) (epics/stories) · [checks catalogue](../../checks-catalog.md) · [improvement plan](../../archive/2026-10-baseline-1/improvement-plan.md) (code review, archived)
+> 2026-10-04 · **Status: approved 2026-10-04 — implementation started on branch `mvp`.** Confirmed by the owner: D2 (Apache-2.0), D3/D4 (lean access defaults), D9 (24 months), D10 (CDN → Medium, low confidence), baseline snapshot (`baseline-1`). The change list (city, Shodan key, three CT sources, breach and location rules, finding acceptance) is folded into the catalogue and the plan. · Supersedes `docs/architecture.md`, `docs/design/*`, `docs/implementation/*`, `docs/backlog.md` (archived by S0.1)
+> Companions: [checks catalogue](../../checks-catalog.md) · [improvement plan](../../archive/2026-10-baseline-1/improvement-plan.md) (code review, archived)
 
 ## 1. Understanding
 
