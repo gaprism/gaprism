@@ -9,6 +9,7 @@ commit; every change is written to the audit log in the same transaction, never 
 from __future__ import annotations
 
 import hashlib
+import re
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -28,6 +29,8 @@ INVITE = "invite"
 RESET = "reset"
 MAX_OPEN_LINKS = 200  # links that work at this moment, over all accounts
 TOKEN_BYTES = 32
+TOKEN_LENGTH = -(-TOKEN_BYTES * 4 // 3)  # 32 bytes in URL-safe base64 without padding: 43
+_TOKEN_SHAPE = re.compile(f"[A-Za-z0-9_-]{{{TOKEN_LENGTH}}}")
 INVITATION_PATH = "/auth/invitation/"
 
 
@@ -51,6 +54,11 @@ class IssuedLink:
 def link_path(token: str) -> str:
     """The path of the page where the link is used (the address of the site goes in front)."""
     return f"{INVITATION_PATH}{token}"
+
+
+def looks_like_token(text: str) -> bool:
+    """Is ``text`` shaped like a link's token? A cheap check before the database is asked."""
+    return _TOKEN_SHAPE.fullmatch(text) is not None
 
 
 def _hash(token: str) -> str:

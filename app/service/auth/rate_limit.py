@@ -136,6 +136,22 @@ class AuthRateLimiter:
         self.session.commit()
 
 
+def reject_blocked_address() -> None:
+    """Answer 429 when the limiter has paused the caller's address.
+
+    For pages that take a secret from the URL (the one-time links): a dead link counts as a
+    failure of the address, as a wrong password does, and enough of them pause it.
+    """
+    remaining = AuthRateLimiter(db.session()).blocked_for(request.remote_addr, None)
+    if remaining is not None:
+        raise TooManyRequests(retry_after=max(1, math.ceil(remaining.total_seconds())))
+
+
+def record_address_failure() -> None:
+    """Count one failure against the caller's address (and commit, as the limiter does)."""
+    AuthRateLimiter(db.session()).record_failure(request.remote_addr, None)
+
+
 def _request_principal(user: object | None = None, tfa: bool = False) -> str | None:
     if tfa and isinstance(user, User):
         return f"user:{user.id}"

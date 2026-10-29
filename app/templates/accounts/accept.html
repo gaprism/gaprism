@@ -1,0 +1,19 @@
+{% extends "public.html" %}
+{% from 'components/forms.html' import text_field %}
+{% from 'components/ui.html' import action, notice %}
+{# The link is the credential: no referrer may carry it to another page. #}
+{% block title %}{% if purpose == 'invite' %}{{ _('Set a password') }}{% else %}{{ _('Set a new password') }}{% endif %}{% endblock %}
+{% block head %}<meta name="referrer" content="no-referrer">{% endblock %}
+{% block content %}
+<h1>{% if purpose == 'invite' %}{{ _('Set a password') }}{% else %}{{ _('Set a new password') }}{% endif %}</h1>
+<p class="mt-2 text-sm text-muted">{{ _('This link is for') }} <bdi class="font-semibold">{{ email }}</bdi>.</p>
+{% if reset_authenticator %}
+<div class="mt-4">{{ notice(_('Your authenticator will be forgotten when you set the password.'), _('You will set up a new one when you sign in.')) }}</div>
+{% endif %}
+<form method="post" class="mt-4" novalidate>
+  {{ form.hidden_tag() }}
+  {{ text_field(form.password, _('New password'), help=_('At least %(num)d characters.', num=min_length), autocomplete='new-password') }}
+  {{ text_field(form.confirm, _('The same password again'), autocomplete='new-password') }}
+  {{ action(_('Set the password'), variant='primary', type='submit') }}
+</form>
+{% endblock %}

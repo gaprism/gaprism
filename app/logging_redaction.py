@@ -27,6 +27,8 @@ _PATTERNS = (
 )
 # postgresql+psycopg://user:password@host/db  (the password may contain "@" up to the last one)
 _URL_CREDENTIALS = re.compile(r"(?i)(\b[a-z][a-z0-9+.-]*://[^\s:/@]+:)[^\s/]+(@)")
+# The one-time link of an invitation or a reset travels in the path: /auth/invitation/<token>
+_LINK_PATH = re.compile(r"(/auth/invitation/)[A-Za-z0-9_-]{16,}")
 _install_lock = threading.Lock()
 _installed = False
 
@@ -35,6 +37,7 @@ def redact(text: str) -> str:
     """``text`` with the values of secret-looking parameters replaced."""
     for pattern in _PATTERNS:
         text = pattern.sub(lambda match: f"{match.group(1)}{match.group(2)}{REDACTED}", text)
+    text = _LINK_PATH.sub(rf"\g<1>{REDACTED}", text)
     return _URL_CREDENTIALS.sub(rf"\g<1>{REDACTED}\g<2>", text)
 
 

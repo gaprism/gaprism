@@ -32,6 +32,10 @@ from app.logging_redaction import REDACTED, install_log_redaction, redact
             f"could not connect to postgresql+psycopg://app:{REDACTED}@db.internal:5432/due",
         ),
         ("two: key=a and token=b", f"two: key={REDACTED} and token={REDACTED}"),
+        (
+            "GET /auth/invitation/" + "aB3-_" * 9 + " HTTP/1.1",
+            f"GET /auth/invitation/{REDACTED} HTTP/1.1",
+        ),
     ],
 )
 def test_secrets_are_replaced(raw: str, expected: str) -> None:
@@ -48,6 +52,8 @@ def test_secrets_are_replaced(raw: str, expected: str) -> None:
         "https://example.com:8080/path?x=a@b",  # a port and an @ later are not credentials
         "https://user@example.com/",  # a user name without a password is not a secret
         "mailto:someone@example.com",
+        "GET /auth/invitation/ HTTP/1.1",  # no link in it
+        "GET /auth/invitation/short HTTP/1.1",  # too short to be one
     ],
 )
 def test_ordinary_text_is_left_alone(text: str) -> None:
@@ -123,3 +129,14 @@ def test_what_httpx_logs_for_a_keyed_request_is_redacted(
 
     assert "api.shodan.io/shodan/host/1.2.3.4" in caplog.text  # httpx did log the request
     assert "SECRET-KEY-0123456789" not in caplog.text and f"key={REDACTED}" in caplog.text
+
+
+def test_a_link_in_a_request_line_is_redacted_at_creation(
+    captured: list[logging.LogRecord],
+) -> None:
+    token = "aB3-_" * 9
+    logger = logging.getLogger("redaction-test")
+    logger.info('127.0.0.1 - - "GET /auth/invitation/%s HTTP/1.1" 200 -', token)
+    (record,) = captured
+    assert token not in record.getMessage()
+    assert f"/auth/invitation/{REDACTED} HTTP/1.1" in record.getMessage()
