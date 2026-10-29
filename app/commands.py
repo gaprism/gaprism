@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 import httpx
-from flask import Flask
+from flask import Flask, current_app
 from sqlalchemy import select
 
 from app.extensions import db
@@ -18,6 +18,7 @@ from app.service import blocklists as blocklists_service
 from app.service import exploits as exploits_service
 from app.service import findings as findings_service
 from app.service import geo as geo_service
+from app.service import invitations as invitation_service
 from app.service import scans as scan_service
 from app.service import users as user_service
 from app.service import worker as worker_service
@@ -212,9 +213,10 @@ def register_cli_commands(app: Flask) -> None:
         click.echo(f"{'E-mail':{width}}  {'Role':6}  {'State':8}  {'MFA':3}  Last sign-in")
         for row in rows:
             seen = row.last_login.strftime("%Y-%m-%d %H:%M UTC") if row.last_login else "never"
+            state = "off" if not row.active else "invited" if row.invited else "active"
             click.echo(
                 f"{row.email:{width}}  {'admin' if row.admin else 'member':6}  "
-                f"{'active' if row.active else 'off':8}  {'yes' if row.mfa else 'no':3}  {seen}"
+                f"{state:8}  {'yes' if row.mfa else 'no':3}  {seen}"
             )
 
     @users_group.command(name="create")
@@ -309,6 +311,87 @@ def register_cli_commands(app: Flask) -> None:
                 if had
                 else f"'{email}' had no authenticator."
             )
+
+        _run(act)
+
+    def _base_url(value: str) -> str:
+        """The address of the site as given, without a closing slash; empty when not given."""
+        value = value.strip().rstrip("/")
+        if value and not value.startswith(("https://", "http://")):
+            raise click.ClickException("The base URL must start with https:// or http://.")
+        return value
+
+    def _link_lines(link: invitation_service.IssuedLink, base_url: str) -> list[str]:
+        """How a new link is shown, once: when it stops working, and the link on its own line."""
+        lines = [
+            f"The link is valid until {link.expires_at:%Y-%m-%d %H:%M} UTC and is shown only "
+            "now: pass it on through your own channel (Gaprism sends no mail)."
+        ]
+        if not base_url:
+            lines.append(
+                "Put the address of your site in front of this path, or give --base-url next time:"
+            )
+        lines.append(base_url + invitation_service.link_path(link.token))
+        return lines
+
+    base_url_option = click.option(
+        "--base-url",
+        default="",
+        help="The address of the site, starting with https://, to print the whole link.",
+    )
+
+    @users_group.command(name="invite")
+    @click.argument("email")
+    @click.option("--admin", is_flag=True, help="Make the account an administrator.")
+    @base_url_option
+    def users_invite(email: str, admin: bool, base_url: str) -> None:
+        """Make an account and print the one-time link where its person sets a password.
+
+        Nobody else ever knows the password, and Gaprism sends no mail: pass the link on yourself.
+        """
+        prefix = _base_url(base_url)
+
+        def act() -> str:
+            user, link = invitation_service.invite_user(
+                db.session(),
+                email,
+                admin=admin,
+                hours=int(current_app.config["INVITATION_HOURS"]),
+            )
+            role = "an administrator" if admin else "a member"
+            return "\n".join([f"Invited '{user.email}' as {role}.", *_link_lines(link, prefix)])
+
+        _run(act)
+
+    @users_group.command(name="reset-link")
+    @click.argument("email")
+    @click.option(
+        "--authenticator",
+        is_flag=True,
+        help="Also forget the authenticator when the link is used (a lost phone).",
+    )
+    @base_url_option
+    def users_reset_link(email: str, authenticator: bool, base_url: str) -> None:
+        """Print a one-time link where an existing account sets a new password.
+
+        An account that has not accepted its invitation yet gets a new invitation link instead.
+        """
+        prefix = _base_url(base_url)
+
+        def act() -> str:
+            user, link = invitation_service.new_link(
+                db.session(),
+                email,
+                authenticator=authenticator,
+                hours=int(current_app.config["INVITATION_HOURS"]),
+            )
+            if link.purpose == invitation_service.INVITE:
+                head = f"'{user.email}' has not accepted the invitation yet: a new invitation link."
+            else:
+                head = f"Reset link for '{user.email}'." + (
+                    " The authenticator is forgotten when it is used." if authenticator else ""
+                )
+            return "\n".join([head, *_link_lines(link, prefix)])
 
         _run(act)
 

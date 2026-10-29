@@ -7,7 +7,7 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 - Tests: `uv run pytest` (unit + DB; `-m live` = real network, off by default) · lint: `uv run ruff check .` · types: `uv run mypy`
 - DB: `uv run flask --app app db upgrade` · worker: `uv run flask --app app worker` · web: `uv run flask --app app run --debug`
 - IP location data (offline, DB-IP Lite) and exploitation data (CISA KEV, EPSS; they rank the CVEs of the ports check): `uv run flask --app app datasets update` (status: `datasets status`); stored in `var/datasets/`
-- Accounts: `uv run flask --app app users --help` (create-admin, create, list, set-password, deactivate, activate, grant-admin, revoke-admin, reset-mfa); assessments are private or shared with everyone signed in (owner and admins decide)
+- Accounts: `uv run flask --app app users --help` (create-admin, create, invite, reset-link, list, set-password, deactivate, activate, grant-admin, revoke-admin, reset-mfa); assessments are private or shared with everyone signed in (owner and admins decide)
 - Audit log: `uv run flask --app app audit list [--days N] [--group g] [--user text]` (administrators also read `/audit/`); limits `MAX_SCANS_PER_USER_PER_HOUR`, `MAX_HOSTS_PER_RUN` (ceiling 2000), `AUDIT_RETENTION_DAYS`
 - After pulling or switching branches run `db upgrade` on the dev schema (the worker's housekeeping fails on a table the schema lacks)
 - Docker: `docker compose up -d --build` (db, web, worker; `--profile proxy` adds HTTPS) · one-off commands `docker compose run --rm cli flask …` · see `docs/deploy.md`; the image installs gunicorn from the `deploy` dependency group, and `TRUSTED_PROXY_COUNT` says how many reverse proxies stand in front

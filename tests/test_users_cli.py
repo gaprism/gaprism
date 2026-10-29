@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
+
 from flask.testing import FlaskCliRunner
 from flask_security.utils import verify_password
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models import UserInvitation
 from app.models.auth import User
 from app.service import users as user_service
 
@@ -187,3 +192,99 @@ def test_every_command_says_so_when_there_is_no_such_account(cli_runner: FlaskCl
         assert code != 0 and "no account" in output, command
     code, output = run(cli_runner, "set-password", "nobody@example.org", text=TWICE)
     assert code != 0 and "no account" in output
+
+
+# ------------------------------------------------------------------------------ links
+
+BASE = "https://dd.example.org"
+TOKEN = re.compile(r"/auth/invitation/([A-Za-z0-9_-]{43})")
+
+
+def printed_token(output: str) -> str:
+    found = TOKEN.search(output)
+    assert found, f"no link in: {output}"
+    return found.group(1)
+
+
+def test_invite_creates_an_account_and_prints_the_link_once(
+    cli_runner: FlaskCliRunner, db_session: Session
+) -> None:
+    code, output = run(cli_runner, "invite", "New@Example.org", "--admin", "--base-url", BASE + "/")
+    assert code == 0, output
+    assert "Invited 'new@example.org' as an administrator" in output
+    assert f"{BASE}/auth/invitation/" in output and "valid until" in output
+
+    user = db_session.query(User).filter_by(email="new@example.org").one()
+    assert user.active and user_service.holds_admin_role(user)
+    token = printed_token(output)
+    row = db_session.scalars(select(UserInvitation)).one()
+    assert row.token_hash == hashlib.sha256(token.encode()).hexdigest()
+    assert token not in user.password  # only the hash of the link is kept, nothing else
+
+    assert "invited" in run(cli_runner, "list")[1].splitlines()[1]
+
+
+def test_invite_without_a_base_url_prints_the_path_and_says_to_add_the_address(
+    cli_runner: FlaskCliRunner, db_session: Session
+) -> None:
+    code, output = run(cli_runner, "invite", "member@example.org")
+    assert code == 0 and "as a member" in output
+    assert "address of your site" in output
+    assert output.strip().splitlines()[-1].startswith("/auth/invitation/")
+
+
+def test_invite_refuses_an_existing_account_and_a_bad_address_or_base_url(
+    cli_runner: FlaskCliRunner, db_session: Session
+) -> None:
+    account(db_session, "there@example.org")
+    code, output = run(cli_runner, "invite", "there@example.org")
+    assert code != 0 and "exists already" in output
+    code, output = run(cli_runner, "invite", "not-an-address")
+    assert code != 0 and "valid e-mail address" in output
+    code, output = run(cli_runner, "invite", "x@example.org", "--base-url", "dd.example.org")
+    assert code != 0 and "must start with" in output
+    assert db_session.query(User).filter_by(email="x@example.org").count() == 0
+
+
+def test_reset_link_for_an_account_and_with_the_authenticator_option(
+    cli_runner: FlaskCliRunner, db_session: Session
+) -> None:
+    user = account(db_session, "lost@example.org", tf_primary_method="authenticator")
+    code, output = run(cli_runner, "reset-link", user.email, "--base-url", BASE)
+    assert code == 0 and "Reset link for 'lost@example.org'" in output
+    assert "authenticator" not in output and f"{BASE}/auth/invitation/" in output
+
+    code, output = run(cli_runner, "reset-link", user.email, "--authenticator", "--base-url", BASE)
+    assert code == 0 and "authenticator is forgotten when it is used" in output
+    assert db_session.scalars(select(UserInvitation)).one().reset_authenticator is True
+    db_session.refresh(user)
+    assert user.tf_primary_method == "authenticator"  # nothing changes until the link is used
+
+
+def test_reset_link_for_an_invited_account_is_a_new_invitation(
+    cli_runner: FlaskCliRunner, db_session: Session
+) -> None:
+    run(cli_runner, "invite", "new@example.org")
+    code, output = run(cli_runner, "reset-link", "new@example.org")
+    assert code == 0 and "has not accepted the invitation yet" in output
+    assert db_session.scalars(select(UserInvitation)).one().purpose == "invite"
+
+
+def test_reset_link_says_so_when_there_is_no_such_account_or_it_is_switched_off(
+    cli_runner: FlaskCliRunner, db_session: Session
+) -> None:
+    code, output = run(cli_runner, "reset-link", "nobody@example.org")
+    assert code != 0 and "no account" in output
+    off = account(db_session, "off@example.org", active=False)
+    code, output = run(cli_runner, "reset-link", off.email)
+    assert code != 0 and "switched off" in output
+
+
+def test_a_password_is_never_an_argument_of_the_link_commands(
+    cli_runner: FlaskCliRunner,
+) -> None:
+    for command in ("invite", "reset-link"):
+        code, output = run(
+            cli_runner, command, "x@example.org", "--password", "Visible-1-Long-Pass"
+        )
+        assert code != 0 and "No such option '--password'" in output
