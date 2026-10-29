@@ -13,7 +13,7 @@ log, the command line and the translations.
 
 A commercial edition may be offered next to it, built on this repository. It is meant for what the
 analyst does not need but a larger organisation does: monitoring over time, portfolio and workflow
-(reviews, approvals, regulatory content), single sign-on and administration, and hosting for many.
+(reviews, approvals, regulatory content), single sign-on, teams and roles, and hosting for many.
 Where a new feature falls on this line is decided by who it serves, and **when in doubt it is
 open**.
 
