@@ -135,13 +135,14 @@ Passwords are asked for at a hidden prompt, never taken as arguments (they would
 
 ## Limits and the audit log
 
-Three settings bound what the tool does and how long it remembers it (`.env`; `.env.example` lists them):
+These settings bound what the tool does and how long it remembers it (`.env`; `.env.example` lists them):
 
 | Setting | Default | Meaning |
 |---|---|---|
 | `MAX_HOSTS_PER_RUN` | `200` | hosts one scan reviews; the rest is reported as "over the limit". At most 2000, whatever is set: a larger value stops the start |
 | `MAX_SCANS_PER_USER_PER_HOUR` | `20` | scans one person may start in an hour, over all their assessments; `0` switches the limit off (at most 1000) |
 | `AUDIT_RETENTION_DAYS` | `730` | how long the audit log keeps an entry; `0` keeps them for ever (at most 3650) |
+| `INVITATION_HOURS` | `72` | how long a one-time link (an invitation for a new account, a reset for an existing one) works, in hours (1 to 168) |
 
 The scan limit protects the assessed hosts, the data providers and the worker from a script or a stolen session. A person who reaches it is told when the next scan can start, and the refusal is written to the audit log. It is a brake, not a meter: two requests in the same instant can both pass.
 

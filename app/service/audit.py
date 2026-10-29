@@ -75,6 +75,11 @@ ACTIONS: dict[str, str] = {
     "user.admin_granted": N_("Made an account an administrator"),
     "user.admin_revoked": N_("Took the administrator role from an account"),
     "user.mfa_reset": N_("Forgot the authenticator of an account"),
+    "user.invited": N_("Invited a person"),
+    "user.invitation_used": N_("Set a password with a link"),
+    "user.invitation_revoked": N_("Withdrew a link"),
+    "user.reset_link_created": N_("Made a reset link"),
+    "user.sessions_ended": N_("Signed an account out everywhere"),
 }
 GROUPS: dict[str, str] = {
     "auth": N_("Sign-in"),

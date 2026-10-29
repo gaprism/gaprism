@@ -60,6 +60,7 @@ MAX_TRUSTED_PROXIES = 5  # reverse proxies in front of the app that TRUSTED_PROX
 MAX_HOSTS_CEILING = 2000  # the most hosts one scan may review, whatever MAX_HOSTS_PER_RUN says
 MAX_SCANS_PER_HOUR_CEILING = 1000  # upper bound of MAX_SCANS_PER_USER_PER_HOUR
 MAX_AUDIT_RETENTION_DAYS = 3650  # upper bound of AUDIT_RETENTION_DAYS (ten years)
+MAX_INVITATION_HOURS = 168  # upper bound of INVITATION_HOURS (one week)
 
 
 class BaseConfig:
@@ -118,6 +119,9 @@ class BaseConfig:
 
     # The audit log keeps its entries this many days (0 = forever); the worker removes older ones.
     AUDIT_RETENTION_DAYS: int = 730
+
+    # How long a one-time link (an invitation for a new account, a reset for an existing one) works.
+    INVITATION_HOURS: int = 72
 
     # Authentication abuse controls
     AUTH_RATE_LIMIT_KEY: str = ""
@@ -310,6 +314,16 @@ def validate_config(config_obj: Any) -> None:
         if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 64:
             raise ConfigurationError(f"{name} must be an integer from 1 to 64.")
 
+    invitation_hours = getattr(config_obj, "INVITATION_HOURS", 0)
+    if (
+        not isinstance(invitation_hours, int)
+        or isinstance(invitation_hours, bool)
+        or not 1 <= invitation_hours <= MAX_INVITATION_HOURS
+    ):
+        raise ConfigurationError(
+            f"INVITATION_HOURS must be an integer from 1 to {MAX_INVITATION_HOURS}."
+        )
+
     ct_sources = list(getattr(config_obj, "CT_SOURCES", []))
     unknown_sources = sorted(set(ct_sources) - set(CT_SOURCE_KEYS))
     if not ct_sources or unknown_sources:
@@ -454,6 +468,7 @@ def resolve_config(config_class: type[BaseConfig], read_environment: bool) -> ty
             "MAX_HOSTS_PER_RUN": "MAX_HOSTS_PER_RUN",
             "MAX_SCANS_PER_USER_PER_HOUR": "MAX_SCANS_PER_USER_PER_HOUR",
             "AUDIT_RETENTION_DAYS": "AUDIT_RETENTION_DAYS",
+            "INVITATION_HOURS": "INVITATION_HOURS",
             "MAX_DISCOVERY_PAGES": "MAX_DISCOVERY_PAGES",
             "WORKER_THREADS": "WORKER_THREADS",
             "PER_TARGET_CONCURRENCY": "PER_TARGET_CONCURRENCY",

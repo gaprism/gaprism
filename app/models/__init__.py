@@ -8,6 +8,7 @@ from app.models.base import BaseUUIDModel, TimestampMixin, utc_now
 from app.models.check_result import CheckResult
 from app.models.finding import Finding, FindingDisposition
 from app.models.host import Host
+from app.models.invitation import UserInvitation
 from app.models.provider_cache import ProviderCache
 from app.models.scan import Scan
 
@@ -25,6 +26,7 @@ __all__ = [
     "Scan",
     "TimestampMixin",
     "User",
+    "UserInvitation",
     "UserRoles",
     "utc_now",
 ]

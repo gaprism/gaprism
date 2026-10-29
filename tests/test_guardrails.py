@@ -245,6 +245,36 @@ def test_the_new_limits_are_whole_numbers_within_their_range(
             validate_config(config_with(**{setting: value}))
 
 
+def test_an_invitation_link_works_for_72_hours_by_default(app: Flask) -> None:
+    assert app.config["INVITATION_HOURS"] == 72
+
+
+@pytest.mark.parametrize(("good", "bad"), [((1, 72, 168), (0, 169, -5, True, 12.5, "72"))])
+def test_the_invitation_hours_are_a_whole_number_from_1_to_168(
+    good: tuple[int, ...], bad: tuple[object, ...]
+) -> None:
+    for value in good:
+        validate_config(config_with(INVITATION_HOURS=value))
+    for value in bad:
+        with pytest.raises(
+            ConfigurationError, match="INVITATION_HOURS must be an integer from 1 to 168"
+        ):
+            validate_config(config_with(INVITATION_HOURS=value))
+
+
+def test_the_environment_sets_the_invitation_hours(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DB_SCHEMA", "")
+    monkeypatch.setenv("INVITATION_HOURS", "24")
+    assert create_app("development").config["INVITATION_HOURS"] == 24
+
+    monkeypatch.setenv("INVITATION_HOURS", "soon")
+    with pytest.raises(ConfigurationError, match="INVITATION_HOURS must be an integer"):
+        create_app("development")
+    monkeypatch.setenv("INVITATION_HOURS", "0")
+    with pytest.raises(ConfigurationError, match="INVITATION_HOURS must be an integer from 1"):
+        create_app("development")
+
+
 def test_the_environment_sets_the_limits_and_a_wrong_value_stops_the_start(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
