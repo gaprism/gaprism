@@ -113,7 +113,9 @@ Volumes: `pgdata` (the database), `datasets` (IP location data, can be downloade
 
 ## Team accounts
 
-There is no sign-up and no password-reset mail: administrators run the accounts from the command line, with `docker compose run --rm cli flask users …` (without Docker: `uv run flask --app app users …`).
+There is no sign-up and no mail. Administrators run the accounts on the **Accounts** page (a link below *Audit log* for administrators; everybody else gets a 404) or from the command line, with `docker compose run --rm cli flask users …` (without Docker: `uv run flask --app app users …`).
+
+**The Accounts page** lists every account with its role, its state (active, switched off, invited, or with a reset link), whether an authenticator is enrolled and the last sign-in. *Invite a person* makes an account for an e-mail address (with a tick for the administrator role) and shows a one-time link where its person sets their own password; the page shows the link once, and Gaprism does not send it. In each row an administrator can make a new invitation link or a reset link (optionally also forgetting the authenticator, for a lost phone), withdraw a link, switch the account off or on, give or take the administrator role, and sign the account out everywhere. A row of your own has none of the buttons that would end your own access. The rules are the command line's: the last active administrator cannot be switched off or demoted, and an administrator who has not yet set a password through the invitation does not count as one.
 
 | Command | What it does |
 |---|---|
@@ -127,7 +129,7 @@ There is no sign-up and no password-reset mail: administrators run the accounts 
 | `users grant-admin EMAIL` · `users revoke-admin EMAIL` | give or take the administrator role |
 | `users reset-mfa EMAIL` | forget a lost authenticator; the person sets up a new one at the next sign-in |
 
-A link works once, for `INVITATION_HOURS` hours (72 by default), and a new link for the same account and purpose replaces the old one. Gaprism stores only a hash of it and shows it once: pass it on through your own channel, because no mail is sent. Passwords are asked for at a hidden prompt, never taken as arguments (they would show up in the process list and the shell history), and need 12 characters. In a script on Linux or in a container the prompt also reads standard input (`printf '%s\n%s\n' "$PW" "$PW" | docker compose run --rm -T cli flask users create EMAIL`); on Windows run the command in a terminal. The last active administrator cannot be switched off or demoted. Every change goes into the [audit log](#limits-and-the-audit-log), without the password. People change their own password with *Password* in the page header; no mail is sent about it.
+A link works once, for `INVITATION_HOURS` hours (72 by default), and a new link for the same account and purpose replaces the old one. Gaprism stores only a hash of it and shows it once: pass it on through your own channel, because no mail is sent. Two limits to know: the link is in the path of the page (`/auth/invitation/…`), so a reverse proxy that logs requests records it until it has been used or has expired (the application's own log shows it as `REDACTED`); and opening links that do not work counts as failed sign-ins of that address, so five of them in 15 minutes pause sign-in from it, for everybody behind the same address, until the window has passed. Passwords are asked for at a hidden prompt, never taken as arguments (they would show up in the process list and the shell history), and need 12 characters. In a script on Linux or in a container the prompt also reads standard input (`printf '%s\n%s\n' "$PW" "$PW" | docker compose run --rm -T cli flask users create EMAIL`); on Windows run the command in a terminal. The last active administrator cannot be switched off or demoted. Every change goes into the [audit log](#limits-and-the-audit-log), without the password. People change their own password with *Password* in the page header; no mail is sent about it.
 
 **Who sees what.** An assessment is private when it is created: only its owner and the administrators can open it. On the assessment page the owner or an administrator can *Share with everyone here* (and make it private again). A shared assessment can be opened by every signed-in user, who can scan it, add hosts and decide about its findings, but only the owner and the administrators change who sees it. A domain is shared once: sharing a second assessment of the same domain is refused. When somebody leaves, switch the account off; their private assessments stay, and an administrator can share them.
 
@@ -158,7 +160,7 @@ The scan limit protects the assessed hosts, the data providers and the worker fr
 | Scans | started, cancelled, refused because of the limit |
 | Findings | accepted, marked as a false positive, reopened |
 | Exports | report opened, JSON, hosts CSV, findings CSV |
-| Accounts | created, new password, switched on or off, administrator role given or taken away, authenticator forgotten |
+| Accounts | created, invited, a link made, used or withdrawn, new password, switched on or off, administrator role given or taken away, authenticator forgotten, signed out everywhere |
 
 Each entry has the time (UTC), the person (the e-mail address as it was then), where it came from (the client address, or *command line* for `flask` commands), the assessment, and a few small facts such as the rule of a finding, the number of hosts or the limit that was hit. **It never holds a password, a secret or the reason somebody gave for a decision**; that stays with the decision. A failed sign-in for an address nobody has is not recorded: it may be a password typed into the wrong field, and strangers must not be able to fill the log.
 
@@ -199,7 +201,7 @@ With `EXTERNAL_DOMAIN_LOOKUPS=none`, `REPUTATION_RESOLVERS=none` and `PORTS_PROV
 - **Containers.** The application runs as an unprivileged user in a read-only container with no capabilities, `no-new-privileges`, memory and process limits and rotated logs. The only writable place is the `datasets` volume, and only the `cli` service mounts it writable. There is no Docker socket anywhere. The database sits on an internal network and publishes nothing.
 - **The worker connects to hosts that people type in.** The application refuses to connect to private, loopback and link-local addresses and pins the address it resolved (`runner/`); that gate is in the code, and it is the only thing between the worker and the networks the Docker host can reach. If those include internal networks, add a rule of your own as a second layer: run the stack on a host or VLAN that cannot reach them, or filter the containers' egress. Keep `.env` out of version control and readable by its owner only; anyone in the `docker` group can read the settings of a container (`docker inspect`), so treat that group like root.
 - **IPv6.** Docker does not give containers IPv6 by default; a host reachable only over IPv6 then shows failed checks (never a clean result). Enable IPv6 for the Docker network if you need those.
-- **No mail, no registration.** Accounts are created on the command line ([Team accounts](#team-accounts)); there is no sign-up, no password-reset mail and no "your password was changed" notice (the change is in the [audit log](#limits-and-the-audit-log) instead).
+- **No mail, no registration.** Accounts are created by an administrator, on the Accounts page or the command line ([Team accounts](#team-accounts)), and a person gets their first password through a one-time link that the administrator passes on; there is no sign-up, no password-reset mail and no "your password was changed" notice (the change is in the [audit log](#limits-and-the-audit-log) instead).
 
 ## Troubleshooting
 
@@ -213,7 +215,7 @@ With `EXTERNAL_DOMAIN_LOOKUPS=none`, `REPUTATION_RESOLVERS=none` and `PORTS_PROV
 | Scans stay queued | the worker is not running (`docker compose ps`, `docker compose logs worker`) |
 | "You have started the most scans allowed in an hour" | `MAX_SCANS_PER_USER_PER_HOUR`: the message says when the next scan can start; raise the limit or set it to `0` |
 | The worker logs `relation "audit_event" does not exist` (or another missing table) | the database is behind the code: run `flask db upgrade` (`docker compose up -d --build` does it) |
-| Somebody forgot the password or lost the phone | `users set-password EMAIL`, `users reset-mfa EMAIL` |
+| Somebody forgot the password or lost the phone | a reset link on the Accounts page (`users reset-link EMAIL [--authenticator]`), or `users set-password EMAIL` and `users reset-mfa EMAIL` |
 | IP location says "unavailable" | run `docker compose run --rm cli flask datasets update` |
 | The blocklists check says "The blocklists are not installed" | the same command; to stop looking at them set `BLOCKLIST_PROVIDERS=none` |
 | Ports and CVEs say "Switched off" in a new installation | `PORTS_PROVIDER=auto` without a `SHODAN_API_KEY` is off: Shodan InternetDB is free for non-commercial use only, so read its terms and set `PORTS_PROVIDER=internetdb`, or add a key |

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from 'components/forms.html' import text_field %}
+{% from 'components/ui.html' import action, badge %}
+{% block title %}{{ _('Accounts') }}{% endblock %}
+{% block content %}
+{# What an account's link is up to, in words. Nothing here is trusted: addresses are escaped. #}
+{% macro when(link) -%}{{ link.expires_at.strftime('%Y-%m-%d %H:%M') }}{%- endmacro %}
+{% macro csrf() -%}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{%- endmacro %}
+
+<div class="mb-4">
+  <p class="eyebrow">{{ _('Administration') }}</p>
+  <h1 class="mt-1">{{ _('Accounts') }}</h1>
+  <p class="mt-1 max-w-3xl text-sm text-muted">{{ _('Invite a person, send a link to set a new password, switch an account off, and give or take the administrator role. A link works once and Gaprism does not send it: you pass it on through your own channel. Every change is written to the audit log.') }}</p>
+</div>
+
+<form method="post" action="{{ url_for('accounts.invite') }}" class="panel max-w-2xl p-5" novalidate>
+  {{ form.hidden_tag() }}
+  <h2>{{ _('Invite a person') }}</h2>
+  <p class="mb-3 mt-1 text-sm text-muted">{{ _('The person gets an account and a link where they set their own password. Nobody else ever knows it.') }}</p>
+  {{ text_field(form.email, _('E-mail address'), placeholder='name@example.org') }}
+  <label class="mb-4 flex items-center gap-2 text-sm">{{ form.admin() }} {{ _('Make this person an administrator') }}</label>
+  {{ action(_('Invite'), variant='primary', type='submit') }}
+</form>
+
+<div class="panel mt-4">
+  <div class="section-head"><h2>{{ _('Accounts') }} <span class="text-sm font-normal text-muted">({{ rows|length }})</span></h2></div>
+  <div class="table-scroll">
+    <table class="data-table">
+      <caption class="sr-only">{{ _('The accounts: administrators first') }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{{ _('E-mail') }}</th>
+          <th scope="col">{{ _('Role') }}</th>
+          <th scope="col">{{ _('State') }}</th>
+          <th scope="col">{{ _('Authenticator') }}</th>
+          <th scope="col">{{ _('Last sign-in') }}</th>
+          <th scope="col">{{ _('Actions') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% set mine = row.id == me_id %}
+        <tr>
+          <td><bdi>{{ row.email }}</bdi>{% if mine %} <span class="text-muted">({{ _('you') }})</span>{% endif %}</td>
+          <td>{{ _('Administrator') if row.admin else _('Member') }}</td>
+          <td class="text-sm">
+            {% if not row.active %}{{ badge(_('Switched off'), 'muted') }}
+            {% elif row.invited %}
+              {% if row.link.state == 'open' %}{{ _('Invited, link valid until %(when)s UTC', when=when(row.link)) }}
+              {% elif row.link.state == 'expired' %}{{ _('Invited, link expired') }}
+              {% else %}{{ _('Invited, link withdrawn') }}{% endif %}
+            {% else %}{{ badge(_('Active'), 'ok') }}
+              {% if row.link %}<span class="block text-muted">
+              {% if row.link.state == 'open' %}{{ _('Reset link valid until %(when)s UTC', when=when(row.link)) }}
+              {% elif row.link.state == 'expired' %}{{ _('Reset link expired') }}
+              {% else %}{{ _('Reset link withdrawn') }}{% endif %}</span>{% endif %}
+            {% endif %}
+          </td>
+          <td>{{ _('Yes') if row.mfa else _('No') }}</td>
+          <td class="whitespace-nowrap">{% if row.last_login %}<time datetime="{{ row.last_login.isoformat() }}">{{ row.last_login.strftime('%Y-%m-%d %H:%M') }} UTC</time>{% else %}<span class="text-muted">{{ _('never') }}</span>{% endif %}</td>
+          <td>
+            <div class="flex flex-wrap items-center gap-2">
+              {% if row.active %}
+              <form method="post" action="{{ url_for('accounts.make_link', user_id=row.id) }}" class="flex items-center gap-2">
+                {{ csrf() }}
+                {% if not row.invited %}<label class="flex items-center gap-1 text-xs"><input type="checkbox" name="authenticator" value="1"> {{ _('and forget the authenticator') }}</label>{% endif %}
+                <button class="btn btn-secondary" type="submit">{{ _('New invitation link') if row.invited else _('Reset link') }}</button>
+              </form>
+              {% endif %}
+              {% if row.link and row.link.state == 'open' %}
+              <form method="post" action="{{ url_for('accounts.withdraw', user_id=row.id) }}">{{ csrf() }}<button class="btn btn-quiet" type="submit">{{ _('Withdraw the link') }}</button></form>
+              {% endif %}
+              {% if not mine %}
+              <form method="post" action="{{ url_for('accounts.set_active', user_id=row.id) }}">{{ csrf() }}<input type="hidden" name="active" value="{{ '0' if row.active else '1' }}"><button class="btn btn-quiet" type="submit">{{ _('Switch off') if row.active else _('Switch on') }}</button></form>
+              <form method="post" action="{{ url_for('accounts.set_admin', user_id=row.id) }}">{{ csrf() }}<input type="hidden" name="admin" value="{{ '0' if row.admin else '1' }}"><button class="btn btn-quiet" type="submit">{{ _('Remove administrator') if row.admin else _('Make administrator') }}</button></form>
+              <form method="post" action="{{ url_for('accounts.sign_out', user_id=row.id) }}">{{ csrf() }}<button class="btn btn-quiet" type="submit">{{ _('Sign out everywhere') }}</button></form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

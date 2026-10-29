@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
-from wtforms import PasswordField, SubmitField
+from wtforms import BooleanField, PasswordField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
 
 MAX_PASSWORD_LENGTH = 256
+
+
+def _strip(value: str | None) -> str | None:
+    return value.strip() if isinstance(value, str) else value
 
 
 class SetPasswordForm(FlaskForm):
@@ -14,4 +18,12 @@ class SetPasswordForm(FlaskForm):
 
     password = PasswordField(validators=[DataRequired(), Length(max=MAX_PASSWORD_LENGTH)])
     confirm = PasswordField(validators=[DataRequired()])
+    submit = SubmitField()
+
+
+class InviteForm(FlaskForm):
+    """The person to invite: an address, and whether they become an administrator."""
+
+    email = StringField(validators=[DataRequired(), Length(max=255)], filters=[_strip])
+    admin = BooleanField()
     submit = SubmitField()

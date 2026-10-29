@@ -8,6 +8,7 @@
       <nav aria-label="{{ _('Main navigation') }}" class="flex flex-wrap gap-1 lg:flex-col">
         <a class="nav-link" href="{{ url_for('assessments.index') }}" {% if request.blueprint == 'assessments' %}aria-current="page"{% endif %}>{{ icon('grid') }}{{ _('Assessments') }}</a>
         {% if is_admin(current_user) %}<a class="nav-link" href="{{ url_for('audit.index') }}" {% if request.blueprint == 'audit' %}aria-current="page"{% endif %}>{{ icon('shield') }}{{ _('Audit log') }}</a>{% endif %}
+        {% if is_admin(current_user) %}<a class="nav-link" href="{{ url_for('accounts.index') }}" {% if request.blueprint == 'accounts' %}aria-current="page"{% endif %}>{{ icon('users') }}{{ _('Accounts') }}</a>{% endif %}
       </nav>
     </div>
   </aside>

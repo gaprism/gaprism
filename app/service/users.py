@@ -236,6 +236,7 @@ class LinkInfo:
 
 @dataclass(frozen=True)
 class UserRow:
+    id: uuid.UUID
     email: str
     admin: bool
     active: bool
@@ -268,6 +269,7 @@ def list_users(session: Session) -> list[UserRow]:
         links.setdefault(link.user_id, []).append(link)
     rows = [
         UserRow(
+            id=user.id,
             email=user.email,
             admin=holds_admin_role(user),
             active=user.active,

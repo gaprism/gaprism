@@ -6,7 +6,7 @@ from flask import Flask
 from flask_security.datastore import SQLAlchemyUserDatastore
 
 from app.audit import init_audit_log
-from app.blueprints.accounts import invitation_bp
+from app.blueprints.accounts import accounts_bp, invitation_bp
 from app.blueprints.assessments import assessments_bp
 from app.blueprints.audit import audit_bp
 from app.blueprints.core import core_bp
@@ -92,6 +92,7 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
     app.register_blueprint(core_bp)
     app.register_blueprint(assessments_bp)
     app.register_blueprint(audit_bp)
+    app.register_blueprint(accounts_bp)
     app.register_blueprint(invitation_bp)
 
     register_cli_commands(app)

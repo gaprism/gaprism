@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from 'components/ui.html' import action, notice %}
+{% block title %}{% if purpose == 'invite' %}{{ _('Invitation link') }}{% else %}{{ _('Reset link') }}{% endif %}{% endblock %}
+{% block content %}
+{# Rendered by the request that made the link and never again: the link is stored nowhere. #}
+<div class="mb-4">
+  <p class="eyebrow">{{ _('Administration') }}</p>
+  <h1 class="mt-1">{% if purpose == 'invite' %}{{ _('Invitation link') }}{% else %}{{ _('Reset link') }}{% endif %}</h1>
+  <p class="mt-1 text-sm text-muted">{{ _('For') }} <bdi class="font-semibold">{{ email }}</bdi></p>
+</div>
+<div class="panel max-w-3xl p-5">
+  {{ notice(_('This link is shown only now.'), _('It works once, until %(when)s UTC. Gaprism sends no mail: pass it on through your own channel.', when=expires_at.strftime('%Y-%m-%d %H:%M'))) }}
+  <div class="field mt-4">
+    <label for="link">{{ _('Link') }}</label>
+    <input id="link" type="text" readonly value="{{ address }}" class="font-mono">
+  </div>
+  {% if forgets_authenticator %}
+  <p class="mt-3 text-sm text-muted">{{ _('When it is used, the authenticator of this account will be forgotten; its person sets up a new one at the next sign-in.') }}</p>
+  {% endif %}
+  <div class="mt-5">{{ action(_('Back to the accounts'), url_for('accounts.index'), 'secondary') }}</div>
+</div>
+{% endblock %}
