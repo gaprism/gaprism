@@ -14,14 +14,17 @@ from datetime import datetime
 from typing import cast
 
 from flask_security.utils import hash_password
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models.auth import Role, User
+from app.models.base import utc_now
+from app.models.invitation import UserInvitation
 from app.service import audit as audit_service
 
 ADMIN_ROLE = "admin"
 MIN_PASSWORD_LENGTH = 12
+INVITE_PURPOSE = "invite"  # an account with this link has not accepted its invitation yet
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
@@ -37,7 +40,8 @@ def normalise_email(raw: str) -> str:
     return email
 
 
-def _check_password(password: str) -> None:
+def check_password(password: str) -> None:
+    """Refuse a password that is too short (the only rule there is)."""
     if len(password) < MIN_PASSWORD_LENGTH:
         raise UserAdminError(
             f"The password must contain at least {MIN_PASSWORD_LENGTH} characters."
@@ -65,12 +69,15 @@ def find_user(session: Session, raw_email: str) -> User:
 
 
 def _other_active_admins(session: Session, user: User) -> int:
+    """Administrators who could administer now: an invitee who has not set a password yet cannot."""
+    invitees = select(UserInvitation.user_id).where(UserInvitation.purpose == INVITE_PURPOSE)
     return (
         session.scalar(
             select(func.count(User.id)).where(
                 User.id != user.id,
                 User.active.is_(True),
                 User.roles.any(Role.name == ADMIN_ROLE),
+                User.id.not_in(invitees),
             )
         )
         or 0
@@ -94,18 +101,26 @@ def _record(session: Session, action: str, user: User, **details: object) -> Non
     )
 
 
-def _end_sessions(user: User) -> None:
+def end_sessions(user: User) -> None:
     """Sign the account out everywhere: Flask-Security ties a session to this identifier."""
     user.fs_uniquifier = uuid.uuid4().hex
 
 
-def create_user(session: Session, email: str, password: str, *, admin: bool = False) -> User:
+def _settle_links(session: Session, user: User) -> None:
+    """A password set by hand ends every link the account still had: it has a password now."""
+    session.execute(delete(UserInvitation).where(UserInvitation.user_id == user.id))
+
+
+def create_user(
+    session: Session, email: str, password: str, *, admin: bool = False, via: str | None = None
+) -> User:
     """Create an active account (an administrator with ``admin``). The caller commits.
 
-    The password is hashed with the configured Flask-Security scheme.
+    The password is hashed with the configured Flask-Security scheme. ``via`` says how the
+    account came about when that is not the command line (an invitation, for one).
     """
     clean_email = normalise_email(email)
-    _check_password(password)
+    check_password(password)
     if session.scalar(select(User.id).where(User.email == clean_email)) is not None:
         raise UserAdminError(
             "An account for this e-mail address exists already. Use `flask users set-password` "
@@ -116,7 +131,7 @@ def create_user(session: Session, email: str, password: str, *, admin: bool = Fa
     if admin:
         user.roles.append(_admin_role(session))
     session.flush()
-    _record(session, "user.created", user, admin=admin)
+    _record(session, "user.created", user, admin=admin, via=via)
     return user
 
 
@@ -126,7 +141,7 @@ def create_admin(session: Session, email: str, password: str) -> User:
     The caller commits. The password is hashed with the configured Flask-Security scheme.
     """
     clean_email = normalise_email(email)
-    _check_password(password)
+    check_password(password)
     role = _admin_role(session)
     user = session.scalar(select(User).where(User.email == clean_email))
     created = user is None
@@ -136,7 +151,8 @@ def create_admin(session: Session, email: str, password: str) -> User:
     else:
         user.password = hash_password(password)
         user.active = True
-        _end_sessions(user)
+        end_sessions(user)
+        _settle_links(session, user)
     if role not in user.roles:
         user.roles.append(role)
     session.flush()
@@ -150,11 +166,21 @@ def create_admin(session: Session, email: str, password: str) -> User:
 def set_password(session: Session, email: str, password: str) -> User:
     """Give an account a new password and sign it out everywhere. The caller commits."""
     user = find_user(session, email)
-    _check_password(password)
+    check_password(password)
     user.password = hash_password(password)
-    _end_sessions(user)
+    end_sessions(user)
+    _settle_links(session, user)
     session.flush()
     _record(session, "user.password_set", user)
+    return user
+
+
+def sign_out_everywhere(session: Session, email: str) -> User:
+    """End every session of an account without touching anything else. The caller commits."""
+    user = find_user(session, email)
+    end_sessions(user)
+    session.flush()
+    _record(session, "user.sessions_ended", user)
     return user
 
 
@@ -200,6 +226,15 @@ def reset_mfa(session: Session, email: str) -> bool:
 
 
 @dataclass(frozen=True)
+class LinkInfo:
+    """The one-time link an account still has: an invitation or a reset, and what became of it."""
+
+    purpose: str
+    state: str  # "open", "expired" or "withdrawn"
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
 class UserRow:
     email: str
     admin: bool
@@ -207,10 +242,30 @@ class UserRow:
     mfa: bool  # an authenticator is enrolled
     last_login: datetime | None
     created: datetime
+    invited: bool = False  # the account has not accepted its invitation yet
+    link: LinkInfo | None = None
+
+
+def _link_info(rows: list[UserInvitation], now: datetime) -> LinkInfo | None:
+    """The invitation if there is one (it says more about the account), else the reset link."""
+    if not rows:
+        return None
+    row = next((r for r in rows if r.purpose == INVITE_PURPOSE), rows[0])
+    if row.revoked_at is not None:
+        state = "withdrawn"
+    elif row.expires_at <= now:
+        state = "expired"
+    else:
+        state = "open"
+    return LinkInfo(purpose=row.purpose, state=state, expires_at=row.expires_at)
 
 
 def list_users(session: Session) -> list[UserRow]:
     """Every account, administrators first, then by e-mail address."""
+    now = utc_now()
+    links: dict[uuid.UUID, list[UserInvitation]] = {}
+    for link in session.scalars(select(UserInvitation)):
+        links.setdefault(link.user_id, []).append(link)
     rows = [
         UserRow(
             email=user.email,
@@ -219,6 +274,8 @@ def list_users(session: Session) -> list[UserRow]:
             mfa=user.tf_primary_method is not None,
             last_login=user.last_login_at,
             created=user.create_datetime,
+            invited=any(r.purpose == INVITE_PURPOSE for r in links.get(user.id, [])),
+            link=_link_info(links.get(user.id, []), now),
         )
         for user in session.scalars(select(User))
     ]

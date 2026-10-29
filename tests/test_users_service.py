@@ -32,6 +32,27 @@ def admin(session: Session, email: str = "boss@example.org") -> User:
 # ------------------------------------------------------------------------------ creating
 
 
+def test_an_account_records_how_it_came_about_when_it_is_told(db_session: Session) -> None:
+    user_service.create_user(db_session, "plain@example.org", PASSWORD)
+    user_service.create_user(db_session, "link@example.org", PASSWORD, via="invitation")
+    plain, linked = audit_rows(db_session, "user.created")
+    assert "via" not in plain.details and linked.details["via"] == "invitation"
+
+
+def test_signing_an_account_out_everywhere_changes_its_session_identifier(
+    db_session: Session,
+) -> None:
+    user = member(db_session)
+    before = user.fs_uniquifier
+    assert user_service.sign_out_everywhere(db_session, user.email) is user
+    assert user.fs_uniquifier != before
+    (event,) = audit_rows(db_session, "user.sessions_ended")
+    assert event.subject == str(user.id)
+
+    with pytest.raises(UserAdminError, match="no account"):
+        user_service.sign_out_everywhere(db_session, "nobody@example.org")
+
+
 def test_a_member_is_created_active_with_a_hashed_password(db_session: Session) -> None:
     user = user_service.create_user(db_session, "  New.Member@Example.org ", PASSWORD)
     assert user.email == "new.member@example.org" and user.active

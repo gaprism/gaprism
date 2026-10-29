@@ -127,7 +127,8 @@ def _clean(details: Mapping[str, Any] | None) -> dict[str, Any]:
     return clean
 
 
-def _current_actor() -> User | None:
+def current_actor() -> User | None:
+    """The signed-in user of the request; none for a command line or when nobody is signed in."""
     if has_request_context() and current_user and current_user.is_authenticated:
         return current_user._get_current_object()  # type: ignore[no-any-return]
     return None
@@ -147,7 +148,7 @@ def record(
     ``actor`` defaults to the signed-in user of the request (none for a command line). An
     ``assessment`` (or its id) links the entry to it and puts the domain into the details.
     """
-    who = actor or _current_actor()
+    who = actor or current_actor()
     facts = _clean(details)
     target: Assessment | None = None
     if isinstance(assessment, Assessment):
