@@ -22,6 +22,7 @@ from app.service import users as user_service
 from tests.helpers import create_user, make_app
 
 GOOD = "A-Long-Enough-Pass-1"
+ACCENTED = "Grüezi-mitenand-2026"  # the u-umlaut as the one character a Swiss keyboard types
 EMAIL = "new@example.org"
 
 
@@ -110,6 +111,16 @@ def test_with_mfa_required_the_first_sign_in_asks_for_an_authenticator(
     user, token = invited(db_session)
     client.post(path(token), data={"password": GOOD, "confirm": GOOD})
     response = client.post("/auth/login", data={"email": user.email, "password": GOOD})
+    assert response.status_code == 302 and "/auth/tf-setup" in response.headers["Location"]
+
+
+def test_a_password_with_an_accented_letter_can_be_used_to_sign_in(
+    client: FlaskClient, db_session: Session
+) -> None:
+    user, token = invited(db_session)
+    done = client.post(path(token), data={"password": ACCENTED, "confirm": ACCENTED})
+    assert done.status_code == 302
+    response = client.post("/auth/login", data={"email": user.email, "password": ACCENTED})
     assert response.status_code == 302 and "/auth/tf-setup" in response.headers["Location"]
 
 

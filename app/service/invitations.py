@@ -11,10 +11,10 @@ from __future__ import annotations
 import hashlib
 import re
 import secrets
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from flask_security.utils import hash_password
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -183,10 +183,20 @@ def revoke_links(session: Session, email: str, *, now: datetime | None = None) -
     return withdrawn
 
 
+def _account_is_active(session: Session, user_id: uuid.UUID) -> bool:
+    """Whether the account is switched on now: read from the database, not from an object this
+    session may hold from earlier in the request."""
+    return bool(session.scalar(select(User.active).where(User.id == user_id)))
+
+
 def _find(session: Session, token: str, now: datetime, *, lock: bool = False) -> UserInvitation:
     statement = select(UserInvitation).where(UserInvitation.token_hash == _hash(token))
-    row: UserInvitation | None = session.scalar(statement.with_for_update() if lock else statement)
-    if row is None or not _is_open(row, now) or not row.user.active:
+    if lock:
+        # Locked, and re-read even when this request loaded the row before (the page did): a link
+        # withdrawn or replaced in the meantime must not be used.
+        statement = statement.with_for_update().execution_options(populate_existing=True)
+    row: UserInvitation | None = session.scalar(statement)
+    if row is None or not _is_open(row, now) or not _account_is_active(session, row.user_id):
         raise InvalidLinkError
     return row
 
@@ -209,7 +219,7 @@ def accept_link(
     user_service.check_password(password)
     user = row.user
     purpose, forget_authenticator = row.purpose, row.reset_authenticator
-    user.password = hash_password(password)
+    user.password = user_service.hash_new_password(password)
     user_service.end_sessions(user)
     session.delete(row)
     session.flush()

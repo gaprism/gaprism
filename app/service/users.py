@@ -17,6 +17,7 @@ from flask_security.utils import hash_password
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.extensions import security
 from app.models.auth import Role, User
 from app.models.base import utc_now
 from app.models.invitation import UserInvitation
@@ -46,6 +47,16 @@ def check_password(password: str) -> None:
         raise UserAdminError(
             f"The password must contain at least {MIN_PASSWORD_LENGTH} characters."
         )
+
+
+def hash_new_password(password: str) -> str:
+    """Hash a password somebody has just chosen, the way Flask-Security's own forms do.
+
+    The sign-in form normalises what is typed (Unicode NFKD by default) before it checks it, so
+    the hash has to be of the normalised text: a letter typed as one character, such as an
+    u-umlaut, would otherwise be stored in a form the sign-in never produces.
+    """
+    return hash_password(security.password_util.normalize(password))
 
 
 def holds_admin_role(user: User) -> bool:
@@ -126,7 +137,7 @@ def create_user(
             "An account for this e-mail address exists already. Use `flask users set-password` "
             "to give it a new password, or `flask users activate` to switch it on again."
         )
-    user = User(email=clean_email, password=hash_password(password), active=True)
+    user = User(email=clean_email, password=hash_new_password(password), active=True)
     session.add(user)
     if admin:
         user.roles.append(_admin_role(session))
@@ -146,10 +157,10 @@ def create_admin(session: Session, email: str, password: str) -> User:
     user = session.scalar(select(User).where(User.email == clean_email))
     created = user is None
     if user is None:
-        user = User(email=clean_email, password=hash_password(password), active=True)
+        user = User(email=clean_email, password=hash_new_password(password), active=True)
         session.add(user)
     else:
-        user.password = hash_password(password)
+        user.password = hash_new_password(password)
         user.active = True
         end_sessions(user)
         _settle_links(session, user)
@@ -167,7 +178,7 @@ def set_password(session: Session, email: str, password: str) -> User:
     """Give an account a new password and sign it out everywhere. The caller commits."""
     user = find_user(session, email)
     check_password(password)
-    user.password = hash_password(password)
+    user.password = hash_new_password(password)
     end_sessions(user)
     _settle_links(session, user)
     session.flush()

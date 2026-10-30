@@ -287,16 +287,27 @@ def test_the_last_administrator_cannot_be_locked_out_here(
     assert me.active and user_service.holds_admin_role(me)
 
 
-def test_signing_an_account_out_everywhere(client: FlaskClient, db_session: Session) -> None:
+def test_signing_an_account_out_everywhere(
+    client: FlaskClient, db_session: Session, app: Flask
+) -> None:
     admin = signed_in_boss(client, db_session)
     user = member(db_session)
+    person = app.test_client()
+    login_as(person, user)
+    assert person.get("/assessments/").status_code == 200  # signed in on another device
     before = user.fs_uniquifier
+
+    g.pop("_login_user", None)  # one application context serves every request of this test
     response = client.post(f"/accounts/{user.id}/sign-out")
     assert response.status_code == 302
     db_session.refresh(user)
     assert user.fs_uniquifier != before
     (event,) = audit_rows(db_session, "user.sessions_ended")
     assert event.actor_id == admin.id and event.subject == str(user.id)
+
+    g.pop("_login_user", None)
+    ended = person.get("/assessments/")  # the session carried the old identifier
+    assert ended.status_code == 302 and "/auth/login" in ended.headers["Location"]
 
 
 def test_an_account_that_does_not_exist_is_a_404(client: FlaskClient, db_session: Session) -> None:

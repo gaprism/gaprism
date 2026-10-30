@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from flask_security.utils import verify_password
-from sqlalchemy import func, select
+from sqlalchemy import Update, func, select, update
 from sqlalchemy.orm import Session
 
 from app.models import User, UserInvitation
@@ -39,6 +39,12 @@ def member(session: Session, email: str = "member@example.org") -> User:
     user = user_service.create_user(session, email, GOOD)
     session.commit()
     return user
+
+
+def changed_elsewhere(session: Session, statement: Update) -> None:
+    """Change a row the way another request's transaction would: the objects this session loaded
+    earlier in the request do not hear of it."""
+    session.execute(statement.execution_options(synchronize_session=False))
 
 
 # ------------------------------------------------------------------------------ inviting
@@ -180,6 +186,31 @@ def test_a_password_that_is_too_short_does_not_use_up_the_link(db_session: Sessi
 
     invitations.accept_link(db_session, link.token, GOOD, now=NOW)
     assert verify_password(GOOD, user.password)
+
+
+def test_a_link_withdrawn_after_the_page_opened_it_is_refused(db_session: Session) -> None:
+    user, link = invite(db_session)
+    held = invitations.open_link(db_session, link.token, now=NOW)  # the page holds the row ...
+    changed_elsewhere(  # ... while an administrator withdraws the link in another request
+        db_session,
+        update(UserInvitation).where(UserInvitation.id == held.id).values(revoked_at=NOW),
+    )
+    with pytest.raises(InvalidLinkError):
+        invitations.accept_link(db_session, link.token, GOOD, now=NOW)
+    assert not verify_password(GOOD, user.password)
+    assert rows(db_session) == 1
+
+
+def test_an_account_switched_off_after_the_page_opened_the_link_gets_no_password(
+    db_session: Session,
+) -> None:
+    user, link = invite(db_session)
+    invitations.open_link(db_session, link.token, now=NOW)  # the page has looked at the account
+    changed_elsewhere(db_session, update(User).where(User.id == user.id).values(active=False))
+    with pytest.raises(InvalidLinkError):
+        invitations.accept_link(db_session, link.token, GOOD, now=NOW)
+    assert not verify_password(GOOD, user.password)
+    assert rows(db_session) == 1
 
 
 def test_expired_withdrawn_unknown_and_switched_off_links_fail_alike(db_session: Session) -> None:

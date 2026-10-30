@@ -9,12 +9,14 @@ from flask.testing import FlaskClient
 from flask_security.utils import verify_password
 from sqlalchemy.orm import Session
 
+from app.extensions import security
 from app.models.auth import User
 from app.service import users as user_service
 from app.service.users import UserAdminError
 from tests.helpers import audit_rows, login_as
 
 PASSWORD = "Correct-Horse-Battery-1"
+ACCENTED = "Grüezi-mitenand-2026"  # the u-umlaut as the one character a Swiss keyboard types
 
 
 def member(session: Session, email: str = "member@example.org") -> User:
@@ -117,6 +119,29 @@ def test_the_new_password_must_be_long_enough(db_session: Session) -> None:
     with pytest.raises(UserAdminError, match="at least 12 characters"):
         user_service.set_password(db_session, user.email, "short")
     assert verify_password(PASSWORD, user.password)
+
+
+@pytest.mark.parametrize(
+    "how", ["create_user", "create_admin", "create_admin_again", "set_password"]
+)
+def test_a_password_is_stored_the_way_the_sign_in_form_checks_it(
+    db_session: Session, how: str
+) -> None:
+    """The sign-in form normalises what is typed (NFKD) before it checks the hash, so the hash
+    must be of the normalised text: a letter typed as one character would never match otherwise."""
+    checked = security.password_util.normalize(ACCENTED)
+    assert checked != ACCENTED  # the two spellings differ: the case is real
+    if how == "create_user":
+        user = user_service.create_user(db_session, "a@example.org", ACCENTED)
+    elif how == "create_admin":
+        user = user_service.create_admin(db_session, "a@example.org", ACCENTED)
+    else:
+        member(db_session, "a@example.org")
+        if how == "create_admin_again":
+            user = user_service.create_admin(db_session, "a@example.org", ACCENTED)
+        else:
+            user = user_service.set_password(db_session, "a@example.org", ACCENTED)
+    assert verify_password(checked, user.password)
 
 
 def test_resetting_an_administrator_with_create_admin_signs_it_out_too(db_session: Session) -> None:
