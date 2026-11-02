@@ -29,7 +29,7 @@
 .report-finding-critical { border-left-color: var(--color-critical, #991b1b); }
 .report-finding-high { border-left-color: var(--color-high, #9a3412); }
 .report-finding-medium { border-left-color: var(--color-medium, #854d0e); }
-.report-finding-low { border-left-color: var(--color-low, #1e40af); }
+.report-finding-low { border-left-color: var(--color-low, #2f3a55); }
 .report-facts { display: grid; grid-template-columns: minmax(110px, 28%) minmax(0, 1fr); gap: 2px 16px; margin: 6px 0 8px; }
 .report-facts > div { display: contents; }
 .report-facts dt, .report-facts dd { margin: 0; font-size: 13px; line-height: 1.5; }

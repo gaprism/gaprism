@@ -18,7 +18,7 @@
 
 {# Severity and outcome chips. Always text plus colour, never colour alone. #}
 {% macro badge(label, tone='muted') -%}
-{% set tones = {'critical': 'bg-critical-bg text-critical', 'high': 'bg-high-bg text-high', 'medium': 'bg-medium-bg text-medium', 'low': 'bg-low-bg text-low', 'info': 'bg-subtle text-muted', 'ok': 'bg-selected text-selected-ink', 'muted': 'bg-subtle text-muted'} %}
+{% set tones = {'critical': 'bg-critical-bg text-critical', 'high': 'bg-high-bg text-high', 'medium': 'bg-medium-bg text-medium', 'low': 'bg-low-bg text-low', 'info': 'bg-subtle text-muted', 'ok': 'bg-ok-bg text-ok', 'muted': 'bg-subtle text-muted'} %}
 <span class="badge {{ tones.get(tone, tones['muted']) }}">{{ label }}</span>
 {%- endmacro %}
 

@@ -54,7 +54,7 @@
   .htmx-indicator { display: none; }
   .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }
   dialog { @apply m-auto w-[calc(100%-2rem)] max-w-lg rounded-lg border border-line bg-panel p-6 text-ink shadow-xl; }
-  dialog::backdrop { background: rgb(15 23 42 / 45%); }
+  dialog::backdrop { background: rgb(23 32 51 / 45%); }
   /* Flask-Security-Too renders plain markup (login, MFA, password change); style it here. */
   .fs-div { @apply mb-3 flex flex-col gap-1.5; }
   .fs-div label { @apply text-sm font-medium; }
