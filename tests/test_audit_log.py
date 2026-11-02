@@ -458,12 +458,13 @@ def test_the_log_can_be_read_on_the_command_line(
 
     owner = create_user(db_session, "owner@example.org")
     assessment = create_assessment(db_session, owner, "vendor.example")
-    entry(db_session, "export.report", NOW, actor=owner, assessment=assessment)
-    entry(db_session, "user.created", NOW - timedelta(days=3), details={"email": "new@example.org"})
+    now = datetime.now(UTC)  # --days counts back from the real clock, so the entries do too
+    entry(db_session, "export.report", now, actor=owner, assessment=assessment)
+    entry(db_session, "user.created", now - timedelta(days=3), details={"email": "new@example.org"})
     entry(
         db_session,
         "auth.login",
-        NOW - timedelta(days=60),
+        now - timedelta(days=60),
         actor=owner,
         details={"via": ["password", "authenticator"]},
     )
