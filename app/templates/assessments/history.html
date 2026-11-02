@@ -1,15 +1,11 @@
 {% extends "base.html" %}
 {% from 'components/ui.html' import action, badge, empty %}
+{% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ _('Scan history') }} · {{ assessment.domain_display }}{% endblock %}
 {% block content %}
 {% set tones = {'queued': 'info', 'running': 'info', 'completed': 'ok', 'partial': 'medium', 'failed': 'critical', 'cancelled': 'muted'} %}
 {% set labels = {'queued': _('Queued'), 'running': _('Running'), 'completed': _('Completed'), 'partial': _('Completed with gaps'), 'failed': _('Failed'), 'cancelled': _('Cancelled')} %}
-<nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
-  <a class="link" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
-  <span class="text-muted" aria-hidden="true">/</span>
-  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}"><bdi class="font-mono">{{ assessment.domain_display }}</bdi></a>
-</nav>
-<div class="mt-2 flex flex-wrap items-start justify-between gap-3">
+<div class="flex flex-wrap items-start justify-between gap-3">
   <div>
     <h1>{{ _('Scan history') }}</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">{{ _('Every scan stays as it was when it ended; a new scan never changes an old one. What the team decided about a finding belongs to the assessment and counts in every scan, so the report of an older scan shows the decisions of today.') }}</p>

@@ -1,16 +1,12 @@
 {% extends "base.html" %}
 {% from 'assessments/_findings.html' import finding_item, severity_chips, state_note %}
+{% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ _('Findings') }} · {{ assessment.domain_display }}{% endblock %}
 {% block content %}
 {% set severity = filters.get('severity', '') %}
 {% set rule = filters.get('rule', '') %}
 {% set host = filters.get('host') %}
-<nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
-  <a class="link" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
-  <span class="text-muted" aria-hidden="true">/</span>
-  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}"><bdi class="font-mono">{{ assessment.domain_display }}</bdi></a>
-</nav>
-<div class="mt-2 flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap items-center gap-3">
   <h1>{{ _('Findings') }}</h1>
 </div>
 {% if not listing %}

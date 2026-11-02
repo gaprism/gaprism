@@ -12,3 +12,17 @@
 <a class="nav-link" href="{{ href }}"{% if not panel %} data-tip="{{ label }}"{% endif %}{% if request.blueprint == blueprint %} aria-current="page"{% endif %}>{{ icon(glyph) }}<span{% if not panel %} class="nav-label"{% endif %}>{{ label }}</span></a>
 {% endfor %}
 {%- endmacro %}
+
+{# The breadcrumb in the top bar: the parents of the page, each a link; the page's own title is its h1.
+   A page sets `crumbs` outside its blocks: [(label, url), ...], with a third item true for a domain or
+   host name, which is shown in the monospaced face. #}
+{% macro breadcrumbs(trail) -%}
+<nav aria-label="{{ _('Breadcrumb') }}" class="crumbs min-w-0 text-sm">
+  <ol class="flex min-w-0 items-center gap-1.5">
+    {%- for crumb in trail %}
+    {%- if not loop.first %}<li class="text-muted" aria-hidden="true">/</li>{% endif %}
+    <li class="min-w-0 truncate"><a class="link" href="{{ crumb[1] }}">{% if crumb[2] %}<bdi class="font-mono">{{ crumb[0] }}</bdi>{% else %}{{ crumb[0] }}{% endif %}</a></li>
+    {%- endfor %}
+  </ol>
+</nav>
+{%- endmacro %}

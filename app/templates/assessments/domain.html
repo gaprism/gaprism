@@ -1,12 +1,8 @@
 {% extends "base.html" %}
+{% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ _('Domain checks') }} · {{ assessment.domain_display }}{% endblock %}
 {% block content %}
-<nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
-  <a class="link" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
-  <span class="text-muted" aria-hidden="true">/</span>
-  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}"><bdi class="font-mono">{{ assessment.domain_display }}</bdi></a>
-</nav>
-<div class="mt-2 flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap items-center gap-3">
   <h1>{{ _('Domain checks') }}</h1>
 </div>
 {% if detail %}

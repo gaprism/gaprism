@@ -109,7 +109,7 @@ def test_an_assessment_without_scans_offers_to_start_one(
 def test_the_newest_two_scans_are_compared_by_default(client: FlaskClient, two: Two) -> None:
     html = page(client, url(two, "compare"))
 
-    assert '<h1 class="mt-2">What changed</h1>' in html
+    assert "<h1>What changed</h1>" in html
     for title in (
         "New findings", "Resolved findings", "Changed severity", "Not re-checked", "New hosts",
         "Hosts no longer found",

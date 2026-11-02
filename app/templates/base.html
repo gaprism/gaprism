@@ -1,9 +1,10 @@
 {% extends "layout.html" %}
-{% from 'components/ui.html' import icon %}
-{% from 'components/nav.html' import primary_links with context %}
+{% from 'components/ui.html' import icon, badge %}
+{% from 'components/nav.html' import primary_links, breadcrumbs with context %}
 {# Not deferred: the stored state of the sidebar has to apply before the first paint. #}
 {% block head %}<script src="{{ url_for('static', filename='js/nav.js') }}"></script>{% endblock %}
 {% block body %}
+{% set mark = initials(current_user.email) %}
 <div class="shell">
   <aside class="sidebar">
     <a href="{{ url_for('assessments.index') }}" class="brand" data-tip="{{ _('Gaprism') }}">{{ icon('shield') }}<span class="nav-label">{{ _('Gaprism') }}</span></a>
@@ -13,22 +14,35 @@
     <button type="button" class="nav-toggle" data-nav-toggle aria-controls="primary-nav" aria-expanded="true" aria-label="{{ _('Collapse the navigation') }}" data-label-collapse="{{ _('Collapse the navigation') }}" data-label-expand="{{ _('Expand the navigation') }}" data-tip="{{ _('Collapse the navigation') }}">{{ icon('collapse') }}<span class="nav-label">{{ _('Collapse') }}</span></button>
   </aside>
   <div class="min-w-0">
-    <header class="flex min-h-13 flex-wrap items-center justify-between gap-2 border-b border-line bg-panel px-4 py-2 lg:px-6">
-      <div class="flex items-center gap-2">
+    {# Where you are, and the account menu. Links of a page that belong in the bar go into topbar_links. #}
+    <header class="topbar">
+      <div class="topbar-start">
         <button type="button" class="btn btn-quiet md:hidden" popovertarget="nav-panel" aria-label="{{ _('Menu') }}">{{ icon('menu') }}</button>
         <nav id="nav-panel" popover class="menu-panel" aria-label="{{ _('Main navigation') }}">
           {{ primary_links(panel=True) }}
         </nav>
-        <p class="text-sm text-muted">{{ _('Technical verification') }}</p>
+        <a href="{{ url_for('assessments.index') }}" class="topbar-brand md:hidden">{{ icon('shield') }}<span class="sr-only">{{ _('Gaprism') }}</span></a>
+        {% if crumbs %}{{ breadcrumbs(crumbs) }}{% endif %}
+        {% block topbar_links %}{% endblock %}
       </div>
-      <div class="flex flex-wrap items-center gap-3 text-sm">
-        <span class="text-muted">{{ current_user.email }}</span>
-        <a class="link" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a>
-        <a class="link" href="{{ url_for_security('two_factor_setup') }}">{{ _('Two-factor') }}</a>
-        <form action="{{ url_for_security('logout') }}" method="post">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-quiet" type="submit">{{ _('Sign out') }}</button>
-        </form>
+      <div class="topbar-end">
+        <button type="button" class="account-button" popovertarget="account-menu" aria-label="{{ _('Account menu') }}"><span class="avatar" aria-hidden="true">{% if mark %}{{ mark }}{% else %}{{ icon('user') }}{% endif %}</span>{{ icon('chevron') }}</button>
+        <ul id="account-menu" popover class="menu-panel menu-panel-end">
+          <li class="menu-head">
+            <span class="text-xs text-muted">{{ _('Signed in as') }}</span>
+            <span class="text-sm font-medium break-all">{{ current_user.email }}</span>
+            {% if is_admin(current_user) %}{{ badge(_('Administrator'), 'muted') }}{% endif %}
+          </li>
+          <li><a class="menu-item" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a></li>
+          <li><a class="menu-item" href="{{ url_for_security('two_factor_setup') }}">{{ _('Two-factor') }}</a></li>
+          <li class="menu-sep" role="separator"></li>
+          <li>
+            <form action="{{ url_for_security('logout') }}" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="menu-item" type="submit">{{ _('Sign out') }}</button>
+            </form>
+          </li>
+        </ul>
       </div>
     </header>
     <main id="main" tabindex="-1" class="min-w-0 p-4 lg:p-6">

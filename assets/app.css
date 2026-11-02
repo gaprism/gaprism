@@ -7,6 +7,7 @@
   button, a, input, select, summary { touch-action: manipulation; }
   button:not(:disabled), summary { cursor: pointer; }
   :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  html { scroll-padding-top: 4.5rem; } /* the sticky top bar must not cover what is scrolled to */
   h1 { @apply text-2xl leading-8 font-semibold tracking-tight; overflow-wrap: anywhere; }
   h2 { @apply text-lg leading-6 font-semibold; overflow-wrap: anywhere; }
   h3 { @apply text-base font-semibold; overflow-wrap: anywhere; }
@@ -44,6 +45,18 @@
   .nav-toggle[aria-expanded=false] svg { transform: scaleX(-1); }
   .sidebar [data-tip]:is(:hover, :focus-visible)::after { @apply absolute z-40 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs font-medium text-white; content: attr(data-tip); left: calc(100% + 0.5rem); top: 50%; transform: translateY(-50%); pointer-events: none; }
   .menu-panel { @apply m-0 w-72 max-w-[calc(100vw-1.5rem)] rounded-lg border border-line bg-panel p-1 text-ink shadow-xl; inset: auto; top: 3.5rem; left: 0.75rem; }
+  .menu-panel-end { @apply w-64; left: auto; right: 0.75rem; }
+  .menu-head { @apply flex flex-col items-start gap-1 border-b border-line px-3 pb-3 pt-2; }
+  .menu-item { @apply flex min-h-10 w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium text-ink no-underline hover:bg-subtle; }
+  .menu-sep { @apply my-1 border-t border-line; }
+  /* The top bar: where you are (the breadcrumb, then the links of the page) and the account menu. */
+  .topbar { @apply sticky top-0 z-20 flex min-h-13 items-center justify-between gap-3 border-b border-line bg-panel px-4 lg:px-6; }
+  .topbar-start { @apply flex min-w-0 flex-1 items-center gap-2; }
+  .crumbs li:not(:last-child) { @apply hidden sm:block; } /* on a phone only the parent, one step back, is left */
+  .topbar-brand, .topbar-end { @apply flex shrink-0 items-center; }
+  .account-button { @apply inline-flex min-h-10 items-center gap-1 rounded-full border border-transparent py-1 pl-1 pr-2 text-muted hover:bg-subtle; }
+  .account-button:has(+ :popover-open) { @apply border-action; }
+  .avatar { @apply flex size-8 shrink-0 items-center justify-center rounded-full bg-selected text-xs font-semibold text-selected-ink; }
   .tab { @apply inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted; }
   .tab[aria-current=page] { @apply border-action text-action; }
   .badge { @apply inline-flex items-center gap-1.5 rounded-sm border border-current/20 px-2 py-0.5 text-xs leading-5 font-medium whitespace-nowrap; }
@@ -87,7 +100,7 @@
 
 @media (min-width: 768px) {
   .shell { display: grid; grid-template-columns: 4rem minmax(0, 1fr); min-height: 100vh; }
-  .sidebar { display: flex; position: sticky; top: 0; height: 100vh; }
+  .sidebar { display: flex; position: sticky; top: 0; height: 100vh; z-index: 30; }
   #nav-panel { display: none; }
 }
 @media (min-width: 1024px) {
@@ -104,7 +117,7 @@
   .page-grid { grid-template-columns: minmax(0, 1fr) 368px; }
   .host-inspector { display: block; }
 }
-@media (pointer: coarse) { .btn, .nav-link, .nav-toggle, .tab, input, select { min-height: 44px; } }
+@media (pointer: coarse) { .btn, .nav-link, .nav-toggle, .menu-item, .account-button, .tab, input, select { min-height: 44px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 @media (forced-colors: active) {
   .badge, .btn, .panel, .notice { border: 1px solid CanvasText; }

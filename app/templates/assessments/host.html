@@ -1,16 +1,12 @@
 {% extends "base.html" %}
 {% from 'components/ui.html' import badge %}
 {% from 'assessments/_findings.html' import host_findings_panel %}
+{% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ detail.host.hostname }}{% endblock %}
 {% block content %}
 {% set host = detail.host %}
 {% set scan = detail.scan %}
-<nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
-  <a class="link" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
-  <span class="text-muted" aria-hidden="true">/</span>
-  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}"><bdi class="font-mono">{{ assessment.domain_display }}</bdi></a>
-</nav>
-<div class="mt-2 flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap items-center gap-3">
   <h1><bdi class="font-mono">{{ host.hostname }}</bdi></h1>
 </div>
 <p class="mt-1 text-sm text-muted">

@@ -26,6 +26,7 @@ from app.logging_redaction import install_log_redaction
 from app.models.auth import Role, User
 from app.service.auth import register_auth_audit
 from app.service.auth.rate_limit import register_auth_rate_limit
+from app.service.profile import initials
 from app.web import register_error_pages, register_proxy_fix, register_security_headers
 
 
@@ -86,6 +87,7 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
     register_auth_audit(app)
 
     init_i18n(app)
+    app.add_template_global(initials, "initials")
     register_security_headers(app)
     register_error_pages(app)
 
