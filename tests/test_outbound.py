@@ -273,14 +273,17 @@ def test_no_stylesheet_loads_anything_from_another_origin() -> None:
     assert not offenders, f"stylesheets that import or load from another origin: {offenders}"
 
 
-def test_the_scripts_are_the_two_that_were_looked_at_and_ours_makes_no_requests() -> None:
+def test_the_scripts_are_the_ones_that_were_looked_at_and_ours_make_no_requests() -> None:
+    # htmx.min.js is the library; report.js is the report's print button; nav.js is the sidebar's
+    # collapse button, which keeps its choice in the browser's own storage and talks to no one.
     scripts = sorted(path.name for path in (PROJECT_ROOT / "app" / "static" / "js").glob("*.js"))
-    assert scripts == ["htmx.min.js", "report.js"], (
+    assert scripts == ["htmx.min.js", "nav.js", "report.js"], (
         f"a script that was not reviewed for network calls: {scripts}. Read it, and say here "
         "what it does."
     )
-    own = (PROJECT_ROOT / "app" / "static" / "js" / "report.js").read_text(encoding="utf-8")
-    assert not NETWORK_IN_JS.search(own), "report.js reaches for the network"
+    for name in ("nav.js", "report.js"):
+        own = (PROJECT_ROOT / "app" / "static" / "js" / name).read_text(encoding="utf-8")
+        assert not NETWORK_IN_JS.search(own), f"{name} reaches for the network"
 
 
 # ------------------------------------------------------------------------------ no telemetry

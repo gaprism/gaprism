@@ -1,5 +1,6 @@
 """The application shell: sign-in gate, layouts, error pages and security headers."""
 
+import re
 import uuid
 
 import pytest
@@ -48,6 +49,7 @@ def test_login_page_renders_in_the_public_layout(client: FlaskClient) -> None:
     assert "Gaprism" in page
     assert 'name="email"' in page and 'name="password"' in page
     assert "Sign out" not in page  # public layout has no account header
+    assert "nav.js" not in page and "popovertarget" not in page  # nor a sidebar
     assert "/static/css/app.css" in page and "/static/js/htmx.min.js" in page
 
 
@@ -64,6 +66,53 @@ def test_signed_in_user_sees_an_empty_assessments_page(
     assert "analyst@example.org" in page
     assert "Sign out" in page
     assert "hx-headers=" in page and "X-CSRFToken" in page  # HTMX requests carry the CSRF token
+
+
+def test_the_navigation_is_a_sidebar_that_collapses_with_a_menu_button_on_narrow_screens(
+    client: FlaskClient, db_session: Session
+) -> None:
+    login_as(client, create_user(db_session, "analyst@example.org"))
+
+    page = client.get("/assessments/").get_data(as_text=True)
+    head, body = page.split("<body", 1)
+    # Not deferred: a collapsed sidebar has to be collapsed from the first paint.
+    assert '<script src="/static/js/nav.js"></script>' in head
+
+    match = re.search(r'<aside class="sidebar"[^>]*>(.*?)</aside>', body, re.S)
+    assert match is not None
+    sidebar = match.group(1)
+    # The icon rail hides the words: each link keeps them for screen readers, and a tooltip.
+    assert 'data-tip="Assessments"' in sidebar
+    assert '<span class="nav-label">Assessments</span>' in sidebar
+    assert 'id="primary-nav"' in sidebar
+    button = re.search(r"<button[^>]*data-nav-toggle[^>]*>", sidebar)
+    assert button is not None
+    for attribute in (
+        'aria-controls="primary-nav"',
+        'aria-expanded="true"',
+        'data-label-collapse="Collapse the navigation"',
+        'data-label-expand="Expand the navigation"',
+    ):
+        assert attribute in button.group(0)
+
+    # Below 768 px the sidebar is gone and the same links open from a menu button as a panel.
+    assert 'popovertarget="nav-panel"' in body
+    panel = re.search(r'<nav id="nav-panel" popover[^>]*>(.*?)</nav>', body, re.S)
+    assert panel is not None
+    assert "Assessments" in panel.group(1) and "nav-label" not in panel.group(1)
+    assert "/audit/" not in sidebar + panel.group(1)  # administrators only
+
+
+def test_administrators_find_their_links_in_the_sidebar_and_in_the_panel(
+    client: FlaskClient, db_session: Session
+) -> None:
+    admin = create_admin(db_session, "boss@example.org", "Administrator-Pass-1")
+    db_session.commit()
+    login_as(client, admin)
+
+    page = client.get("/assessments/").get_data(as_text=True)
+    for path in ("/audit/", "/accounts/"):
+        assert page.count(f'href="{path}"') == 2, path
 
 
 def test_assessments_list_shows_only_what_the_user_may_open(

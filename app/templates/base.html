@@ -1,20 +1,26 @@
 {% extends "layout.html" %}
 {% from 'components/ui.html' import icon %}
+{% from 'components/nav.html' import primary_links with context %}
+{# Not deferred: the stored state of the sidebar has to apply before the first paint. #}
+{% block head %}<script src="{{ url_for('static', filename='js/nav.js') }}"></script>{% endblock %}
 {% block body %}
 <div class="shell">
-  <aside class="sidebar flex flex-col border-b border-line bg-panel lg:border-r">
-    <a href="{{ url_for('assessments.index') }}" class="flex min-h-16 items-center gap-2 px-5 font-semibold tracking-tight">{{ icon('shield') }} {{ _('Gaprism') }}</a>
-    <div class="px-3 pb-3 lg:pt-5">
-      <nav aria-label="{{ _('Main navigation') }}" class="flex flex-wrap gap-1 lg:flex-col">
-        <a class="nav-link" href="{{ url_for('assessments.index') }}" {% if request.blueprint == 'assessments' %}aria-current="page"{% endif %}>{{ icon('grid') }}{{ _('Assessments') }}</a>
-        {% if is_admin(current_user) %}<a class="nav-link" href="{{ url_for('audit.index') }}" {% if request.blueprint == 'audit' %}aria-current="page"{% endif %}>{{ icon('shield') }}{{ _('Audit log') }}</a>{% endif %}
-        {% if is_admin(current_user) %}<a class="nav-link" href="{{ url_for('accounts.index') }}" {% if request.blueprint == 'accounts' %}aria-current="page"{% endif %}>{{ icon('users') }}{{ _('Accounts') }}</a>{% endif %}
-      </nav>
-    </div>
+  <aside class="sidebar">
+    <a href="{{ url_for('assessments.index') }}" class="brand" data-tip="{{ _('Gaprism') }}">{{ icon('shield') }}<span class="nav-label">{{ _('Gaprism') }}</span></a>
+    <nav id="primary-nav" aria-label="{{ _('Main navigation') }}" class="sidebar-nav">
+      {{ primary_links() }}
+    </nav>
+    <button type="button" class="nav-toggle" data-nav-toggle aria-controls="primary-nav" aria-expanded="true" aria-label="{{ _('Collapse the navigation') }}" data-label-collapse="{{ _('Collapse the navigation') }}" data-label-expand="{{ _('Expand the navigation') }}" data-tip="{{ _('Collapse the navigation') }}">{{ icon('collapse') }}<span class="nav-label">{{ _('Collapse') }}</span></button>
   </aside>
   <div class="min-w-0">
     <header class="flex min-h-13 flex-wrap items-center justify-between gap-2 border-b border-line bg-panel px-4 py-2 lg:px-6">
-      <p class="text-sm text-muted">{{ _('Technical verification') }}</p>
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn btn-quiet md:hidden" popovertarget="nav-panel" aria-label="{{ _('Menu') }}">{{ icon('menu') }}</button>
+        <nav id="nav-panel" popover class="menu-panel" aria-label="{{ _('Main navigation') }}">
+          {{ primary_links(panel=True) }}
+        </nav>
+        <p class="text-sm text-muted">{{ _('Technical verification') }}</p>
+      </div>
       <div class="flex flex-wrap items-center gap-3 text-sm">
         <span class="text-muted">{{ current_user.email }}</span>
         <a class="link" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a>

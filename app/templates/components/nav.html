@@ -1,0 +1,14 @@
+{% from 'components/ui.html' import icon %}
+{# The links of the primary navigation, rendered twice: in the sidebar (an icon rail or with words, see
+   nav.js) and, below 768 px, in the panel behind the menu button. The sidebar's words stay in the page
+   for screen readers; the panel always shows them. #}
+{% macro primary_links(panel=False) -%}
+{% set links = [
+  ('assessments', url_for('assessments.index'), 'grid', _('Assessments'), true),
+  ('audit', url_for('audit.index'), 'shield', _('Audit log'), is_admin(current_user)),
+  ('accounts', url_for('accounts.index'), 'users', _('Accounts'), is_admin(current_user)),
+] %}
+{% for blueprint, href, glyph, label, shown in links if shown -%}
+<a class="nav-link" href="{{ href }}"{% if not panel %} data-tip="{{ label }}"{% endif %}{% if request.blueprint == blueprint %} aria-current="page"{% endif %}>{{ icon(glyph) }}<span{% if not panel %} class="nav-label"{% endif %}>{{ label }}</span></a>
+{% endfor %}
+{%- endmacro %}
