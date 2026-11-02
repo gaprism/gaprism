@@ -1,10 +1,8 @@
 /* The printable report: its own composition, loaded after app.css. It is a static file because the
    pages allow no inline styles; the colours are the tokens of tokens.css. Copied to app/static/css by
    `npm run build`. */
-@font-face { font-family: "Evidence Sans"; src: url("../fonts/Inter-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: "Evidence Sans"; src: url("../fonts/Inter-SemiBold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
 
-.report-body { font-family: "Evidence Sans", Arial, sans-serif; }
+.report-body { font-family: var(--font-sans); }
 .report-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; max-width: 960px; margin: 16px auto 0; padding: 0 16px; }
 .report-paper { max-width: 960px; margin: 12px auto 32px; padding: 40px; background: var(--color-panel); border: 1px solid var(--color-line); }
 
@@ -58,7 +56,7 @@
   .report-table tbody th { width: auto; }
 }
 
-@page { size: A4; margin: 18mm 16mm 20mm; @bottom-right { content: counter(page) " / " counter(pages); font-family: "Evidence Sans", Arial, sans-serif; font-size: 9pt; } }
+@page { size: A4; margin: 18mm 16mm 20mm; @bottom-right { content: counter(page) " / " counter(pages); font-family: "IBM Plex Sans", Arial, sans-serif; font-size: 9pt; } }
 @media print {
   .screen-only, .skip { display: none !important; }
   html, body { background: white; color: black; }
