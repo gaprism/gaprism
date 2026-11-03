@@ -116,6 +116,22 @@ class BaseConfig:
     SECURITY_TWO_FACTOR_RESCUE_MAIL: bool = False
     SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS: bool = False
     SECURITY_TOTP_SECRETS: ClassVar[dict[str, str]] = {}
+    # What the sign-in screen says when something goes wrong: what happened and what to do, in the
+    # voice of the brand (the library's own words are terse). The first one is the answer for an
+    # unknown account and for a wrong password alike. English only until the catalogues exist.
+    SECURITY_MSG_GENERIC_AUTHN_FAILED: ClassVar[tuple[str, str]] = (
+        "The email address or password is not correct. Check them and try again.",
+        "error",
+    )
+    SECURITY_MSG_TWO_FACTOR_INVALID_TOKEN: ClassVar[tuple[str, str]] = (
+        "The code is not correct or has expired. "
+        "Enter the current code from your authenticator app.",
+        "error",
+    )
+    SECURITY_MSG_TWO_FACTOR_PERMISSION_DENIED: ClassVar[tuple[str, str]] = (
+        "The sign-in has expired. Enter your email address and password again.",
+        "error",
+    )
 
     # The audit log keeps its entries this many days (0 = forever); the worker removes older ones.
     AUDIT_RETENTION_DAYS: int = 730

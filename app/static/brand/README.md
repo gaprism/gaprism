@@ -7,12 +7,13 @@ and do not replace the lettering with typed text.
 | File | Where the application uses it |
 |---|---|
 | `gaprism-logo-horizontal-color.svg` | The sidebar while it is open (160 px wide). |
+| `gaprism-logo-stacked-color.svg` | The pages before sign-in, a centred layout (176 px wide). |
 | `gaprism-symbol-color.svg` | The sidebar as a rail, and the top bar on a phone (32 px). |
 | `favicon.svg`, `favicon.ico` | The browser tab and bookmarks. |
 | `apple-touch-icon.png` | The icon of a bookmark on an Apple home screen (180 px). |
 
 The symbol is Indigo (`#4F46E5`) and the lettering Graphite (`#172033`), on white or Paper. The kit
-asks for at least 160 px for the horizontal logo and 24 px for the symbol, and for a clear space of
+asks for at least 160 px for the horizontal and the stacked logo and 24 px for the symbol, and for a clear space of
 one stem of the g (a fifth of the symbol's height) on every side. The lettering is IBM Plex Sans
 converted to outlines, so no font is needed (its licence is in
 [../licenses/ibm-plex-sans.txt](../licenses/ibm-plex-sans.txt)).

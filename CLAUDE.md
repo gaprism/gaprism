@@ -38,3 +38,4 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 - Strings in templates and flash messages go through `_()`; English first, de-CH later.
 - UI uses the existing design tokens (`assets/tokens.css`, `assets/app.css`); rebuild the CSS after template changes.
 - The logo and icons in `app/static/brand/` come from the brand kit and are used as supplied (rules and sizes in its README); every document names them through `components/brand_head.html`.
+- The sign-in page and its second step are templates of ours (`app/templates/security/`; Flask-Security-Too still does the work and the forms post what the library expects); its terse wording for failures is replaced by `SECURITY_MSG_*` in `app/config.py`. The library's other pages (two-factor setup, password change) are still its own markup, styled by the `fs-*` classes.

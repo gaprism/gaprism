@@ -86,6 +86,11 @@ def login_as(client: FlaskClient, user: User) -> None:
         state["fs_paa"] = datetime.now(UTC).timestamp()
 
 
+def attributes(tag: str) -> dict[str, str]:
+    """The ``name="value"`` pairs of one HTML tag (an attribute without a value is left out)."""
+    return dict(re.findall(r'([a-z-]+)="([^"]*)"', tag))
+
+
 def render_badge(label: str, tone: str) -> str:
     """The badge macro of components/ui.html on its own: no application, no database.
 

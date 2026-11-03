@@ -15,12 +15,13 @@ import pytest
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
-from tests.helpers import PROJECT_ROOT, create_user, login_as
+from tests.helpers import PROJECT_ROOT, attributes, create_user, login_as
 
 ASSETS = PROJECT_ROOT / "assets"
 STATIC = PROJECT_ROOT / "app" / "static"
 BRAND = STATIC / "brand"
 LOCKUP = "gaprism-logo-horizontal-color.svg"
+STACKED = "gaprism-logo-stacked-color.svg"
 SYMBOL = "gaprism-symbol-color.svg"
 LOGO_COLOURS = {"#4F46E5", "#172033"}  # Indigo for the symbol, Graphite for the lettering
 
@@ -32,10 +33,6 @@ ICON_TAGS = [
 THEME_COLOUR = '<meta name="theme-color" content="#FFFFFF">'
 
 
-def attributes(tag: str) -> dict[str, str]:
-    return dict(re.findall(r'([a-z-]+)="([^"]*)"', tag))
-
-
 def aspect(name: str) -> float:
     """Height over width of a logo file, from its own viewBox."""
     box = re.search(r'viewBox="0 0 (\d+) (\d+)"', (BRAND / name).read_text(encoding="utf-8"))
@@ -45,11 +42,11 @@ def aspect(name: str) -> float:
 
 def test_the_brand_folder_holds_the_logo_and_the_icons() -> None:
     names = {path.name for path in BRAND.iterdir()}
-    wanted = {LOCKUP, SYMBOL, "favicon.svg", "favicon.ico", "apple-touch-icon.png", "README.md"}
-    assert wanted <= names
+    wanted = {LOCKUP, STACKED, SYMBOL, "favicon.svg", "favicon.ico", "apple-touch-icon.png"}
+    assert wanted | {"README.md"} <= names
 
 
-@pytest.mark.parametrize("name", [LOCKUP, SYMBOL, "favicon.svg"])
+@pytest.mark.parametrize("name", [LOCKUP, STACKED, SYMBOL, "favicon.svg"])
 def test_a_logo_file_is_plain_vector_artwork(name: str) -> None:
     """It is served from our own origin: no script, no reference, no bitmap, only logo colours."""
     svg = (BRAND / name).read_text(encoding="utf-8")
@@ -93,6 +90,7 @@ def test_the_icon_files_are_served(client: FlaskClient) -> None:
         "favicon.svg": "image/svg+xml",
         "apple-touch-icon.png": "image/png",
         LOCKUP: "image/svg+xml",
+        STACKED: "image/svg+xml",
         SYMBOL: "image/svg+xml",
     }
     for name, kind in served.items():
@@ -164,6 +162,22 @@ def test_the_top_bar_shows_the_symbol_and_links_home(
     image = attributes(re.findall(r"<img [^>]*>", brand.group(1))[0])
     assert image["src"] == f"/static/brand/{SYMBOL}" and image["alt"] == "Gaprism"
     assert int(image["width"]) >= 24 and image["width"] == image["height"]
+
+
+def test_the_pages_before_sign_in_show_the_stacked_logo(client: FlaskClient) -> None:
+    """A centred composition, for which the kit asks for the stacked logo, 160 px wide at least."""
+    for path in ("/auth/login", "/no-such-page"):
+        page = client.get(path).get_data(as_text=True)
+        main = re.search(r"<main[^>]*>(.*?)</main>", page, re.S)
+        assert main is not None, path
+        above_the_card = main.group(1).split('<div class="panel', 1)[0]
+        assert "<svg" not in above_the_card, f"{path}: the placeholder icon is still there"
+        images = re.findall(r"<img [^>]*>", above_the_card)
+        assert len(images) == 1, path
+        logo = attributes(images[0])
+        assert logo["src"] == f"/static/brand/{STACKED}" and logo["alt"] == "Gaprism"
+        assert int(logo["width"]) >= 160
+        assert abs(int(logo["width"]) * aspect(STACKED) - int(logo["height"])) <= 1
 
 
 def test_the_stylesheet_shows_the_lockup_in_the_open_sidebar_and_the_symbol_in_the_rail() -> None:

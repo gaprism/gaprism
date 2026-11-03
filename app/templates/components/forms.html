@@ -1,9 +1,15 @@
-{# Accessible form controls: visible label, help text and errors wired with aria-describedby. #}
-{% macro text_field(field, label, help='', placeholder='', autocomplete='off') -%}
-{% set described = field.id ~ '-help' ~ (' ' ~ field.id ~ '-error' if field.errors else '') %}
+{# Accessible form controls: visible label, help text and errors wired with aria-describedby, which
+   names only what is on the page. `attrs` adds attributes to the input, e.g. {'inputmode': 'numeric'}. #}
+{% macro text_field(field, label, help='', placeholder='', autocomplete='off', attrs=none) -%}
+{% set described = [] %}
+{% if help %}{% set _unused = described.append(field.id ~ '-help') %}{% endif %}
+{% if field.errors %}{% set _unused = described.append(field.id ~ '-error') %}{% endif %}
+{% set extra = {'aria-invalid': 'true' if field.errors else 'false'} %}
+{% if described %}{% set _unused = extra.update({'aria-describedby': described|join(' ')}) %}{% endif %}
+{% if attrs %}{% set _unused = extra.update(attrs) %}{% endif %}
 <div class="field mb-4">
   <label for="{{ field.id }}">{{ label }}</label>
-  {{ field(autocomplete=autocomplete, placeholder=placeholder, **{'aria-describedby': described, 'aria-invalid': 'true' if field.errors else 'false'}) }}
+  {{ field(autocomplete=autocomplete, placeholder=placeholder, **extra) }}
   {% if help %}<p class="field-help" id="{{ field.id }}-help">{{ help }}</p>{% endif %}
   {% for error in field.errors %}<p class="text-sm text-danger" id="{{ field.id }}-error">{{ error }}</p>{% endfor %}
 </div>

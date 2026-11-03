@@ -1,0 +1,20 @@
+{% extends "security/base.html" %}
+{% from 'components/forms.html' import text_field %}
+{% from 'components/ui.html' import action, notice %}
+{% from 'security/_macros.html' import prop_next %}
+{# The sign-in page: Flask-Security-Too's form in the application's own markup. What it posts is the
+   library's (email, password, remember, the CSRF token and next); the words and the layout are ours.
+   No passkeys, social sign-in or recovery are enabled here, so there is nothing else to offer. #}
+{% block title %}{{ _('Sign in') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Sign in') }}</h1>
+<form action="{{ url_for_security('login') }}{{ prop_next() }}" method="post" name="login_user_form" class="mt-5">
+  {{ login_user_form.hidden_tag() }}
+  {% for error in login_user_form.form_errors %}<div class="mb-4">{{ notice(error, tone='danger') }}</div>{% endfor %}
+  {{ text_field(login_user_form.email, _('Email address'), autocomplete='email') }}
+  {{ text_field(login_user_form.password, _('Password'), autocomplete='current-password') }}
+  <label class="mb-5 flex items-center gap-2 text-sm font-medium">{{ login_user_form.remember }} {{ _('Remember me') }}</label>
+  {% for error in (login_user_form.csrf_token.errors if login_user_form.csrf_token else []) %}<p class="mb-4 text-sm text-danger">{{ error }}</p>{% endfor %}
+  <div class="flex flex-col">{{ action(_('Sign in'), variant='primary', type='submit') }}</div>
+</form>
+{% endblock %}
