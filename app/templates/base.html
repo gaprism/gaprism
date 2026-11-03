@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
-{% from 'components/ui.html' import icon, badge %}
+{% from 'components/ui.html' import icon %}
 {% from 'components/nav.html' import primary_links, breadcrumbs with context %}
+{% from 'components/account.html' import account_menu_items with context %}
 {# Not deferred: the stored state of the sidebar has to apply before the first paint. #}
 {% block head %}<script src="{{ url_for('static', filename='js/nav.js') }}"></script>{% endblock %}
 {% block body %}
@@ -28,20 +29,7 @@
       <div class="topbar-end">
         <button type="button" class="account-button" popovertarget="account-menu" aria-label="{{ _('Account menu') }}"><span class="avatar" aria-hidden="true">{% if mark %}{{ mark }}{% else %}{{ icon('user') }}{% endif %}</span>{{ icon('chevron') }}</button>
         <ul id="account-menu" popover class="menu-panel menu-panel-end">
-          <li class="menu-head">
-            <span class="text-xs text-muted">{{ _('Signed in as') }}</span>
-            <span class="text-sm font-medium break-all">{{ current_user.email }}</span>
-            {% if is_admin(current_user) %}{{ badge(_('Administrator'), 'muted') }}{% endif %}
-          </li>
-          <li><a class="menu-item" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a></li>
-          <li><a class="menu-item" href="{{ url_for_security('two_factor_setup') }}">{{ _('Two-factor') }}</a></li>
-          <li class="menu-sep" role="separator"></li>
-          <li>
-            <form action="{{ url_for_security('logout') }}" method="post">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="menu-item" type="submit">{{ _('Sign out') }}</button>
-            </form>
-          </li>
+          {{ account_menu_items(current_user) }}
         </ul>
       </div>
     </header>

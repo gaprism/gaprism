@@ -1,0 +1,19 @@
+{% from 'components/ui.html' import badge %}
+{# The items of the account menu: who is signed in, the account's own pages, and signing out. base.html puts
+   them into the popover list of the top bar; the style guide shows the same items in a plain list. #}
+{% macro account_menu_items(user) -%}
+<li class="menu-head">
+  <span class="text-xs text-muted">{{ _('Signed in as') }}</span>
+  <span class="text-sm font-medium break-all">{{ user.email }}</span>
+  {% if is_admin(user) %}{{ badge(_('Administrator'), 'muted') }}{% endif %}
+</li>
+<li><a class="menu-item" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a></li>
+<li><a class="menu-item" href="{{ url_for_security('two_factor_setup') }}">{{ _('Two-factor') }}</a></li>
+<li class="menu-sep" role="separator"></li>
+<li>
+  <form action="{{ url_for_security('logout') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="menu-item" type="submit">{{ _('Sign out') }}</button>
+  </form>
+</li>
+{%- endmacro %}
