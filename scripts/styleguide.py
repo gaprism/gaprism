@@ -43,7 +43,6 @@ TEXT, CONTROL = 4.5, 3.0  # WCAG 2.2 AA: text, and the borders of controls and t
 
 # The sections of the page, in order: the contents list and the headings both come from here.
 SECTIONS = (
-    ("ok", "Open decision: the look of “ok”"),
     ("colour", "Colour"),
     ("shape", "Shape and depth"),
     ("type", "Type"),
@@ -97,8 +96,6 @@ TOKEN_ROLES = {
     "medium-bg": ("Severity", "The fill behind medium text, and behind warnings."),
     "low": ("Severity", "Low findings. Slate, not blue, so that it is not taken for the brand."),
     "low-bg": ("Severity", "The fill behind low text."),
-    "ok": ("Outcome", "A good result or a positive state."),
-    "ok-bg": ("Outcome", "The fill behind ok text."),
 }
 
 RADIUS_USES = {
@@ -112,15 +109,15 @@ TONE_MEANINGS = {
     "high": "Serious findings; a check that failed.",
     "medium": "Needs a look: a partial or unavailable result, a warning.",
     "low": "A minor finding.",
-    "info": "A neutral fact, or work in progress.",
-    "ok": "A good result or a positive state.",
+    "info": "A neutral fact or state (Shared, Active, Signed), or work in progress.",
+    "ok": "A check that passed, with a check mark. A state or a fact is not a result: use info.",
     "muted": "Nothing to report: no data, skipped, switched off, a label.",
 }
 
 # What the text of a pair is for. "white" is the colour of text on a filled button.
 PAIRINGS_TEXT = (
     ("ink", "canvas", "Text on the page"),
-    ("ink", "panel", "Text in cards, tables and menus"),
+    ("ink", "panel", "Text in cards, tables and menus; the ok badge"),
     ("ink", "subtle", "Text on a quiet fill"),
     ("ink", "selected", "Text on the selection fill"),
     ("muted", "canvas", "Secondary text on the page"),
@@ -143,7 +140,6 @@ PAIRINGS_TEXT = (
     ("high", "high-bg", "High badge"),
     ("medium", "medium-bg", "Medium badge and warnings"),
     ("low", "low-bg", "Low badge"),
-    ("ok", "ok-bg", "Ok badge"),
 )
 PAIRINGS_CONTROL = (
     ("control", "panel", "Borders of inputs and secondary buttons in cards"),
@@ -170,22 +166,6 @@ PAIRINGS = tuple(
     [Pairing(fg, bg, use, TEXT) for fg, bg, use in PAIRINGS_TEXT]
     + [Pairing(fg, bg, use, CONTROL) for fg, bg, use in PAIRINGS_CONTROL]
 )
-
-
-@dataclass(frozen=True)
-class OkLook:
-    """One way the ok badge could look, for the owner to choose between."""
-
-    key: str
-    name: str
-    note: str
-    foreground: str
-    background: str
-    check: bool  # a check mark before the words
-
-    @property
-    def ratio(self) -> str:
-        return _ratio(contrast(self.foreground, self.background))
 
 
 def read_tokens() -> dict[str, str]:
@@ -216,41 +196,6 @@ def contrast(first: str, second: str) -> float:
 def _ratio(value: float) -> str:
     """Two decimals, rounded down: 4.499 must not read as 4.50."""
     return f"{math.floor(value * 100) / 100:.2f}"
-
-
-def ok_looks() -> list[OkLook]:
-    """The three looks of the ok badge. A is how it looks today; B and C use colours we have."""
-    tokens = read_tokens()
-    return [
-        OkLook(
-            "A",
-            "Sky blue",
-            "How it looks today. The least change, but blue also reads as “information”.",
-            tokens["ok"],
-            tokens["ok-bg"],
-            check=False,
-        ),
-        OkLook(
-            "B",
-            "Quiet, with a check mark",
-            "Ink on white with a check mark, so that only the problems carry colour. The brand "
-            "keeps the check mark for something completed: it suits a passed check better "
-            "than a state such as “Shared”.",
-            tokens["ink"],
-            tokens["panel"],
-            check=True,
-        ),
-        OkLook(
-            "C",
-            "Green",
-            "The familiar reading of a pass, and the loudest: a table of green chips can read "
-            "as “safe”, which the tool never says. Needs a pale green fill next to the green "
-            "text we already have.",
-            tokens["success"],
-            "#F0FDF4",
-            check=False,
-        ),
-    ]
 
 
 def macro_choices(variable: str) -> dict[str, str]:
@@ -371,7 +316,6 @@ def _context() -> dict[str, Any]:
             summarize("example", status, None, {})
             for status in ("queued", "running", "ok", "no_data", "skipped", "unavailable", "error")
         ],
-        "ok_looks": ok_looks(),
     }
 
 

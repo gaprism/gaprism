@@ -9,9 +9,8 @@ import colorsys
 import re
 
 import pytest
-from flask import Flask
 
-from tests.helpers import PROJECT_ROOT
+from tests.helpers import PROJECT_ROOT, render_badge
 
 ASSETS = PROJECT_ROOT / "assets"
 TOKEN = re.compile(r"--color-([a-z-]+):\s*(#[0-9A-Fa-f]{6});")
@@ -42,7 +41,6 @@ TEXT_PAIRS = [
     ("medium", "medium-bg"),
     ("low", "low-bg"),
     ("muted", "low-bg"),
-    ("ok", "ok-bg"),
 ]
 
 # Boundaries of controls and the keyboard focus ring need 3:1 against what they sit on.
@@ -90,10 +88,7 @@ def _hue_and_saturation(colour: str) -> tuple[float, float]:
 
 
 def _badge_classes(tone: str) -> set[str]:
-    app = Flask(__name__, template_folder=str(PROJECT_ROOT / "app" / "templates"))
-    source = "{% from 'components/ui.html' import badge %}{{ badge('label', tone) }}"
-    html = app.jinja_env.from_string(source).render(tone=tone)
-    match = re.search(r'class="([^"]*)"', html)
+    match = re.search(r'class="([^"]*)"', render_badge("label", tone))
     assert match is not None
     return set(match.group(1).split())
 
@@ -121,7 +116,7 @@ def test_control_borders_and_focus_reach_3_to_1(foreground: str, background: str
     assert _contrast(palette[foreground], palette[background]) >= 3
 
 
-@pytest.mark.parametrize("status", ["critical", "high", "medium", "low", "ok", "danger", "success"])
+@pytest.mark.parametrize("status", ["critical", "high", "medium", "low", "danger", "success"])
 def test_status_colours_do_not_look_like_the_brand(status: str) -> None:
     """Keep brand colours separate from severity and status colours (identity statement)."""
     palette = _palette()

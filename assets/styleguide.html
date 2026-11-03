@@ -25,11 +25,6 @@
 </section>
 {%- endmacro %}
 
-{# One chip of the ok badge in the look of an option; the others come from the badge macro. #}
-{% macro ok_chip(look, label) -%}
-<span class="badge bg-(--bg) text-(color:--fg){% if look.check %} [&>svg]:size-3.5{% endif %}" style="--bg: {{ look.background }}; --fg: {{ look.foreground }}">{% if look.check %}{{ icon('check') }}{% endif %}{{ label }}</span>
-{%- endmacro %}
-
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -54,33 +49,6 @@
   </nav>
 
   <main id="main" tabindex="-1" class="min-w-0 max-w-6xl space-y-6 p-4 lg:p-8">
-
-{% call section('ok', 'The ok badge is the one whose look is still open. It marks a good result (a grade A, a signed record, a host name on no blocklist) and a positive state (shared, active, accepted). Each option below shows the same chips and the same hosts table next to the other tones. Choose one; the other two go, and this section with them.') %}
-<div class="grid gap-4">
-  {% for look in ok_looks %}
-  <article id="ok-{{ look.key|lower }}" class="rounded-lg border border-line p-4 md:grid md:grid-cols-[17rem_minmax(0,1fr)] md:gap-5" aria-labelledby="ok-{{ look.key|lower }}-title">
-    <div>
-      <h3 id="ok-{{ look.key|lower }}-title">{{ look.key }} · {{ look.name }}</h3>
-      <p class="mt-1 text-sm text-muted">{{ look.note }}</p>
-      <p class="mt-2 font-mono text-xs text-muted">{{ look.foreground }} on {{ look.background }} · {{ look.ratio }} : 1</p>
-      <p class="mt-3 flex flex-wrap gap-2">{% for label in ['Done', 'Shared', 'Active', 'Accepted', 'Not listed'] %}{{ ok_chip(look, label) }}{% endfor %}</p>
-    </div>
-    <div class="table-scroll mt-4 rounded-md border border-line md:mt-0">
-      <table class="data-table">
-        <caption class="sr-only">Hosts, with option {{ look.key }} for the ok badge</caption>
-        <thead><tr><th scope="col">Host</th><th scope="col">TLS</th><th scope="col">Blocklists</th><th scope="col">Findings</th></tr></thead>
-        <tbody>
-          <tr><td><bdi class="font-mono">www.example.com</bdi></td><td>{{ ok_chip(look, 'A · 12 tests') }}</td><td>{{ ok_chip(look, 'Not listed') }}</td><td>{{ badge('High · 1', 'high') }}</td></tr>
-          <tr><td><bdi class="font-mono">mail.example.com</bdi></td><td>{{ badge('C · 9 tests', 'medium') }}</td><td>{{ ok_chip(look, 'Not listed') }}</td><td>{{ badge('Low · 3', 'low') }}</td></tr>
-          <tr><td><bdi class="font-mono">old.example.com</bdi></td><td>{{ badge('F · 4 tests', 'critical') }}</td><td>{{ badge('URLhaus', 'high') }}</td><td>{{ badge('Critical · 2', 'critical') }}</td></tr>
-          <tr><td><bdi class="font-mono">shop.example.com</bdi></td><td>{{ badge('No data', 'muted') }}</td><td>{{ badge('Unavailable', 'medium') }}</td><td><span class="text-muted">—</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </article>
-  {% endfor %}
-</div>
-{% endcall %}
 
 {% call section('colour', 'Canvas, ink and action are the brand’s Paper, Graphite and Indigo. Signal Teal (#45C8C0) is for diagrams and stays out of the interface. Severity and status colours stay apart from the brand colours, and text and controls reach the contrast that WCAG 2.2 AA asks for.') %}
 {% for group in groups %}
@@ -197,7 +165,7 @@
 <p class="mt-2"><span class="btn btn-secondary outline-2 outline-offset-2 outline-focus">Focused</span></p>
 {% endcall %}
 
-{% call section('badges', 'A badge is always words plus colour, never colour alone. The tone says how much attention the fact needs; the words say what it is.') %}
+{% call section('badges', 'A badge is always words plus colour, never colour alone. The tone says how much attention the fact needs; the words say what it is. Only problems carry colour: a check that passed is ink on white with a check mark, and a state or a fact is a quiet grey.') %}
 <h3>Tones</h3>
 <div class="table-scroll mt-3 rounded-md border border-line">
   <table class="data-table">
@@ -226,6 +194,10 @@
     </tbody>
   </table>
 </div>
+<h3 class="mt-8">Results and states</h3>
+<p class="mt-1 max-w-3xl text-sm text-muted">A result is the answer of a check, and a passed one has a check mark. A state or a fact only says how things are; it stays grey, so that “Accepted” never reads like a pass: the risk is still there.</p>
+<p class="mt-3 flex flex-wrap items-center gap-2"><span class="w-24 text-sm text-muted">Passed (<code>ok</code>)</span>{% for label in ['A · 12 tests', 'Not listed', 'Redirects to HTTPS', 'Completed'] %}{{ badge(label, 'ok') }}{% endfor %}</p>
+<p class="mt-2 flex flex-wrap items-center gap-2"><span class="w-24 text-sm text-muted">State (<code>info</code>)</span>{% for label in ['Shared', 'Active', 'Accepted · review by 2027-01-31', 'Signed', 'Locked', 'CH · Bern'] %}{{ badge(label, 'info') }}{% endfor %}</p>
 {% endcall %}
 
 {% call section('messages', 'A notice explains something about the page; the border and the role say how urgent it is. An empty state says what to do next.') %}

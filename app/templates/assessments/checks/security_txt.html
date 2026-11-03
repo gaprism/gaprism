@@ -6,7 +6,7 @@
 {%- endmacro %}
 <p class="text-sm">{{ _('Found at') }} <bdi class="font-mono break-all">{{ d.url }}</bdi>
   {% if d.hops %}<span class="text-muted">· {{ ngettext('after %(num)s redirect', 'after %(num)s redirects', d.hops|length) }}</span>{% endif %}
-  {% if d.signed %}{{ badge(_('Signed'), 'ok') }}{% else %}{{ badge(_('Not signed'), 'muted') }}{% endif %}</p>
+  {% if d.signed %}{{ badge(_('Signed'), 'info') }}{% else %}{{ badge(_('Not signed'), 'muted') }}{% endif %}</p>
 {% if d.problems %}<ul class="mt-2 grid gap-1 text-sm">{% for code in d.problems %}<li>{{ badge(_('Problem'), 'high' if code in ['expired', 'missing_contact'] else 'medium') }} {{ problem_label(code) }}</li>{% endfor %}</ul>{% endif %}
 <dl class="mt-4 grid gap-4 sm:grid-cols-2">
   <div><dt>{{ _('Expires') }}</dt><dd>{% if d.expires %}<time datetime="{{ d.expires }}">{{ d.expires[:10] }}</time> {% if d.days_to_expiry is not none %}<span class="text-muted">({% if d.days_to_expiry < 0 %}{{ ngettext('%(num)s day ago', '%(num)s days ago', -d.days_to_expiry) }}{% else %}{{ ngettext('in %(num)s day', 'in %(num)s days', d.days_to_expiry) }}{% endif %})</span>{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</dd></div>

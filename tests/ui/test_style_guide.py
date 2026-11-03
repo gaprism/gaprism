@@ -16,7 +16,7 @@ from types import ModuleType
 
 import pytest
 
-from tests.helpers import PROJECT_ROOT
+from tests.helpers import PROJECT_ROOT, badge_classes
 
 SCRIPT = PROJECT_ROOT / "scripts" / "styleguide.py"
 ASSETS = PROJECT_ROOT / "assets"
@@ -148,7 +148,7 @@ def test_the_severities_look_as_they_do_in_the_findings(
     [
         ("Queued", "bg-subtle text-muted"),
         ("Running", "bg-subtle text-muted"),
-        ("Done", "bg-ok-bg text-ok"),
+        ("Done", "bg-panel text-ink"),
         ("No data", "bg-subtle text-muted"),
         ("Skipped", "bg-subtle text-muted"),
         ("Unavailable", "bg-medium-bg text-medium"),
@@ -158,7 +158,12 @@ def test_the_severities_look_as_they_do_in_the_findings(
 def test_the_outcomes_of_a_check_look_as_they_do_on_the_host_page(
     page: str, label: str, classes: str
 ) -> None:
-    assert f'<span class="badge {classes}">{label}</span>' in page
+    assert badge_classes(page, label) == classes
+
+
+def test_the_ok_badge_shows_its_check_mark(page: str) -> None:
+    ok_badge = r'<span class="badge bg-panel text-ink"><svg\b[^>]*>.*?</svg>[^<]+</span>'
+    assert len(re.findall(ok_badge, page, re.S)) >= 5  # the tones table, the outcomes, the hosts
 
 
 def test_the_account_menu_is_the_one_the_pages_use(page: str) -> None:
@@ -167,19 +172,6 @@ def test_the_account_menu_is_the_one_the_pages_use(page: str) -> None:
     for part in ('class="menu-head"', "Signed in as", "Administrator", "Password", "Two-factor"):
         assert part in menu.group(1), part
     assert re.search(r'<button class="menu-item" type="submit">Sign out</button>', menu.group(1))
-
-
-def test_the_three_looks_of_ok_sit_side_by_side(page: str, styleguide: ModuleType) -> None:
-    looks = styleguide.ok_looks()
-    assert [look.key for look in looks] == ["A", "B", "C"]
-    for look in looks:
-        assert f'id="ok-{look.key.lower()}"' in page
-        assert look.foreground in page and look.background in page
-
-
-def test_every_look_of_ok_is_readable(styleguide: ModuleType) -> None:
-    for look in styleguide.ok_looks():
-        assert styleguide.contrast(look.foreground, look.background) >= 4.5, look.key
 
 
 def test_contrast_follows_the_wcag_formula(styleguide: ModuleType) -> None:

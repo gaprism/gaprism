@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Finding, FindingDisposition, Host, Scan, User
 from app.models.base import utc_now
-from tests.helpers import create_user, login_as, make_app
+from tests.helpers import NEUTRAL_BADGE, badge_classes, create_user, login_as, make_app
 from tests.test_decisions import SPF, TLS, row_for
 from tests.test_summary import evaluated
 
@@ -88,6 +88,8 @@ def test_the_accepted_finding_stays_visible_with_who_when_why_and_until_when(
 
     assert "<h3>No SPF record</h3>" in page
     assert f"Accepted · review by {SOON}" in page  # the chip
+    # an accepted risk is still a risk: the chip must not read like a passed check
+    assert badge_classes(page, f"Accepted · review by {SOON}") == NEUTRAL_BADGE
     assert "The vendor sends no mail." in page and "Second line." in page
     email = db_session.get(User, scan.requested_by).email  # type: ignore[union-attr]
     assert f"by {email} on {utc_now().date().isoformat()}" in page
@@ -356,6 +358,7 @@ def test_the_other_pages_count_open_findings_and_say_what_was_decided(
     assert "No SPF record" not in panel  # an open-rules table
     secure = page.split('id="secure-title"')[1].split("</article>")[0]
     assert f'href="{base}?status=accepted"' in secure and "1 accepted" in secure
+    assert badge_classes(secure, "1 accepted") == NEUTRAL_BADGE  # a count of risks, not a pass
 
 
 def test_the_status_tabs_the_host_filter_and_nonsense_in_the_query(

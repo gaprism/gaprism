@@ -38,7 +38,7 @@
 </table></div>
 <p class="mt-2 text-sm">
   {% if caa.forbids_issuance %}{{ badge(_('No certificate authority may issue'), 'info') }}
-  {% elif caa.issuers %}{{ _('May issue certificates:') }} {% for name in caa.issuers %}{{ badge(name, 'ok') }} {% endfor %}
+  {% elif caa.issuers %}{{ _('May issue certificates:') }} {% for name in caa.issuers %}{{ badge(name, 'info') }} {% endfor %}
   {% else %}<span class="text-muted">{{ _('No issuer is restricted by an issue record.') }}</span>{% endif %}
 </p>
 {% else %}

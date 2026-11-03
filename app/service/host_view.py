@@ -385,7 +385,7 @@ def _ip_cell(data: Mapping[str, Any]) -> CheckCell:
         text = ", ".join(countries[:4]) + ("…" if len(countries) > 4 else "")
     if data.get("edge"):
         text += " · " + _("incl. CDN edge")
-    return CheckCell("ok", "ok", text)
+    return CheckCell("ok", "info", text)  # where the host is, not a result: no check mark
 
 
 def _ports_cell(data: Mapping[str, Any]) -> CheckCell:

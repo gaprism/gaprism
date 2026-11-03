@@ -10,7 +10,14 @@ from sqlalchemy.orm import Session
 
 from app.config import TestingConfig
 from app.service.users import create_admin
-from tests.helpers import create_assessment, create_user, login_as, make_app
+from tests.helpers import (
+    NEUTRAL_BADGE,
+    badge_classes,
+    create_assessment,
+    create_user,
+    login_as,
+    make_app,
+)
 
 
 def test_start_page_leads_to_the_assessments_list(client: FlaskClient) -> None:
@@ -202,6 +209,18 @@ def test_assessments_list_shows_only_what_the_user_may_open(
     assert "shared.example" in page
     assert "secret.example" not in page
     assert "Shared" in page and "Private" in page  # the badges of the two visible assessments
+    assert badge_classes(page, "Shared") == NEUTRAL_BADGE  # who may see it is a state, not a result
+
+
+def test_a_shared_assessment_says_so_in_a_neutral_badge(
+    client: FlaskClient, db_session: Session
+) -> None:
+    me = create_user(db_session)
+    shared = create_assessment(db_session, me, "shared.example", "shared")
+    login_as(client, me)
+
+    page = client.get(f"/assessments/{shared.id}").get_data(as_text=True)
+    assert badge_classes(page, "Shared") == NEUTRAL_BADGE
 
 
 def test_target_controlled_text_is_escaped(client: FlaskClient, db_session: Session) -> None:

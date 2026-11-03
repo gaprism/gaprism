@@ -49,7 +49,7 @@
               {% if row.link.state == 'open' %}{{ _('Invited, link valid until %(when)s UTC', when=when(row.link)) }}
               {% elif row.link.state == 'expired' %}{{ _('Invited, link expired') }}
               {% else %}{{ _('Invited, link withdrawn') }}{% endif %}
-            {% else %}{{ badge(_('Active'), 'ok') }}
+            {% else %}{{ badge(_('Active'), 'info') }}
               {% if row.link %}<span class="block text-muted">
               {% if row.link.state == 'open' %}{{ _('Reset link valid until %(when)s UTC', when=when(row.link)) }}
               {% elif row.link.state == 'expired' %}{{ _('Reset link expired') }}

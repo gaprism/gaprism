@@ -20,10 +20,12 @@
 {% else %}<button class="btn {{ variants.get(variant, 'btn-secondary') }}" type="{{ type if type in ['button', 'submit', 'reset'] else 'button' }}">{{ label }}</button>{% endif %}
 {%- endmacro %}
 
-{# Severity and outcome chips. Always text plus colour, never colour alone. #}
+{# Severity and outcome chips. Always text plus colour, never colour alone. Only problems carry colour:
+   ok is a check that passed (ink on white, with a check mark); a state or a fact such as Shared,
+   Active, Accepted or Signed is not a result and takes info. #}
 {% macro badge(label, tone='muted') -%}
-{% set tones = {'critical': 'bg-critical-bg text-critical', 'high': 'bg-high-bg text-high', 'medium': 'bg-medium-bg text-medium', 'low': 'bg-low-bg text-low', 'info': 'bg-subtle text-muted', 'ok': 'bg-ok-bg text-ok', 'muted': 'bg-subtle text-muted'} %}
-<span class="badge {{ tones.get(tone, tones['muted']) }}">{{ label }}</span>
+{% set tones = {'critical': 'bg-critical-bg text-critical', 'high': 'bg-high-bg text-high', 'medium': 'bg-medium-bg text-medium', 'low': 'bg-low-bg text-low', 'info': 'bg-subtle text-muted', 'ok': 'bg-panel text-ink', 'muted': 'bg-subtle text-muted'} %}
+<span class="badge {{ tones.get(tone, tones['muted']) }}">{% if tone == 'ok' %}{{ icon('check') }}{% endif %}{{ label }}</span>
 {%- endmacro %}
 
 {% macro notice(title, body='', tone='info') -%}

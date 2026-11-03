@@ -1,6 +1,6 @@
 {% from 'components/ui.html' import badge, notice %}
 {% set d = section.data %}
-{% set status_tones = {'active': 'ok', 'ok': 'ok', 'client hold': 'high', 'server hold': 'high', 'pending delete': 'high', 'redemption period': 'high', 'pending transfer': 'medium', 'inactive': 'medium'} %}
+{% set status_tones = {'active': 'info', 'ok': 'info', 'client hold': 'high', 'server hold': 'high', 'pending delete': 'high', 'redemption period': 'high', 'pending transfer': 'medium', 'inactive': 'medium'} %}
 <div class="mb-4">{{ notice(_('From the registry'), _('Registration data from the RDAP service of the registry (%(server)s). Registrant and contact details are not collected.', server=d.server), 'info') }}</div>
 {% if d.queried != d.domain %}<p class="mb-3 text-sm text-muted">{{ _('The registry knows this domain as %(name)s.', name=d.queried) }}</p>{% endif %}
 <dl class="grid gap-4 sm:grid-cols-2">
@@ -8,8 +8,8 @@
   <div><dt>{{ _('Registered') }}</dt><dd>{% if d.created %}<time datetime="{{ d.created }}">{{ d.created[:10] }}</time>{% if d.age_days is not none %} <span class="text-muted">({{ ngettext('%(num)s year', '%(num)s years', (d.age_days / 365.25)|int) }})</span>{% endif %}{% else %}<span class="text-muted">{{ _('Not published') }}</span>{% endif %}</dd></div>
   <div><dt>{{ _('Expires') }}</dt><dd>{% if d.expires %}<time datetime="{{ d.expires }}">{{ d.expires[:10] }}</time> {% if d.days_to_expiry is not none %}{% if d.days_to_expiry < 0 %}{{ badge(ngettext('expired %(num)s day ago', 'expired %(num)s days ago', -d.days_to_expiry), 'high') }}{% elif d.days_to_expiry <= 30 %}{{ badge(ngettext('in %(num)s day', 'in %(num)s days', d.days_to_expiry), 'medium') }}{% else %}<span class="text-muted">({{ ngettext('in %(num)s day', 'in %(num)s days', d.days_to_expiry) }})</span>{% endif %}{% endif %}{% else %}<span class="text-muted">{{ _('Not published') }}</span>{% endif %}</dd></div>
   <div><dt>{{ _('Last changed') }}</dt><dd>{% if d.changed %}<time datetime="{{ d.changed }}">{{ d.changed[:10] }}</time>{% else %}<span class="text-muted">{{ _('Not published') }}</span>{% endif %}</dd></div>
-  <div><dt>DNSSEC</dt><dd>{% if d.dnssec is none %}<span class="text-muted">{{ _('Not stated') }}</span>{% elif d.dnssec %}{{ badge(_('Signed'), 'ok') }}{% else %}{{ badge(_('Not signed'), 'muted') }}{% endif %}</dd></div>
-  <div><dt>{{ _('Transfer lock') }}</dt><dd>{% if d.transfer_locked %}{{ badge(_('Locked'), 'ok') }}{% elif d.statuses %}{{ badge(_('Not locked'), 'medium') }}{% else %}<span class="text-muted">{{ _('No status published') }}</span>{% endif %}</dd></div>
+  <div><dt>DNSSEC</dt><dd>{% if d.dnssec is none %}<span class="text-muted">{{ _('Not stated') }}</span>{% elif d.dnssec %}{{ badge(_('Signed'), 'info') }}{% else %}{{ badge(_('Not signed'), 'muted') }}{% endif %}</dd></div>
+  <div><dt>{{ _('Transfer lock') }}</dt><dd>{% if d.transfer_locked %}{{ badge(_('Locked'), 'info') }}{% elif d.statuses %}{{ badge(_('Not locked'), 'medium') }}{% else %}<span class="text-muted">{{ _('No status published') }}</span>{% endif %}</dd></div>
 </dl>
 {% if d.statuses %}
 <h3 class="mt-5 text-sm">{{ _('Status flags') }}</h3>

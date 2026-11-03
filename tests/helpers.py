@@ -1,5 +1,6 @@
 """Helpers shared by test modules (fixtures live in ``conftest.py``)."""
 
+import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,6 +18,7 @@ from app.models import Assessment, AuditEvent, User
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS_DIRECTORY = PROJECT_ROOT / "migrations"
+NEUTRAL_BADGE = "bg-subtle text-muted"  # the info and muted tones: a fact, or nothing to report
 
 
 def make_app(database_url: str, schema: str, **overrides: Any) -> Flask:
@@ -82,3 +84,26 @@ def login_as(client: FlaskClient, user: User) -> None:
         state["_user_id"] = user.fs_uniquifier
         state["_fresh"] = True
         state["fs_paa"] = datetime.now(UTC).timestamp()
+
+
+def render_badge(label: str, tone: str) -> str:
+    """The badge macro of components/ui.html on its own: no application, no database.
+
+    Only the markup of the badge, without the line break the macro's ``set`` leaves in front of it.
+    """
+    app = Flask(__name__, template_folder=str(PROJECT_ROOT / "app" / "templates"))
+    source = "{% from 'components/ui.html' import badge %}{{ badge(label, tone) }}"
+    return app.jinja_env.from_string(source).render(label=label, tone=tone).strip()
+
+
+def badge_classes(page: str, words: str) -> str:
+    """The colour classes of the badge that says ``words``; fails when no badge does.
+
+    A badge of the ok tone has a check mark before its words, which is skipped. Every badge that
+    says the same words has to look the same, or the pages disagree about what they mean.
+    """
+    pattern = rf'<span class="badge ([^"]*)">(?:<svg\b.*?</svg>)?{re.escape(words)}</span>'
+    found = set(re.findall(pattern, page, re.S))
+    assert found, f"no badge says {words!r}"
+    assert len(found) == 1, f"the badges that say {words!r} differ: {sorted(found)}"
+    return found.pop()

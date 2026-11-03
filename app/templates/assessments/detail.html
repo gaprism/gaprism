@@ -7,7 +7,7 @@
     <a class="link text-sm" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
     <div class="mt-2 flex flex-wrap items-center gap-3">
       <h1><bdi class="font-mono">{{ assessment.domain_display }}</bdi></h1>
-      {{ badge(_('Shared') if assessment.visibility == 'shared' else _('Private'), 'ok' if assessment.visibility == 'shared' else 'muted') }}
+      {{ badge(_('Shared') if assessment.visibility == 'shared' else _('Private'), 'info' if assessment.visibility == 'shared' else 'muted') }}
     </div>
     <p class="mt-1 text-sm text-muted">
       {% if assessment.domain != assessment.domain_display %}<bdi class="font-mono">{{ assessment.domain }}</bdi> · {% endif %}

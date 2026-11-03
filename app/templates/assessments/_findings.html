@@ -28,7 +28,7 @@
 {% macro status_badge(finding) -%}
 {%- set decision = finding.decision -%}
 {%- if finding.status == 'accepted' -%}
-{{ badge(_('Accepted') ~ (' · ' ~ _('review by %(date)s', date=decision.review_by.isoformat()) if decision.review_by else ''), 'ok') }}
+{{ badge(_('Accepted') ~ (' · ' ~ _('review by %(date)s', date=decision.review_by.isoformat()) if decision.review_by else ''), 'info') }}
 {%- elif finding.status == 'false_positive' -%}
 {{ badge(_('False positive'), 'muted') }}
 {%- elif decision and decision.lapsed -%}

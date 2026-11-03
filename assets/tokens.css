@@ -1,5 +1,6 @@
-/* canvas, ink and action are the brand's Paper, Graphite and Indigo. Severity and "ok" stay apart
-   from them; tests/ui/test_design_tokens.py checks that and the contrast of every pairing. */
+/* canvas, ink and action are the brand's Paper, Graphite and Indigo. Severity and status colours
+   stay apart from them; tests/ui/test_design_tokens.py checks that and the contrast of every
+   pairing. A passed check (the ok badge) is ink on panel, so it has no colour of its own. */
 @theme {
   --color-canvas: #F7F8FC;
   --color-panel: #FFFFFF;
@@ -23,8 +24,6 @@
   --color-medium-bg: #FEFCE8;
   --color-low: #2F3A55;
   --color-low-bg: #E4E8F3;
-  --color-ok: #075985;
-  --color-ok-bg: #F0F9FF;
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
   --radius-sm: 4px;

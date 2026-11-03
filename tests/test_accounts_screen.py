@@ -20,7 +20,7 @@ from app.models.auth import Role
 from app.models.base import utc_now
 from app.service import invitations
 from app.service import users as user_service
-from tests.helpers import audit_rows, create_user, login_as, make_app
+from tests.helpers import NEUTRAL_BADGE, audit_rows, badge_classes, create_user, login_as, make_app
 
 PASSWORD = "Correct-Horse-Battery-1"
 TOKEN = re.compile(r"/auth/invitation/([A-Za-z0-9_-]{43})")
@@ -154,6 +154,7 @@ def test_the_list_shows_each_account_with_its_state(
         "Reset link valid until",
     ):
         assert text in page, text
+    assert badge_classes(page, "Active") == NEUTRAL_BADGE  # a state, not a result of a check
     assert TOKEN.search(page) is None  # a list never shows a link
 
 

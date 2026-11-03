@@ -151,7 +151,7 @@
   {% endif %}
   {% if s.accepted or s.false_positive %}
   <p class="flex flex-wrap items-center gap-2 text-sm text-muted">
-    {% if s.accepted %}<a href="{{ url_for('assessments.findings', assessment_id=assessment.id, status='accepted') }}" class="no-underline">{{ badge(_('%(n)s accepted', n=s.accepted), 'ok') }}</a>{% endif %}
+    {% if s.accepted %}<a href="{{ url_for('assessments.findings', assessment_id=assessment.id, status='accepted') }}" class="no-underline">{{ badge(_('%(n)s accepted', n=s.accepted), 'info') }}</a>{% endif %}
     {% if s.false_positive %}<a href="{{ url_for('assessments.findings', assessment_id=assessment.id, status='false_positive') }}" class="no-underline">{{ badge(ngettext('%(num)s false positive', '%(num)s false positives', s.false_positive), 'muted') }}</a>{% endif %}
     <span>{{ _('Decided by the team; not counted as open.') }}</span>
   </p>

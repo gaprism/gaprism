@@ -53,6 +53,7 @@ from tests.checks.test_ports_check import CLOUDFLARE, IP1, IP2, FakeProvider, fa
 from tests.checks.test_ports_check import dns as ports_dns
 from tests.checks.test_ports_check import ip_outcome as ports_ip_outcome
 from tests.checks.test_ports_check import run as run_ports
+from tests.checks.test_registration_check import RESPONSES as RDAP_ANSWERS
 from tests.checks.test_registration_check import Registry
 from tests.checks.test_registration_check import run as run_registration
 from tests.checks.test_reputation_check import (
@@ -82,7 +83,7 @@ from tests.checks.test_takeover_check import tls_failure as takeover_tls_failure
 from tests.checks.test_tls_check import no_certificate, probe_result
 from tests.checks.test_tls_protocols_check import answers as protocol_answers
 from tests.exploit_helpers import FakeExploits, listed, scored
-from tests.helpers import create_assessment, create_user, login_as
+from tests.helpers import NEUTRAL_BADGE, badge_classes, create_assessment, create_user, login_as
 from tests.rules.test_tech_finding_rules import judged as judged_page
 from tests.test_engine import CONFIG
 
@@ -210,7 +211,7 @@ def entry(
             "ok",
             None,
             {"addresses": [{"country": "CH", "city": "Bern"}], "countries": ["CH"]},
-            "ok",
+            "info",
             "CH · Bern",
         ),
         (
@@ -221,7 +222,7 @@ def entry(
                 "addresses": [{"country": "CH", "city": "Bern"}, {"country": "CH", "city": "Zug"}],
                 "countries": ["CH"],
             },
-            "ok",
+            "info",
             "CH",
         ),
         (
@@ -229,7 +230,7 @@ def entry(
             "ok",
             None,
             {"addresses": [{"country": "CH"}, {"country": "DE"}], "countries": ["CH", "DE"]},
-            "ok",
+            "info",
             "CH, DE",
         ),
         (
@@ -237,7 +238,7 @@ def entry(
             "ok",
             None,
             {"addresses": [{"country": "CH"}], "countries": ["CH"], "edge": True},
-            "ok",
+            "info",
             "CH · incl. CDN edge",
         ),
         (
@@ -1582,6 +1583,8 @@ def test_the_domain_page_shows_the_registration(signed_in: Any, db_session: Sess
     assert "1995-08-14" in body and "2027-08-13" in body
     assert "client transfer prohibited" in body and "Locked" in body
     assert "Signed" in body  # DNSSEC
+    assert badge_classes(body, "Locked") == NEUTRAL_BADGE  # states, not results of a check
+    assert badge_classes(body, "Signed") == NEUTRAL_BADGE
     assert (
         "rdap.verisign.com" in body and "Registrant and contact details are not collected" in body
     )
@@ -1590,6 +1593,22 @@ def test_the_domain_page_shows_the_registration(signed_in: Any, db_session: Sess
         if "check-email" in body
         else True
     )
+
+
+def test_the_registry_statuses_that_say_all_is_normal_are_neutral_facts(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    statuses = ["active", "ok", "pending transfer", "client hold"]
+    answer = {**RDAP_ANSWERS["denic.de"], "status": statuses}
+    outcome = registration_outcome("denic.de", domains={"denic.de": answer})
+    add_domain_result(db_session, scan, "registration", outcome)
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert badge_classes(body, "active") == NEUTRAL_BADGE
+    assert badge_classes(body, "ok") == NEUTRAL_BADGE
+    assert badge_classes(body, "pending transfer") == "bg-medium-bg text-medium"
+    assert badge_classes(body, "client hold") == "bg-high-bg text-high"
 
 
 def test_a_registry_without_dates_says_so(signed_in: Any, db_session: Session) -> None:
@@ -1697,6 +1716,7 @@ def test_the_domain_page_shows_name_servers_caa_security_txt_hsts_and_breaches(
     # name servers and CAA
     assert "ns1.provider-a.net" in body and "provider-b.org" in body
     assert "198.51.100.1" in body and "letsencrypt.org" in body and "May issue certificates" in body
+    assert badge_classes(body, "letsencrypt.org") == NEUTRAL_BADGE  # a name, not a result
     # security.txt
     assert "https://hackerone.com/github" in body and "Not signed" in body
     assert "The addresses in the file are shown as text and are not followed" in body
@@ -1727,6 +1747,22 @@ def test_a_name_server_operator_alone_is_a_note_not_a_problem(
     body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
     assert "All name servers belong to one operator" in body and "Note" in body
     assert "Without CAA records any certificate authority may issue" in body
+
+
+def test_a_signed_security_txt_says_so_in_a_neutral_badge(
+    signed_in: Any, db_session: Session
+) -> None:
+    client, assessment, scan = signed_in
+    signature = (
+        "-----BEGIN PGP SIGNATURE-----\n\niQEzBAEBCgAdFiEE\n=abcd\n-----END PGP SIGNATURE-----\n"
+    )
+    signed = f"-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\n{SECURITY_TXT}{signature}"
+    outcome = run_security(Web({("example.com", WELL_KNOWN): security_text(signed)}))
+    assert outcome.data["signed"] is True
+    add_domain_result(db_session, scan, "security_txt", outcome)
+
+    body = client.get(f"/assessments/{assessment.id}/domain").get_data(as_text=True)
+    assert badge_classes(body, "Signed") == NEUTRAL_BADGE
 
 
 def test_security_txt_problems_are_spelled_out(signed_in: Any, db_session: Session) -> None:
