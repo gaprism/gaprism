@@ -35,13 +35,15 @@ named use, and can be withdrawn if the use turns out to mislead.
   may host it, and you may say it is "based on Gaprism"; the name of the service is yours to choose.
 - Publishing a modified version under the name. Configuration, translations and the patches of a
   distribution package are not modifications in this sense; changed behaviour is.
-- Presenting yourself as official, as a partner of the project, or as endorsed by it, or using a
-  logo of the project (there is none yet).
+- Presenting yourself as official, as a partner of the project, or as endorsed by it, or using the
+  logo of the project (the application shows it, and the files are in `app/static/brand/`).
 
 ## If you fork it or run it for others
 
 - Choose a name of your own, and say once, with a link, that your work is "based on Gaprism" or a
   "fork of Gaprism".
+- Replace the logo and the icons in `app/static/brand/` with your own: they carry the project's
+  name.
 - Set `USER_AGENT`. The application introduces itself with this string in its HTTP requests to the
   sites it assesses; its default names Gaprism and the project's address. If you run it for other people, or change
   what it does, put your own name and a way to reach you in it

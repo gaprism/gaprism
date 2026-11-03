@@ -50,7 +50,34 @@
 
   <main id="main" tabindex="-1" class="min-w-0 max-w-6xl space-y-6 p-4 lg:p-8">
 
-{% call section('colour', 'Canvas, ink and action are the brand’s Paper, Graphite and Indigo. Signal Teal (#45C8C0) is for diagrams and stays out of the interface. Severity and status colours stay apart from the brand colours, and text and controls reach the contrast that WCAG 2.2 AA asks for.') %}
+{% call section('logo', 'The logo comes from the Gaprism logo kit (direction C) and is used as supplied: an Indigo symbol with Graphite lettering, on white or Paper. It is never recoloured, stretched, rotated or outlined, the tail of the g is never changed, and typed text never stands in for the lettering.') %}
+<div class="grid gap-4 md:grid-cols-2">
+  <figure class="rounded-lg border border-line bg-panel p-6">
+    <img src="static/brand/gaprism-logo-horizontal-color.svg" width="160" height="49" alt="Gaprism">
+    <figcaption class="mt-4 text-sm text-muted">The horizontal logo on white at 160 px, its smallest size. The sidebar shows it while it is open.</figcaption>
+  </figure>
+  <figure class="rounded-lg border border-line bg-canvas p-6">
+    <img src="static/brand/gaprism-logo-horizontal-color.svg" width="240" height="73" alt="Gaprism">
+    <figcaption class="mt-4 text-sm text-muted">The same on Paper at 240 px. Above the minimum, check it in the real layout.</figcaption>
+  </figure>
+</div>
+<h3 class="mt-8">The symbol</h3>
+<p class="mt-1 max-w-3xl text-sm text-muted">Alone, where there is no room for the lettering, and never smaller than 24 px. The sidebar shows it as a rail, and the top bar on a phone, at 32 px. Keep a clear space of one stem of the g, about a fifth of its height, around the visible artwork.</p>
+<ul class="mt-4 flex flex-wrap items-end gap-6">
+  {% for size in [24, 32, 48, 64] %}
+  <li class="flex flex-col items-center gap-2 text-xs text-muted"><img src="static/brand/gaprism-symbol-color.svg" width="{{ size }}" height="{{ size }}" alt="">{{ size }} px</li>
+  {% endfor %}
+</ul>
+<h3 class="mt-8">Icons of the browser and of a phone</h3>
+<p class="mt-1 max-w-3xl text-sm text-muted">Every page names them in its head, together with the colour of the browser's own bar, which is the colour of the top bar.</p>
+<ul class="mt-4 flex flex-wrap items-end gap-6">
+  <li class="flex flex-col items-center gap-2 text-xs text-muted"><img src="static/brand/favicon.svg" width="32" height="32" alt=""><code>favicon.svg</code></li>
+  <li class="flex flex-col items-center gap-2 text-xs text-muted"><img src="static/brand/favicon.ico" width="32" height="32" alt=""><code>favicon.ico</code>16, 32 and 48 px</li>
+  <li class="flex flex-col items-center gap-2 text-xs text-muted"><img src="static/brand/apple-touch-icon.png" width="90" height="90" alt=""><code>apple-touch-icon.png</code>180 px, shown at half size</li>
+</ul>
+{% endcall %}
+
+{% call section('colour','Canvas, ink and action are the brand’s Paper, Graphite and Indigo. Signal Teal (#45C8C0) is for diagrams and stays out of the interface. Severity and status colours stay apart from the brand colours, and text and controls reach the contrast that WCAG 2.2 AA asks for.') %}
 {% for group in groups %}
 <h3 class="mt-8 first:mt-0">{{ group.title }}</h3>
 <ul class="mt-3 grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">

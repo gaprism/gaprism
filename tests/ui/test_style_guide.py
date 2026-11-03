@@ -22,6 +22,7 @@ SCRIPT = PROJECT_ROOT / "scripts" / "styleguide.py"
 ASSETS = PROJECT_ROOT / "assets"
 TEMPLATES = PROJECT_ROOT / "app" / "templates"
 STATIC = PROJECT_ROOT / "app" / "static"
+BRAND = STATIC / "brand"
 
 
 def load_script() -> ModuleType:
@@ -83,6 +84,15 @@ def test_the_guide_comes_with_the_stylesheet_and_the_fonts_it_uses(built: Path, 
     fonts = sorted(path.name for path in (STATIC / "fonts").glob("*.woff2"))
     assert fonts and fonts == sorted(path.name for path in (built / "static" / "fonts").iterdir())
     assert '<link rel="stylesheet" href="static/css/app.css">' in page
+
+
+def test_the_guide_shows_every_logo_file_and_comes_with_them(built: Path, page: str) -> None:
+    files = sorted(path for path in BRAND.iterdir() if path.suffix in {".svg", ".png", ".ico"})
+    assert len(files) >= 5
+    for file in files:
+        assert (built / "static" / "brand" / file.name).read_bytes() == file.read_bytes()
+        assert f'src="static/brand/{file.name}"' in page, file.name
+    assert 'id="logo"' in page
 
 
 def test_every_colour_token_is_shown_with_its_name_and_value(page: str) -> None:

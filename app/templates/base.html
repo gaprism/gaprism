@@ -8,7 +8,8 @@
 {% set mark = initials(current_user.email) %}
 <div class="shell">
   <aside class="sidebar">
-    <a href="{{ url_for('assessments.index') }}" class="brand" data-tip="{{ _('Gaprism') }}">{{ icon('shield') }}<span class="nav-label">{{ _('Gaprism') }}</span></a>
+    {# The lockup while the sidebar is open, the symbol when it is a rail (assets/app.css): one is shown at a time. #}
+    <a href="{{ url_for('assessments.index') }}" class="brand" data-tip="{{ _('Gaprism') }}"><img class="brand-lockup" src="{{ url_for('static', filename='brand/gaprism-logo-horizontal-color.svg') }}" width="160" height="49" alt="{{ _('Gaprism') }}"><img class="brand-symbol" src="{{ url_for('static', filename='brand/gaprism-symbol-color.svg') }}" width="32" height="32" alt="{{ _('Gaprism') }}"></a>
     <nav id="primary-nav" aria-label="{{ _('Main navigation') }}" class="sidebar-nav">
       {{ primary_links() }}
     </nav>
@@ -22,7 +23,7 @@
         <nav id="nav-panel" popover class="menu-panel" aria-label="{{ _('Main navigation') }}">
           {{ primary_links(panel=True) }}
         </nav>
-        <a href="{{ url_for('assessments.index') }}" class="topbar-brand md:hidden">{{ icon('shield') }}<span class="sr-only">{{ _('Gaprism') }}</span></a>
+        <a href="{{ url_for('assessments.index') }}" class="topbar-brand md:hidden"><img src="{{ url_for('static', filename='brand/gaprism-symbol-color.svg') }}" width="32" height="32" alt="{{ _('Gaprism') }}"></a>
         {% if crumbs %}{{ breadcrumbs(crumbs) }}{% endif %}
         {% block topbar_links %}{% endblock %}
       </div>

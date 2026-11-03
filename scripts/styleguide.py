@@ -3,11 +3,11 @@
     uv run python scripts/styleguide.py [FOLDER]
 
 FOLDER defaults to var/styleguide (git-ignored). It receives index.html and, next to it, the
-compiled stylesheet and the fonts the page uses, so that the folder opens from disk and can be
-handed to somebody else. The page is a document, not a route of the application: it is rendered from
-assets/tokens.css, the committed stylesheet and the templates of the components, so it shows what
-the application uses and changes when they change. Run `npm run build` first when assets/ or the
-templates changed.
+compiled stylesheet, the fonts and the logo files the page uses, so that the folder opens from disk
+and can be handed to somebody else. The page is a document, not a route of the application: it is
+rendered from assets/tokens.css, the committed stylesheet and the templates of the components, so it
+shows what the application uses and changes when they change. Run `npm run build` first when
+assets/ or the templates changed.
 
 Exit status: 0 when the page was written, 2 when the arguments are wrong.
 """
@@ -38,11 +38,13 @@ USAGE = "usage: styleguide.py [FOLDER]  (default: var/styleguide)"
 COLOUR = re.compile(r"--color-([a-z-]+):\s*(#[0-9A-Fa-f]{6});")
 RADIUS = re.compile(r"--radius-([a-z]+):\s*(\d+px);")
 FALLBACK_GLYPH = "info"  # what the icon macro draws for a name it does not know
+LOGO_FILES = {".svg", ".png", ".ico"}  # of app/static/brand, what the page shows and ships
 
 TEXT, CONTROL = 4.5, 3.0  # WCAG 2.2 AA: text, and the borders of controls and the focus ring
 
 # The sections of the page, in order: the contents list and the headings both come from here.
 SECTIONS = (
+    ("logo", "Logo and icons"),
     ("colour", "Colour"),
     ("shape", "Shape and depth"),
     ("type", "Type"),
@@ -330,13 +332,17 @@ def render() -> str:
 
 
 def build(folder: Path) -> Path:
-    """Write the page, the stylesheet and the fonts into ``folder``; return the page."""
+    """Write the page, the stylesheet, the fonts and the logos into ``folder``; return the page."""
     html = render()
     (folder / "static" / "css").mkdir(parents=True, exist_ok=True)
     (folder / "static" / "fonts").mkdir(parents=True, exist_ok=True)
+    (folder / "static" / "brand").mkdir(parents=True, exist_ok=True)
     shutil.copyfile(STATIC / "css" / "app.css", folder / "static" / "css" / "app.css")
     for font in sorted((STATIC / "fonts").glob("*.woff2")):
         shutil.copyfile(font, folder / "static" / "fonts" / font.name)
+    for logo in sorted((STATIC / "brand").iterdir()):
+        if logo.suffix in LOGO_FILES:
+            shutil.copyfile(logo, folder / "static" / "brand" / logo.name)
     page = folder / "index.html"
     page.write_bytes(html.encode("utf-8"))  # bytes: the same file on every platform
     return page

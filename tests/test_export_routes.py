@@ -366,6 +366,14 @@ def test_the_report_obeys_the_content_security_policy(finished: Finished) -> Non
     assert "/static/css/app.css" in page and "/static/css/report.css" in page
 
 
+def test_the_report_names_the_icons_of_the_application(finished: Finished) -> None:
+    """The report is a document of its own, so a tab that shows it still has the favicon."""
+    client, scan, _ = finished
+    head = report_of(client, scan).split("</head>", 1)[0]
+    assert '<link rel="icon" href="/static/brand/favicon.svg" type="image/svg+xml">' in head
+    assert '<meta name="theme-color" content="#FFFFFF">' in head
+
+
 def test_what_comes_from_the_network_or_from_people_is_escaped(
     finished: Finished, db_session: Session
 ) -> None:

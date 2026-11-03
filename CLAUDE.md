@@ -13,7 +13,7 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 - Docker: `docker compose up -d --build` (db, web, worker; `--profile proxy` adds HTTPS) · one-off commands `docker compose run --rm cli flask …` · see `docs/deploy.md`; the image installs gunicorn from the `deploy` dependency group, and `TRUSTED_PROXY_COUNT` says how many reverse proxies stand in front
 - Demo for colleagues on Render's free tier with a Neon database: `render.yaml` + `deploy/render-start.sh`, steps and limits in `docs/deploy-render.md` (the image installs the data at build with `BAKE_DATASETS=1`; accounts are created from your machine with the service's `SECURITY_PASSWORD_SALT`)
 - Rules and findings: `uv run flask --app app findings rules` (list) · `findings evaluate [--domain d]` (re-run on a finished scan) · `uv run python -m app.rules.docs` regenerates `docs/rules.md` (a test fails when it is stale)
-- Style guide (tokens, type, icons and the real components on one static page; not a route): `uv run python scripts/styleguide.py [folder]` writes `var/styleguide/index.html` with its own copy of the stylesheet and fonts, so the folder opens from disk or can be handed over; run `npm run build` first after changing `assets/` or a template (a test fails when the page uses a class the stylesheet lacks, or leaves out a token, tone, button variant or icon)
+- Style guide (tokens, type, icons and the real components on one static page; not a route): `uv run python scripts/styleguide.py [folder]` writes `var/styleguide/index.html` with its own copy of the stylesheet, fonts and logos, so the folder opens from disk or can be handed over; run `npm run build` first after changing `assets/` or a template (a test fails when the page uses a class the stylesheet lacks, or leaves out a token, tone, button variant or icon)
 - Config comes from `.env` (git-ignored; template `.env.example`): `DATABASE_URL`, `TEST_DATABASE_URL`, `DB_SCHEMA`, secrets, provider keys. Never print or commit keys.
 - The dev database is shared and its role is restricted (no CREATEDB, `public` not writable): use `DB_SCHEMA`; tests create their own schema.
 
@@ -37,3 +37,4 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 - Small vertical slices; one commit per slice on branch `mvp`; ask before pushing.
 - Strings in templates and flash messages go through `_()`; English first, de-CH later.
 - UI uses the existing design tokens (`assets/tokens.css`, `assets/app.css`); rebuild the CSS after template changes.
+- The logo and icons in `app/static/brand/` come from the brand kit and are used as supplied (rules and sizes in its README); every document names them through `components/brand_head.html`.

@@ -44,7 +44,8 @@
   /* The sidebar is an icon rail from 768 px, full from 1024 px unless collapsed (nav.js sets html[data-nav=rail]);
      below 768 px it is gone and the menu button opens .menu-panel. */
   .sidebar { @apply hidden flex-col border-r border-line bg-panel; }
-  .brand { @apply flex min-h-16 items-center justify-center gap-2 font-semibold tracking-tight; }
+  .brand { @apply flex min-h-16 items-center justify-center; }
+  .brand-lockup { display: none; }
   .sidebar-nav { @apply flex flex-col gap-1 px-2 pb-3 pt-3; }
   .sidebar .nav-link { @apply justify-center px-0; }
   .sidebar [data-tip] { @apply relative; }
@@ -115,7 +116,9 @@
 @media (min-width: 1024px) {
   html.js .nav-toggle { display: flex; }
   html:not([data-nav=rail]) .shell { grid-template-columns: 13rem minmax(0, 1fr); }
-  html:not([data-nav=rail]) .brand { justify-content: flex-start; padding-inline: 1.25rem; }
+  html:not([data-nav=rail]) .brand { justify-content: flex-start; padding-inline: 1rem; }
+  html:not([data-nav=rail]) .brand-lockup { display: block; }
+  html:not([data-nav=rail]) .brand-symbol { display: none; }
   html:not([data-nav=rail]) .sidebar-nav { padding-inline: 0.75rem; }
   html:not([data-nav=rail]) .sidebar .nav-link { justify-content: flex-start; padding-inline: 0.75rem; }
   html:not([data-nav=rail]) .nav-toggle { margin-inline: 0.75rem; justify-content: flex-start; padding-inline: 0.75rem; }

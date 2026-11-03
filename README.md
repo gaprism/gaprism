@@ -45,4 +45,4 @@ Questions, bugs and ideas: open an issue. Security problems: privately, as [SECU
 
 ## Licence
 
-Apache License 2.0: see [LICENSE](LICENSE). [NOTICE](NOTICE) lists the third-party material and the data attributions. The licence does not cover the name Gaprism: see [TRADEMARK.md](TRADEMARK.md).
+Apache License 2.0: see [LICENSE](LICENSE). [NOTICE](NOTICE) lists the third-party material and the data attributions. The licence does not cover the name or the logo of Gaprism: see [TRADEMARK.md](TRADEMARK.md).

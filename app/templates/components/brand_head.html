@@ -1,0 +1,7 @@
+{#- What every document tells the browser about the application: the icons of the tab and of a bookmark
+    on a phone, and the colour of the browser's own bar, which is the colour of the top bar
+    (tests/ui/test_brand_assets.py keeps it equal to the panel token). -#}
+<link rel="icon" href="{{ url_for('static', filename='brand/favicon.ico') }}" sizes="16x16 32x32 48x48">
+<link rel="icon" href="{{ url_for('static', filename='brand/favicon.svg') }}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}">
+<meta name="theme-color" content="#FFFFFF">

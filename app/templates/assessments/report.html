@@ -7,6 +7,7 @@
 <title>{{ _('Technical due diligence') }} · {{ report.data.domain_display }}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+{% include 'components/brand_head.html' %}
 <script src="{{ url_for('static', filename='js/report.js') }}" defer></script>
 </head>
 <body class="report-body bg-canvas text-ink">
