@@ -28,10 +28,12 @@
 <span class="badge {{ tones.get(tone, tones['muted']) }}">{% if tone == 'ok' %}{{ icon('check') }}{% endif %}{{ label }}</span>
 {%- endmacro %}
 
-{# A moment, always in UTC. The date and the time each stay in one piece, so that a narrow column
-   breaks only between them and never inside a date. #}
+{# A moment, always in UTC: a datetime, or the ISO 8601 text that a stored result holds. The date and
+   the time each stay in one piece, so that a narrow column breaks only between them and never
+   inside a date. #}
 {% macro moment(value) -%}
-<time datetime="{{ value.isoformat() }}"><span class="whitespace-nowrap">{{ value.strftime('%Y-%m-%d') }}</span> <span class="whitespace-nowrap">{{ value.strftime('%H:%M') }} UTC</span></time>
+{%- set text = value if value is string else value.isoformat() -%}
+<time datetime="{{ text }}"><span class="whitespace-nowrap">{{ text[:10] }}</span> <span class="whitespace-nowrap">{{ text[11:16] }} UTC</span></time>
 {%- endmacro %}
 
 {% macro notice(title, body='', tone='info') -%}

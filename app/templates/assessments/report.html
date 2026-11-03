@@ -12,6 +12,7 @@
 </head>
 <body class="report-body bg-canvas text-ink">
 {% from 'assessments/_findings.html' import state_note %}
+{% from 'components/ui.html' import moment %}
 {% set data = report.data %}
 {% set summary = data.summary %}
 {% set secure = summary.secure %}
@@ -36,7 +37,7 @@
   {% if finding.advice %}<p><strong>{{ _('What to do') }}:</strong> {{ finding.advice }}</p>{% endif %}
   {% if finding.evidence %}
   <p class="report-source">{{ _('Evidence') }}:
-    {% for ref in finding.evidence[:3] %}{{ check_title(ref.check) }}{% if ref.hostname %} · <bdi class="font-mono">{{ ref.hostname }}</bdi>{% endif %}{% if ref.collected_at %} · {{ ref.collected_at.strftime('%Y-%m-%d %H:%M') }} UTC{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}{% if finding.evidence|length > 3 %}; {{ _('and %(n)s more', n=finding.evidence|length - 3) }}{% endif %}
+    {% for ref in finding.evidence[:3] %}{{ check_title(ref.check) }}{% if ref.hostname %} · <bdi class="font-mono">{{ ref.hostname }}</bdi>{% endif %}{% if ref.collected_at %} · {{ moment(ref.collected_at) }}{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}{% if finding.evidence|length > 3 %}; {{ _('and %(n)s more', n=finding.evidence|length - 3) }}{% endif %}
   </p>
   {% endif %}
   {% if finding.decision %}
@@ -65,14 +66,15 @@
 
 <main id="report" class="report-paper">
   <header class="report-heading">
+    <img class="report-logo" src="{{ url_for('static', filename='brand/gaprism-logo-horizontal-color.svg') }}" width="160" height="49" alt="Gaprism">
     <p class="eyebrow">{{ _('Technical due diligence · external view') }}</p>
     <h1><bdi class="font-mono">{{ data.domain_display }}</bdi></h1>
     {% if data.label %}<p>{{ data.label }}</p>{% endif %}
     <dl class="report-meta">
       <div><dt>{{ _('Assessed domain') }}</dt><dd><bdi class="font-mono">{{ data.domain }}</bdi></dd></div>
-      <div><dt>{{ _('Scan') }}</dt><dd><time datetime="{{ data.scan_created_at.isoformat() }}">{{ data.scan_created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time> · {{ scan_labels.get(data.scan_status, data.scan_status) }}</dd></div>
+      <div><dt>{{ _('Scan') }}</dt><dd>{{ moment(data.scan_created_at) }} · {{ scan_labels.get(data.scan_status, data.scan_status) }}</dd></div>
       <div><dt>{{ _('Hosts reviewed') }}</dt><dd>{{ summary.coverage.hosts }}</dd></div>
-      <div><dt>{{ _('Report generated') }}</dt><dd><time datetime="{{ data.generated_at.isoformat() }}">{{ data.generated_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></dd></div>
+      <div><dt>{{ _('Report generated') }}</dt><dd>{{ moment(data.generated_at) }}</dd></div>
     </dl>
     {% if data.scan_status != 'completed' %}
     <p class="report-warning">{{ _('This scan did not finish everywhere (%(status)s). The coverage in the summary says what is missing; findings can only be as complete as what was collected.', status=scan_labels.get(data.scan_status, data.scan_status)) }}</p>
@@ -252,7 +254,7 @@
     </ul>
 
     <h3>{{ _('Rules') }}</h3>
-    <p>{{ _('Findings are drawn from the stored check results by %(n)s versioned rules (rule set %(set)s).', n=data.rules|length, set=data.ruleset) }}{% if m.evaluated_at %} {{ _('The rules ran on %(when)s.', when=m.evaluated_at[:16].replace('T', ' ') ~ ' UTC') }}{% endif %}</p>
+    <p>{{ _('Findings are drawn from the stored check results by %(n)s versioned rules (rule set %(set)s).', n=data.rules|length, set=data.ruleset) }}{% if m.evaluated_at %} {{ _('The rules ran on %(when)s.', when=moment(m.evaluated_at)) }}{% endif %}</p>
     {% if m.findings_errors %}<p class="report-warning">{{ _('These rules failed and produced no findings: %(rules)s.', rules=m.findings_errors|join(', ')) }}</p>{% endif %}
 
     <h3>{{ _('Limits') }}</h3>
@@ -276,7 +278,7 @@
   </section>
 
   <footer class="report-footer">
-    {{ _('Gaprism · report of %(domain)s · scan of %(scan)s · generated %(when)s', domain=data.domain, scan=data.scan_created_at.strftime('%Y-%m-%d %H:%M') ~ ' UTC', when=data.generated_at.strftime('%Y-%m-%d %H:%M') ~ ' UTC') }}
+    {{ _('Gaprism · report of %(domain)s · scan of %(scan)s · generated %(when)s', domain=data.domain, scan=moment(data.scan_created_at), when=moment(data.generated_at)) }}
   </footer>
 </main>
 </body>

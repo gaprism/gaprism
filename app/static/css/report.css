@@ -7,18 +7,21 @@
 .report-paper { max-width: 960px; margin: 12px auto 32px; padding: 40px; background: var(--color-panel); border: 1px solid var(--color-line); }
 
 .report-heading { margin: 0 0 24px; }
+.report-logo { display: block; margin: 0 0 20px; } /* the lockup at 160 px wide, with the clear space the kit asks for */
+.report-heading .eyebrow { text-wrap: pretty; }
 .report-heading h1 { font-size: 30px; line-height: 1.2; margin: 6px 0; }
 .report-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; border-block: 1px solid var(--color-line); padding: 16px 0; margin-top: 12px; }
 .report-meta dd { margin-top: 2px; }
 .report-warning { border: 1px solid var(--color-control); padding: 8px 12px; margin-top: 12px; font-size: 12px; font-weight: 600; line-height: 1.5; }
 
 .report-paper section { margin-top: 32px; }
-.report-paper section h2 { margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--color-line); }
+.report-paper section h2 { margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--color-line); color: var(--color-action); } /* the identity statement: restrained Indigo headings */
 .report-paper h3 { margin: 16px 0 6px; }
 .report-paper h4 { margin: 0 0 2px; font-size: 15px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
 .report-paper p { margin: 0 0 8px; font-size: 14px; line-height: 1.6; }
 .report-paper ul { margin: 0 0 8px; padding-left: 20px; list-style: disc; font-size: 14px; line-height: 1.6; }
 .report-paper li { margin-bottom: 4px; }
+.report-paper time { white-space: nowrap; } /* a time is quoted: it never breaks */
 .report-paper .report-source, .report-footer { font-size: 12px; color: var(--color-muted); }
 .report-footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid var(--color-control); }
 
@@ -34,7 +37,7 @@
 .report-decision { margin-top: 8px; padding: 8px 12px; border: 1px solid var(--color-line); background: var(--color-subtle); }
 .report-decision p:last-child { margin-bottom: 0; }
 
-.report-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; text-align: left; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; text-align: left; font-variant-numeric: tabular-nums; }
 .report-table th, .report-table td { padding: 6px 8px; border-bottom: 1px solid var(--color-line); vertical-align: top; overflow-wrap: break-word; }
 .report-table thead th { font-size: 12px; font-weight: 600; color: var(--color-muted); }
 .report-table tbody th { width: 34%; font-weight: 600; }
@@ -53,6 +56,8 @@
   .report-toolbar { margin: 8px; padding: 0; }
   .report-paper { margin: 8px; padding: 16px; }
   .report-meta, .report-facts { grid-template-columns: 1fr; }
+  .report-facts dt { margin-top: 10px; } /* a label and its value, stacked, are set apart from the next pair */
+  .report-facts > div:first-child dt { margin-top: 0; }
   .report-table tbody th { width: auto; }
 }
 

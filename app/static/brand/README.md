@@ -6,7 +6,7 @@ and do not replace the lettering with typed text.
 
 | File | Where the application uses it |
 |---|---|
-| `gaprism-logo-horizontal-color.svg` | The sidebar while it is open (160 px wide). |
+| `gaprism-logo-horizontal-color.svg` | The sidebar while it is open, and the heading of the report (160 px wide; 42 mm on paper). |
 | `gaprism-logo-stacked-color.svg` | The pages before sign-in, a centred layout (176 px wide). |
 | `gaprism-symbol-color.svg` | The sidebar as a rail, and the top bar on a phone (32 px). |
 | `favicon.svg`, `favicon.ico` | The browser tab and bookmarks. |

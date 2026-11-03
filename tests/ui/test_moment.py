@@ -11,7 +11,7 @@ from flask import Flask
 from tests.helpers import PROJECT_ROOT
 
 
-def render_moment(value: datetime) -> str:
+def render_moment(value: datetime | str) -> str:
     app = Flask(__name__, template_folder=str(PROJECT_ROOT / "app" / "templates"))
     source = "{% from 'components/ui.html' import moment %}{{ moment(value) }}"
     return app.jinja_env.from_string(source).render(value=value).strip()
@@ -24,3 +24,9 @@ def test_a_moment_is_in_utc_and_breaks_only_between_the_date_and_the_time() -> N
         '<span class="whitespace-nowrap">2026-11-03</span> '
         '<span class="whitespace-nowrap">08:15 UTC</span></time>'
     )
+
+
+def test_the_iso_text_a_stored_result_holds_gives_the_same_moment() -> None:
+    """A check result keeps its times as ISO 8601 text, not as datetimes."""
+    moment = datetime(2026, 11, 3, 8, 15, 42, 123456, tzinfo=UTC)
+    assert render_moment(moment.isoformat()) == render_moment(moment)
