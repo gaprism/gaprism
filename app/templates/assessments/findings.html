@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from 'assessments/_findings.html' import finding_item, severity_chips, state_note %}
+{% from 'components/ui.html' import moment %}
 {% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ _('Findings') }} · {{ assessment.domain_display }}{% endblock %}
 {% block content %}
@@ -14,7 +15,7 @@
 {% else %}
 <p class="mt-1 text-sm text-muted">
   {{ _('What the rules found in the latest scan, most serious first. Each finding points at the evidence it rests on; the team can accept a finding or mark it as a false positive, and the decision carries over to later scans.') }}
-  · {{ _('scan of') }} <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+  · {{ _('scan of') }} {{ moment(scan.created_at) }}
 </p>
 {% if listing.summary.state != 'ready' %}
 <div class="panel mt-6 p-5 text-sm text-muted">{{ state_note(listing.summary.state) }}</div>

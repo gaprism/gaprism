@@ -4,7 +4,7 @@
 <div class="mb-4">{{ notice(_('CDN or anycast network'), _('For addresses of a content delivery network the location shows where the address is announced (an edge site), not where data is processed or stored.'), 'info') }}</div>
 {% endif %}
 <div class="table-scroll">
-  <table class="data-table">
+  <table class="data-table max-sm:whitespace-nowrap">
     <caption class="sr-only">{{ _('Location and network of the host addresses') }}</caption>
     <thead><tr><th scope="col">{{ _('Address') }}</th><th scope="col">{{ _('Location') }}</th><th scope="col">{{ _('Network') }}</th><th scope="col">{{ _('Reverse DNS') }}</th></tr></thead>
     <tbody>

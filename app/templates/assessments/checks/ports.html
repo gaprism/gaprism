@@ -28,7 +28,7 @@
     {% elif a.status == 'no_data' %}{{ badge(_('No data'), 'muted') }}
     {% elif a.status == 'unavailable' %}{{ badge(_('Unavailable'), 'medium') }}
     {% else %}{{ badge(_('Failed'), 'high') }}{% endif %}
-    {% if a.fetched_at %}<span class="text-xs text-muted">{{ provider_name }} · <time datetime="{{ a.fetched_at }}">{{ a.fetched_at[:16]|replace('T', ' ') }} UTC</time>{% if a.cached %} · {{ _('from the cache') }}{% endif %}</span>{% endif %}
+    {% if a.fetched_at %}<span class="text-xs text-muted">{{ provider_name }} · <time datetime="{{ a.fetched_at }}" class="whitespace-nowrap">{{ a.fetched_at[:16]|replace('T', ' ') }} UTC</time>{% if a.cached %} · {{ _('from the cache') }}{% endif %}</span>{% endif %}
   </div>
 
   {% if a.status != 'ok' %}

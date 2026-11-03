@@ -262,7 +262,7 @@
 </div>
 {% endcall %}
 
-{% call section('tables', 'Rows can be read across and compared down. Counts use tabular numerals; domain names and addresses are monospaced and may break anywhere. A table with many columns, such as the hosts of a scan, is dense (data-table-dense): 8 px at the sides of a cell instead of 12, and its first column keeps a minimum width so that the name is not broken.') %}
+{% call section('tables', 'Rows can be read across and compared down. Counts use tabular numerals; domain names and addresses are monospaced and may break anywhere. A table with many columns, such as the hosts of a scan, is dense (data-table-dense): 8 px at the sides of a cell instead of 12, and its first column keeps a minimum width so that the name is not broken. A table of short values (an address, a country, a cookie, the scans of an assessment) keeps its cells whole on a phone and scrolls sideways instead of breaking them (max-sm:whitespace-nowrap).') %}
 <div class="panel">
   <div class="section-head"><h3>Hosts</h3><span class="eyebrow">Scan of 2026-11-02</span></div>
   <div class="table-scroll">

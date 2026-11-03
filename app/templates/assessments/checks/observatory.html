@@ -6,10 +6,10 @@
     <div><dt class="text-muted">{{ _('Score') }}</dt><dd>{{ ngettext('%(num)s point', '%(num)s points', d.score) }}</dd></div>
     <div><dt class="text-muted">{{ _('Tests') }}</dt><dd>{{ _('%(passed)s passed, %(failed)s failed, of %(total)s', passed=d.tests_passed, failed=d.tests_failed, total=d.tests_quantity) }}</dd></div>
     <div><dt class="text-muted">{{ _('Scanned host') }}</dt><dd><bdi class="font-mono">{{ d.host }}</bdi>{% if d.status_code %} <span class="text-muted">· HTTP {{ d.status_code }}</span>{% endif %}</dd></div>
-    <div><dt class="text-muted">{{ _('Scanned') }}</dt><dd>{% if d.scanned_at %}<time datetime="{{ d.scanned_at }}">{{ d.scanned_at[:16]|replace('T', ' ') }} UTC</time>{% else %}—{% endif %}</dd></div>
+    <div><dt class="text-muted">{{ _('Scanned') }}</dt><dd>{% if d.scanned_at %}<time datetime="{{ d.scanned_at }}" class="whitespace-nowrap">{{ d.scanned_at[:16]|replace('T', ' ') }} UTC</time>{% else %}—{% endif %}</dd></div>
   </dl>
 </div>
 {% if d.tried|length > 1 %}<p class="mt-3 text-sm text-muted">{{ _('%(first)s could not be scanned, so %(second)s was.', first=d.tried[0], second=d.host) }}</p>{% endif %}
 <p class="mt-3 text-sm">{{ _('This is Mozilla’s grade for the security headers of the home page. It is an independent second opinion, not part of our findings, and it can differ from them: the two scan from different places with different tests. 100 points is the starting score, an A+ needs 100 or more, and the scale ends at 145.') }}</p>
 {% if d.details_url %}<p class="mt-2 text-sm"><a class="link" href="{{ d.details_url }}" rel="noopener noreferrer" target="_blank">{{ _('The tests, one by one, at Mozilla') }}</a></p>{% endif %}
-<p class="mt-3 text-xs text-muted">{{ _('From Mozilla’s HTTP Observatory') }} · {% if d.cached %}{{ _('from the cache; fetched') }}{% else %}{{ _('fetched') }}{% endif %} <time datetime="{{ d.fetched_at }}">{{ d.fetched_at[:16]|replace('T', ' ') }} UTC</time> · {{ _('the domain name was sent to Mozilla, whose scanner requested the home page from the domain’s servers; the scan and its grade are public on MDN') }}</p>
+<p class="mt-3 text-xs text-muted">{{ _('From Mozilla’s HTTP Observatory') }} · {% if d.cached %}{{ _('from the cache; fetched') }}{% else %}{{ _('fetched') }}{% endif %} <time datetime="{{ d.fetched_at }}" class="whitespace-nowrap">{{ d.fetched_at[:16]|replace('T', ' ') }} UTC</time> · {{ _('the domain name was sent to Mozilla, whose scanner requested the home page from the domain’s servers; the scan and its grade are public on MDN') }}</p>

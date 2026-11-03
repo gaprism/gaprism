@@ -20,4 +20,4 @@
 <ul class="mt-1 grid gap-1 text-sm">{% for name in d.nameservers %}<li><bdi class="font-mono">{{ name }}</bdi></li>{% endfor %}</ul>
 {% else %}<p class="mt-1 text-sm text-muted">{{ _('Not published') }}</p>{% endif %}
 {% if not d.dates_published %}<p class="mt-4 text-xs text-muted">{{ _('This registry does not publish registration or expiry dates.') }}</p>{% endif %}
-<p class="mt-3 text-xs text-muted">{% if d.cached %}{{ _('From the cache; fetched') }}{% else %}{{ _('Fetched') }}{% endif %} <time datetime="{{ d.fetched_at }}">{{ d.fetched_at[:16]|replace('T', ' ') }} UTC</time></p>
+<p class="mt-3 text-xs text-muted">{% if d.cached %}{{ _('From the cache; fetched') }}{% else %}{{ _('Fetched') }}{% endif %} <time datetime="{{ d.fetched_at }}" class="whitespace-nowrap">{{ d.fetched_at[:16]|replace('T', ' ') }} UTC</time></p>

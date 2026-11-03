@@ -37,7 +37,7 @@
 
 <h3 class="mt-5 text-sm">{{ _('Cookies') }}</h3>
 {% if d.cookies %}
-<div class="table-scroll mt-1"><table class="data-table">
+<div class="table-scroll mt-1"><table class="data-table max-sm:whitespace-nowrap">
   <thead><tr><th scope="col">{{ _('Name') }}</th><th scope="col">Secure</th><th scope="col">HttpOnly</th><th scope="col">SameSite</th><th scope="col">{{ _('Lifetime') }}</th></tr></thead>
   <tbody>{% for cookie in d.cookies %}<tr>
     <td><bdi class="font-mono">{{ cookie.name }}</bdi>{% if cookie.prefix %} <span class="text-muted">({{ cookie.prefix }})</span>{% endif %}</td>

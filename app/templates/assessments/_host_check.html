@@ -3,9 +3,9 @@
 <section class="panel mt-6" aria-labelledby="check-{{ section.key }}">
   <div class="section-head">
     <h2 id="check-{{ section.key }}">{{ section.title }}</h2>
-    <div class="flex flex-wrap items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3 max-sm:[&_.badge]:whitespace-normal">
       {{ badge(section.cell.text, section.cell.tone) }}
-      {% if section.collected_at %}<span class="text-xs text-muted"><time datetime="{{ section.collected_at.isoformat() }}">{{ section.collected_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</time>{% if section.duration_ms is not none %} · {{ section.duration_ms }} ms{% endif %}</span>{% endif %}
+      {% if section.collected_at %}<span class="text-xs text-muted"><time datetime="{{ section.collected_at.isoformat() }}" class="whitespace-nowrap">{{ section.collected_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</time>{% if section.duration_ms is not none %} · {{ section.duration_ms }} ms{% endif %}</span>{% endif %}
     </div>
   </div>
   <div class="p-4">

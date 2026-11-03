@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'components/ui.html' import moment %}
 {% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ _('Domain checks') }} · {{ assessment.domain_display }}{% endblock %}
 {% block content %}
@@ -8,7 +9,7 @@
 {% if detail %}
 <p class="mt-1 text-sm text-muted">
   {{ _('What was collected about the domain itself, as opposed to one of its hosts.') }}
-  · {{ _('scan of') }} <time datetime="{{ detail.scan.created_at.isoformat() }}">{{ detail.scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+  · {{ _('scan of') }} {{ moment(detail.scan.created_at) }}
 </p>
 {% for section in detail.sections %}
   {% include 'assessments/_host_check.html' %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from 'components/ui.html' import action, badge, empty %}
+{% from 'components/ui.html' import action, badge, empty, moment %}
 {% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ _('Scan history') }} · {{ assessment.domain_display }}{% endblock %}
 {% block content %}
@@ -43,7 +43,7 @@
 
 <div class="panel mt-4">
   <div class="table-scroll">
-    <table class="data-table">
+    <table class="data-table max-sm:whitespace-nowrap">
       <caption class="sr-only">{{ _('The scans of this assessment, newest first') }}</caption>
       <thead>
         <tr>
@@ -60,13 +60,13 @@
         {% for row in rows %}
         {% set scan = row.scan %}
         <tr>
-          <td>
-            <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+          <td class="sm:whitespace-nowrap">
+            {{ moment(scan.created_at) }}
             {% if loop.first %}<span class="text-muted">· {{ _('latest') }}</span>{% endif %}
           </td>
           <td>{{ badge(labels[scan.status], tones[scan.status]) }}</td>
           <td><bdi>{{ row.started_by }}</bdi></td>
-          <td>
+          <td class="whitespace-nowrap">
             {% if row.duration is not none %}{% set seconds = row.duration.total_seconds()|int %}{% if seconds >= 60 %}{{ _('%(minutes)s min %(seconds)s s', minutes=seconds // 60, seconds=seconds % 60) }}{% else %}{{ _('%(seconds)s s', seconds=seconds) }}{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}
           </td>
           <td>{{ row.hosts }}</td>

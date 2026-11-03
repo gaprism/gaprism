@@ -381,7 +381,8 @@ def test_deleting_needs_the_domain_to_be_typed(client: FlaskClient, db_session: 
     form = page(client, url)
     assert "Delete this assessment?" in form and "gone.example" in form
     counts = assessment_service.contents(db_session, scan.assessment)
-    assert f"<dd>{counts.hosts}</dd>" in form and f"<dd>{counts.findings}</dd>" in form
+    assert f'<dd class="mt-0">{counts.hosts}</dd>' in form
+    assert f'<dd class="mt-0">{counts.findings}</dd>' in form
     assert 'name="confirm"' in form and "Delete permanently" in form
 
     wrong = client.post(url, data={"confirm": "other.example"})

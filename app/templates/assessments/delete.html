@@ -1,20 +1,16 @@
 {% extends "base.html" %}
 {% from 'components/ui.html' import action, notice %}
+{% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ _('Delete assessment') }} · {{ assessment.domain_display }}{% endblock %}
 {% block content %}
-<nav class="text-sm" aria-label="{{ _('Where you are') }}">
-  <a class="link" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
-  /
-  <a class="link" href="{{ url_for('assessments.detail', assessment_id=assessment.id) }}"><bdi class="font-mono">{{ assessment.domain_display }}</bdi></a>
-</nav>
-<h1 class="mt-2">{{ _('Delete this assessment?') }}</h1>
+<h1>{{ _('Delete this assessment?') }}</h1>
 <div class="panel mt-4 max-w-2xl p-5">
   {{ notice(_('This cannot be undone.'), _('Deleting %(domain)s removes it for good, with everything listed below. No report or export can be made from it afterwards. The audit log keeps that it happened, who did it and these numbers.', domain=assessment.domain_display), 'danger') }}
   <dl class="mt-4 grid max-w-sm grid-cols-2 gap-x-4 gap-y-1 text-sm">
-    <dt class="text-muted">{{ _('Scans') }}</dt><dd>{{ contents.scans }}</dd>
-    <dt class="text-muted">{{ _('Hosts') }}</dt><dd>{{ contents.hosts }}</dd>
-    <dt class="text-muted">{{ _('Findings') }}</dt><dd>{{ contents.findings }}</dd>
-    <dt class="text-muted">{{ _('Decisions about findings') }}</dt><dd>{{ contents.decisions }}</dd>
+    <dt class="text-muted">{{ _('Scans') }}</dt><dd class="mt-0">{{ contents.scans }}</dd>
+    <dt class="text-muted">{{ _('Hosts') }}</dt><dd class="mt-0">{{ contents.hosts }}</dd>
+    <dt class="text-muted">{{ _('Findings') }}</dt><dd class="mt-0">{{ contents.findings }}</dd>
+    <dt class="text-muted">{{ _('Decisions about findings') }}</dt><dd class="mt-0">{{ contents.decisions }}</dd>
   </dl>
   {% if scan_active %}
   <div class="mt-5">{{ notice(_('A scan is queued or running'), _('Cancel it, or wait for it to finish, before deleting this assessment.'), 'warning') }}</div>
@@ -24,7 +20,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label for="confirm">{{ _('Type the domain to confirm') }}</label>
-      <input id="confirm" name="confirm" type="text" required autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="300" class="rounded-md border border-control bg-panel px-3 py-2 font-mono text-sm" placeholder="{{ assessment.domain_display }}" aria-describedby="confirm-help{% if error %} confirm-error{% endif %}"{% if error %} aria-invalid="true"{% endif %}>
+      <input id="confirm" name="confirm" type="text" required autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="300" class="py-2 font-mono text-sm" placeholder="{{ assessment.domain_display }}" aria-describedby="confirm-help{% if error %} confirm-error{% endif %}"{% if error %} aria-invalid="true"{% endif %}>
       <p class="field-help" id="confirm-help">{{ _('Type %(domain)s, then delete.', domain=assessment.domain_display) }}</p>
       {% if error %}<p class="text-sm text-danger" id="confirm-error" role="alert">{{ error }}</p>{% endif %}
     </div>

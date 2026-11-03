@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from 'components/ui.html' import badge %}
+{% from 'components/ui.html' import badge, moment %}
 {% from 'assessments/_findings.html' import host_findings_panel %}
 {% set crumbs = [(_('Assessments'), url_for('assessments.index')), (assessment.domain_display, url_for('assessments.detail', assessment_id=assessment.id), true)] %}
 {% block title %}{{ detail.host.hostname }}{% endblock %}
@@ -15,7 +15,7 @@
   {% elif host.source == 'manual' %}{{ _('Added by hand') }}
   {% else %}{{ _('Fallback (no source answered)') }}{% endif %}
   {% if host.last_seen %} · {{ _('last seen in certificates') }} <time datetime="{{ host.last_seen.isoformat() }}">{{ host.last_seen.strftime('%Y-%m-%d') }}</time>{% endif %}
-  · {{ _('scan of') }} <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+  · {{ _('scan of') }} {{ moment(scan.created_at) }}
 </p>
 
 {{ host_findings_panel(findings, assessment, host) }}
