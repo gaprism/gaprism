@@ -176,6 +176,14 @@ def test_the_ok_badge_shows_its_check_mark(page: str) -> None:
     assert len(re.findall(ok_badge, page, re.S)) >= 5  # the tones table, the outcomes, the hosts
 
 
+def test_a_moment_is_shown_as_the_pages_show_it(page: str) -> None:
+    moment = (
+        '<time datetime="2026-11-03T08:15:00+00:00"><span class="whitespace-nowrap">2026-11-03'
+        '</span> <span class="whitespace-nowrap">08:15 UTC</span></time>'
+    )
+    assert page.count(moment) == 2  # in a column with room, and in a narrow one
+
+
 def test_the_account_menu_is_the_one_the_pages_use(page: str) -> None:
     menu = re.search(r'<ul class="menu-panel[^"]*">(.*?)</ul>', page, re.S)
     assert menu is not None

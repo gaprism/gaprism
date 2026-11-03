@@ -3,7 +3,7 @@
     template of the application and no route serves it, so the content security policy does not apply to it:
     the swatches carry their colour in a style attribute. Tailwind reads the class names of this file as well
     (assets/app.css, @source); after changing it run `npm run build`. -#}
-{% from 'components/ui.html' import action, badge, empty, icon, notice %}
+{% from 'components/ui.html' import action, badge, empty, icon, moment, notice %}
 {% from 'components/nav.html' import breadcrumbs, primary_links with context %}
 {% from 'components/account.html' import account_menu_items with context %}
 {% set titles = dict(sections) %}
@@ -283,6 +283,13 @@
 <div class="mt-6 max-w-md">
   <p class="mb-2 text-sm text-muted">Scan progress</p>
   <progress value="40" max="100" aria-label="Scan progress">40%</progress>
+</div>
+<div class="mt-6 max-w-3xl">
+  <p class="mb-2 text-sm text-muted">A moment is shown in UTC. The date and the time each stay in one piece, so that a narrow column breaks only between them and never inside a date.</p>
+  <div class="flex flex-wrap items-start gap-4 text-sm">
+    <div class="w-48 rounded-md border border-line bg-panel p-2">{{ moment(example_moment) }}</div>
+    <div class="w-24 rounded-md border border-line bg-panel p-2">{{ moment(example_moment) }}</div>
+  </div>
 </div>
 {% endcall %}
 

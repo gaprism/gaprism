@@ -20,6 +20,7 @@ import shutil
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -318,6 +319,7 @@ def _context() -> dict[str, Any]:
             summarize("example", status, None, {})
             for status in ("queued", "running", "ok", "no_data", "skipped", "unavailable", "error")
         ],
+        "example_moment": datetime(2026, 11, 3, 8, 15, tzinfo=UTC),
     }
 
 

@@ -15,7 +15,15 @@ from app.models import Assessment, CheckResult, Finding, FindingDisposition, Hos
 from app.service import assessments as assessment_service
 from app.service import scans as scan_service
 from app.service import users as user_service
-from tests.helpers import audit_rows, create_assessment, create_user, login_as, make_app
+from tests.helpers import (
+    audit_rows,
+    create_assessment,
+    create_user,
+    link_texts,
+    login_as,
+    make_app,
+    nav_html,
+)
 from tests.test_engine import CONFIG
 from tests.test_summary import decide as record_decision
 from tests.test_summary import evaluated
@@ -260,13 +268,17 @@ def test_the_list_has_an_archive_that_is_counted_and_listed(
     old = create_assessment(db_session, owner, "old.example")
     login_as(client, owner)
 
-    assert "Archived (0)" in page(client, "/assessments/")
+    tabs = "Which assessments to show"
+    assert link_texts(nav_html(page(client, "/assessments/"), tabs)) == [
+        "Active (3)",
+        "Archived (0)",
+    ]
     assert "Nothing is archived" in page(client, "/assessments/?view=archived")
 
     response = client.post(f"/assessments/{old.id}/archive", follow_redirects=True)
     listing = response.get_data(as_text=True)
     assert "Archived. It is hidden from the list" in listing
-    assert "Active (2)" in listing and "Archived (1)" in listing
+    assert link_texts(nav_html(listing, tabs)) == ["Active (2)", "Archived (1)"]
     assert "old.example" not in listing.split("<tbody>")[1]
     assert "live-one.example" in listing and "live-two.example" in listing
 

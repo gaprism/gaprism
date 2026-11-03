@@ -91,6 +91,19 @@ def attributes(tag: str) -> dict[str, str]:
     return dict(re.findall(r'([a-z-]+)="([^"]*)"', tag))
 
 
+def nav_html(page: str, label: str) -> str:
+    """The inside of the <nav> that carries this aria-label."""
+    match = re.search(rf'<nav [^>]*aria-label="{re.escape(label)}"[^>]*>(.*?)</nav>', page, re.S)
+    assert match is not None, f"no navigation is labelled {label!r}"
+    return match.group(1)
+
+
+def link_texts(html: str) -> list[str]:
+    """The words of every link in a piece of HTML, without tags and with single spaces."""
+    links = re.findall(r"<a [^>]*>.*?</a>", html, re.S)
+    return [" ".join(re.sub(r"<[^>]+>", "", link).split()) for link in links]
+
+
 def render_badge(label: str, tone: str) -> str:
     """The badge macro of components/ui.html on its own: no application, no database.
 

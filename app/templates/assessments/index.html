@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from 'components/ui.html' import action, badge, empty %}
+{% from 'components/ui.html' import action, badge, empty, moment %}
 {% block title %}{{ _('Assessments') }}{% endblock %}
 {% block content %}
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -9,20 +9,21 @@
   </div>
   {{ action(_('New assessment'), url_for('assessments.new'), 'primary') }}
 </div>
-<nav class="mb-3 flex flex-wrap gap-2" aria-label="{{ _('Which assessments to show') }}">
-  <a class="btn {{ 'btn-secondary' if not viewing_archive else 'btn-quiet' }}" href="{{ url_for('assessments.index') }}"{% if not viewing_archive %} aria-current="page"{% endif %}>{{ _('Active') }} ({{ counts.live }})</a>
-  <a class="btn {{ 'btn-secondary' if viewing_archive else 'btn-quiet' }}" href="{{ url_for('assessments.index', view='archived') }}"{% if viewing_archive %} aria-current="page"{% endif %}>{{ _('Archived') }} ({{ counts.archived }})</a>
+<nav class="mb-4 flex flex-wrap gap-1 border-b border-line" aria-label="{{ _('Which assessments to show') }}">
+  <a class="tab" href="{{ url_for('assessments.index') }}"{% if not viewing_archive %} aria-current="page"{% endif %}>{{ _('Active') }} <span class="ml-1 text-muted">({{ counts.live }})</span></a>
+  <a class="tab" href="{{ url_for('assessments.index', view='archived') }}"{% if viewing_archive %} aria-current="page"{% endif %}>{{ _('Archived') }} <span class="ml-1 text-muted">({{ counts.archived }})</span></a>
 </nav>
 <div class="panel">
   {% if assessments %}
+  {# On a phone the label moves under the domain and the owner is left out (it is on the assessment's page). #}
   <div class="table-scroll">
     <table class="data-table">
       <caption class="sr-only">{{ _('Archived assessments you can open') if viewing_archive else _('Assessments you can open') }}</caption>
       <thead>
         <tr>
           <th scope="col">{{ _('Domain') }}</th>
-          <th scope="col">{{ _('Label') }}</th>
-          <th scope="col">{{ _('Owner') }}</th>
+          <th scope="col" class="hidden sm:table-cell">{{ _('Label') }}</th>
+          <th scope="col" class="hidden sm:table-cell">{{ _('Owner') }}</th>
           <th scope="col">{{ _('Visibility') }}</th>
           <th scope="col">{{ _('Created') }}</th>
           {% if viewing_archive %}<th scope="col">{{ _('Archived') }}</th>{% endif %}
@@ -31,12 +32,12 @@
       <tbody>
         {% for item in assessments %}
         <tr>
-          <td><a class="link" href="{{ url_for('assessments.detail', assessment_id=item.id) }}"><bdi class="font-mono">{{ item.domain_display }}</bdi></a></td>
-          <td>{{ item.label or '—' }}</td>
-          <td>{% if item.created_by == current_user.id %}{{ _('You') }}{% else %}<bdi>{{ owners.get(item.id, '—') }}</bdi>{% endif %}</td>
+          <td><a class="link" href="{{ url_for('assessments.detail', assessment_id=item.id) }}"><bdi class="font-mono">{{ item.domain_display }}</bdi></a>{% if item.label %}<p class="mt-1 text-xs text-muted sm:hidden">{{ item.label }}</p>{% endif %}</td>
+          <td class="hidden sm:table-cell">{{ item.label or '—' }}</td>
+          <td class="hidden sm:table-cell">{% if item.created_by == current_user.id %}{{ _('You') }}{% else %}<bdi>{{ owners.get(item.id, '—') }}</bdi>{% endif %}</td>
           <td>{{ badge(_('Shared') if item.visibility == 'shared' else _('Private'), 'info' if item.visibility == 'shared' else 'muted') }}</td>
-          <td><time datetime="{{ item.created_at.isoformat() }}">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></td>
-          {% if viewing_archive %}<td><time datetime="{{ item.archived_at.isoformat() }}">{{ item.archived_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></td>{% endif %}
+          <td class="sm:whitespace-nowrap">{{ moment(item.created_at) }}</td>
+          {% if viewing_archive %}<td class="sm:whitespace-nowrap">{{ moment(item.archived_at) }}</td>{% endif %}
         </tr>
         {% endfor %}
       </tbody>

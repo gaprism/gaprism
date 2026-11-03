@@ -28,6 +28,12 @@
 <span class="badge {{ tones.get(tone, tones['muted']) }}">{% if tone == 'ok' %}{{ icon('check') }}{% endif %}{{ label }}</span>
 {%- endmacro %}
 
+{# A moment, always in UTC. The date and the time each stay in one piece, so that a narrow column
+   breaks only between them and never inside a date. #}
+{% macro moment(value) -%}
+<time datetime="{{ value.isoformat() }}"><span class="whitespace-nowrap">{{ value.strftime('%Y-%m-%d') }}</span> <span class="whitespace-nowrap">{{ value.strftime('%H:%M') }} UTC</span></time>
+{%- endmacro %}
+
 {% macro notice(title, body='', tone='info') -%}
 <div class="notice {% if tone == 'danger' %}border-danger bg-critical-bg{% elif tone == 'warning' %}border-medium bg-medium-bg{% endif %}" role="{{ 'alert' if tone in ['danger', 'warning'] else 'status' }}">{{ icon('info') }}<div><p class="font-semibold">{{ title }}</p>{% if body %}<p class="mt-1 text-muted">{{ body }}</p>{% endif %}</div></div>
 {%- endmacro %}
