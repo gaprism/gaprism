@@ -240,7 +240,7 @@
 <div class="mt-4 rounded-lg border border-line">{{ empty('No assessments yet', 'Start one with a domain name. It is checked from the outside only.') }}</div>
 {% endcall %}
 
-{% call section('forms', 'Every control has a visible label. Help text and errors are tied to the field with aria-describedby, and an error says what to do, not only what went wrong.') %}
+{% call section('forms', 'Every control has a visible label. Help text and errors are tied to the field with aria-describedby, and an error says what to do, not only what went wrong. A refused field has a red border as well as its message, so that it can be found in a long form.') %}
 <div class="grid gap-6 md:grid-cols-2">
   <div class="grid content-start gap-4">
     <div class="field"><label for="sg-domain">Domain</label><input id="sg-domain" value="example.com" aria-describedby="sg-domain-help"><p class="field-help" id="sg-domain-help">The registered domain, without a path.</p></div>

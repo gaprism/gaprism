@@ -63,3 +63,18 @@ def test_help_and_error_are_both_pointed_at() -> None:
 def test_more_attributes_reach_the_input() -> None:
     field = input_of(render_field(attrs={"inputmode": "numeric", "value": ""}, autocomplete="x"))
     assert field["inputmode"] == "numeric" and field["value"] == "" and field["autocomplete"] == "x"
+
+
+def test_the_stylesheet_marks_a_refused_input_in_the_danger_colour() -> None:
+    """The message says what is wrong; the border says where. Run ``npm run build`` after
+    changing assets/app.css: the stylesheet is committed."""
+    css = re.sub(
+        r"\s+", "", (PROJECT_ROOT / "app" / "static" / "css" / "app.css").read_text("utf-8")
+    )
+    marked = [
+        selector
+        for selector, body in re.findall(r"([^{}]*\[aria-invalid=true\][^{}]*)\{([^}]*)\}", css)
+        if "border-color:var(--color-danger)" in body
+    ]
+    assert any("input[aria-invalid=true]" in selector for selector in marked)
+    assert any("select[aria-invalid=true]" in selector for selector in marked)

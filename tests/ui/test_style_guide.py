@@ -183,6 +183,14 @@ def test_the_dense_table_is_shown_as_the_hosts_of_a_scan_use_it(page: str) -> No
     assert "data-table-dense" in re.sub(r"<[^>]+>", "", page)  # and the guide says what it is for
 
 
+def test_a_refused_field_is_shown_with_the_rule_of_the_stylesheet(page: str) -> None:
+    field = re.search(r'<input [^>]*id="sg-wrong"[^>]*>', page)
+    assert field is not None and 'aria-invalid="true"' in field.group(0)
+    # the border is the stylesheet's rule, not a look of its own; and the guide says what it is
+    assert "class=" not in field.group(0)
+    assert "red border" in re.sub(r"<[^>]+>", "", page)
+
+
 def test_a_moment_is_shown_as_the_pages_show_it(page: str) -> None:
     moment = (
         '<time datetime="2026-11-03T08:15:00+00:00"><span class="whitespace-nowrap">2026-11-03'
