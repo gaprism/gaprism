@@ -176,6 +176,13 @@ def test_the_ok_badge_shows_its_check_mark(page: str) -> None:
     assert len(re.findall(ok_badge, page, re.S)) >= 5  # the tones table, the outcomes, the hosts
 
 
+def test_the_dense_table_is_shown_as_the_hosts_of_a_scan_use_it(page: str) -> None:
+    css = (ASSETS / "app.css").read_text(encoding="utf-8")
+    assert ".data-table-dense th, .data-table-dense td" in css
+    assert '<table class="data-table data-table-dense">' in page
+    assert "data-table-dense" in re.sub(r"<[^>]+>", "", page)  # and the guide says what it is for
+
+
 def test_a_moment_is_shown_as_the_pages_show_it(page: str) -> None:
     moment = (
         '<time datetime="2026-11-03T08:15:00+00:00"><span class="whitespace-nowrap">2026-11-03'

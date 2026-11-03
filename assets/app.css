@@ -79,6 +79,7 @@
   .data-table tbody tr:last-child td { border-bottom: 0; }
   .data-table tbody tr:hover { @apply bg-canvas; }
   .data-table caption { @apply px-4 py-3 text-left text-sm text-muted; }
+  .data-table-dense th, .data-table-dense td { @apply px-2; } /* many columns: the hosts of a scan */
   .field { @apply flex flex-col gap-1.5; }
   .field label { @apply text-sm font-medium; }
   .field-help { @apply text-sm text-muted; }

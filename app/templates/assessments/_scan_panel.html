@@ -1,4 +1,4 @@
-{% from 'components/ui.html' import badge, notice %}
+{% from 'components/ui.html' import badge, moment, notice %}
 {% from 'assessments/_findings.html' import findings_panel %}
 {% from 'assessments/_summary.html' import summary_cards %}
 {% set tones ={'queued': 'info', 'running': 'info', 'completed': 'ok', 'partial': 'medium', 'failed': 'critical', 'cancelled': 'muted'} %}
@@ -23,8 +23,8 @@
         {{ badge(labels[scan.status], tones[scan.status]) }}
       </div>
       <p class="text-sm text-muted">
-        {{ _('Queued') }} <time datetime="{{ scan.created_at.isoformat() }}">{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
-        {% if scan.finished_at %} · {{ _('finished') }} <time datetime="{{ scan.finished_at.isoformat() }}">{{ scan.finished_at.strftime('%H:%M:%S') }} UTC</time>{% endif %}
+        {{ _('Queued') }} {{ moment(scan.created_at) }}
+        {% if scan.finished_at %} · {{ _('finished') }} <time datetime="{{ scan.finished_at.isoformat() }}" class="whitespace-nowrap">{{ scan.finished_at.strftime('%H:%M:%S') }} UTC</time>{% endif %}
         {% if overview.previous_scan_id %} · <a class="link" href="{{ url_for('assessments.compare_scans', assessment_id=assessment.id, **{'from': overview.previous_scan_id, 'to': scan.id}) }}">{{ _('What changed since the scan before') }}</a>{% endif %}
       </p>
     </div>
@@ -93,7 +93,7 @@
           {% for row in overview.domain_rows %}
           <tr>
             <td><a class="link" href="{{ url_for('assessments.domain_detail', assessment_id=assessment.id, _anchor='check-' ~ row.key) }}">{{ row.title }}</a></td>
-            <td>{{ badge(row.cell.text, row.cell.tone) }}</td>
+            <td class="max-sm:[&_.badge]:whitespace-normal">{{ badge(row.cell.text, row.cell.tone) }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -148,9 +148,9 @@
     </div>
     {% if hosts.rows %}
     <div class="table-scroll">
-      <table class="data-table">
+      <table class="data-table data-table-dense">
         <caption class="sr-only">{{ _('Hosts of the latest scan') }}</caption>
-        <thead><tr><th scope="col">{{ _('Hostname') }}</th><th scope="col">{{ _('DNS') }}</th><th scope="col">{{ _('Location') }}</th><th scope="col">{{ _('Ports') }}</th><th scope="col">{{ _('TLS') }}</th><th scope="col">{{ _('HTTP') }}</th><th scope="col">{{ _('Findings') }}</th></tr></thead>
+        <thead><tr><th scope="col" class="min-w-48">{{ _('Hostname') }}</th><th scope="col">{{ _('DNS') }}</th><th scope="col">{{ _('Location') }}</th><th scope="col">{{ _('Ports') }}</th><th scope="col">{{ _('TLS') }}</th><th scope="col">{{ _('HTTP') }}</th><th scope="col">{{ _('Findings') }}</th></tr></thead>
         <tbody>
           {% for host in hosts.rows %}
           {% set cells = overview.host_cells.get(host.id, {}) %}

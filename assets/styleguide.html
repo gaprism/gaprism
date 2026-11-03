@@ -262,13 +262,13 @@
 </div>
 {% endcall %}
 
-{% call section('tables', 'Rows can be read across and compared down. Counts use tabular numerals; domain names and addresses are monospaced and may break anywhere.') %}
+{% call section('tables', 'Rows can be read across and compared down. Counts use tabular numerals; domain names and addresses are monospaced and may break anywhere. A table with many columns, such as the hosts of a scan, is dense (data-table-dense): 8 px at the sides of a cell instead of 12, and its first column keeps a minimum width so that the name is not broken.') %}
 <div class="panel">
   <div class="section-head"><h3>Hosts</h3><span class="eyebrow">Scan of 2026-11-02</span></div>
   <div class="table-scroll">
-    <table class="data-table">
+    <table class="data-table data-table-dense">
       <caption class="sr-only">Hosts of the last scan</caption>
-      <thead><tr><th scope="col">Host</th><th scope="col">TLS</th><th scope="col">Mail</th><th scope="col">HTTP</th><th scope="col">Ports</th><th scope="col">Findings</th></tr></thead>
+      <thead><tr><th scope="col" class="min-w-48">Host</th><th scope="col">TLS</th><th scope="col">Mail</th><th scope="col">HTTP</th><th scope="col">Ports</th><th scope="col">Findings</th></tr></thead>
       <tbody>
         <tr><td class="whitespace-nowrap"><a class="link" href="#tables"><bdi class="font-mono">www.example.com</bdi></a></td><td>{{ badge('A · 12 tests', 'ok') }}</td><td>{{ badge('SPF + DMARC', 'ok') }}</td><td>{{ badge('200', 'ok') }}</td><td>{{ badge('443', 'info') }}</td><td>{{ badge('High · 1', 'high') }}</td></tr>
         <tr><td class="whitespace-nowrap"><a class="link" href="#tables"><bdi class="font-mono">mail.example.com</bdi></a></td><td>{{ badge('C · 9 tests', 'medium') }}</td><td>{{ badge('No data', 'muted') }}</td><td>{{ badge('301', 'ok') }}</td><td>{{ badge('25, 443', 'info') }}</td><td>{{ badge('Low · 3', 'low') }}</td></tr>

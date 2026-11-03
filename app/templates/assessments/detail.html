@@ -1,18 +1,18 @@
 {% extends "base.html" %}
-{% from 'components/ui.html' import action, badge, icon %}
+{% from 'components/ui.html' import action, badge, icon, moment %}
+{% set crumbs = [(_('Assessments'), url_for('assessments.index'))] %}
 {% block title %}{{ assessment.domain_display }}{% endblock %}
 {% block content %}
 <div class="mb-2 flex flex-wrap items-start justify-between gap-3">
   <div>
-    <a class="link text-sm" href="{{ url_for('assessments.index') }}">{{ _('Assessments') }}</a>
-    <div class="mt-2 flex flex-wrap items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3">
       <h1><bdi class="font-mono">{{ assessment.domain_display }}</bdi></h1>
       {{ badge(_('Shared') if assessment.visibility == 'shared' else _('Private'), 'info' if assessment.visibility == 'shared' else 'muted') }}
     </div>
     <p class="mt-1 text-sm text-muted">
       {% if assessment.domain != assessment.domain_display %}<bdi class="font-mono">{{ assessment.domain }}</bdi> · {% endif %}
       {% if assessment.label %}{{ assessment.label }} · {% endif %}
-      {{ _('Created') }} <time datetime="{{ assessment.created_at.isoformat() }}">{{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>
+      {{ _('Created') }} {{ moment(assessment.created_at) }}
       {% if owner_email %} · {{ _('Owner') }}: <bdi>{{ owner_email }}</bdi>{% endif %}
     </p>
     {% if can_manage %}
@@ -44,7 +44,7 @@
   {{ icon('info') }}
   <div>
     <p class="font-semibold">{{ _('This assessment is archived.') }}</p>
-    <p class="mt-1 text-muted">{{ _('It is hidden from the list and read-only: it cannot be scanned or changed, but the reports, the exports and the scan history stay available.') }} {{ _('Archived') }} <time datetime="{{ assessment.archived_at.isoformat() }}">{{ assessment.archived_at.strftime('%Y-%m-%d %H:%M') }} UTC</time>.</p>
+    <p class="mt-1 text-muted">{{ _('It is hidden from the list and read-only: it cannot be scanned or changed, but the reports, the exports and the scan history stay available.') }} {{ _('Archived') }} {{ moment(assessment.archived_at) }}.</p>
     {% if can_manage %}
     <form method="post" action="{{ url_for('assessments.unarchive_assessment', assessment_id=assessment.id) }}" class="mt-3">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
