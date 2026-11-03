@@ -13,13 +13,14 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 - Docker: `docker compose up -d --build` (db, web, worker; `--profile proxy` adds HTTPS) · one-off commands `docker compose run --rm cli flask …` · see `docs/deploy.md`; the image installs gunicorn from the `deploy` dependency group, and `TRUSTED_PROXY_COUNT` says how many reverse proxies stand in front
 - Demo for colleagues on Render's free tier with a Neon database: `render.yaml` + `deploy/render-start.sh`, steps and limits in `docs/deploy-render.md` (the image installs the data at build with `BAKE_DATASETS=1`; accounts are created from your machine with the service's `SECURITY_PASSWORD_SALT`)
 - Rules and findings: `uv run flask --app app findings rules` (list) · `findings evaluate [--domain d]` (re-run on a finished scan) · `uv run python -m app.rules.docs` regenerates `docs/rules.md` (a test fails when it is stale)
+- Style guide (tokens, type, icons and the real components on one static page; not a route): `uv run python scripts/styleguide.py [folder]` writes `var/styleguide/index.html` with its own copy of the stylesheet and fonts, so the folder opens from disk or can be handed over; run `npm run build` first after changing `assets/` or a template (a test fails when the page uses a class the stylesheet lacks, or leaves out a token, tone, button variant or icon)
 - Config comes from `.env` (git-ignored; template `.env.example`): `DATABASE_URL`, `TEST_DATABASE_URL`, `DB_SCHEMA`, secrets, provider keys. Never print or commit keys.
 - The dev database is shared and its role is restricted (no CREATEDB, `public` not writable): use `DB_SCHEMA`; tests create their own schema.
 
 ## Layout
 - `app/`: factory, `config.py`, `models/`, `service/` (business logic), `checks/` (one module per check), `rules/` (pure: stored results in, findings out), `blueprints/` (thin routes), `templates/`, `static/`, `translations/`
 - `runner/`: the network boundary — SSRF-safe DNS, IP-pinned HTTP client, TLS prober. **All target-facing traffic goes through it.**
-- `assets/`: Tailwind source (compiles to `app/static/css`) · `migrations/`: Alembic · `tests/` · `docs/`
+- `assets/`: Tailwind source (compiles to `app/static/css`) and the style-guide page `styleguide.html` (its classes are compiled in; the page itself is no part of the app) · `scripts/` · `migrations/`: Alembic · `tests/` · `docs/`
 
 ## Rules that matter
 1. Typed outcomes: `ok | no_data | unavailable | error | skipped`. Never show "clean" for "not checked".

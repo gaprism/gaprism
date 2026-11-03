@@ -1,0 +1,320 @@
+<!doctype html>
+{#- The style guide. scripts/styleguide.py renders this file once into a folder that opens from disk. It is not a
+    template of the application and no route serves it, so the content security policy does not apply to it:
+    the swatches carry their colour in a style attribute. Tailwind reads the class names of this file as well
+    (assets/app.css, @source); after changing it run `npm run build`. -#}
+{% from 'components/ui.html' import action, badge, empty, icon, notice %}
+{% from 'components/nav.html' import breadcrumbs, primary_links with context %}
+{% from 'components/account.html' import account_menu_items with context %}
+{% set titles = dict(sections) %}
+{% set meanings = {
+  'queued': 'Waiting for a worker.',
+  'running': 'In progress.',
+  'ok': 'The check ran and answered. The badge says what it found, a grade or a count; “Done” is the fallback.',
+  'no_data': 'Asked, and there was nothing to report. Not the same as clean.',
+  'skipped': 'Not run: switched off, nothing to check, or something it needs did not succeed.',
+  'unavailable': 'The provider or the network did not answer.',
+  'error': 'The check itself failed.',
+} %}
+
+{% macro section(id, intro='') -%}
+<section id="{{ id }}" class="panel p-5 lg:p-6" aria-labelledby="{{ id }}-title">
+  <h2 id="{{ id }}-title">{{ titles[id] }}</h2>
+  {% if intro %}<p class="mt-1 max-w-3xl text-sm text-muted">{{ intro }}</p>{% endif %}
+  <div class="mt-5">{{ caller() }}</div>
+</section>
+{%- endmacro %}
+
+{# One chip of the ok badge in the look of an option; the others come from the badge macro. #}
+{% macro ok_chip(look, label) -%}
+<span class="badge bg-(--bg) text-(color:--fg){% if look.check %} [&>svg]:size-3.5{% endif %}" style="--bg: {{ look.background }}; --fg: {{ look.foreground }}">{% if look.check %}{{ icon('check') }}{% endif %}{{ label }}</span>
+{%- endmacro %}
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaprism style guide</title>
+<link rel="stylesheet" href="static/css/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the guide</a>
+<header class="border-b border-line bg-panel px-4 py-6 lg:px-8">
+  <p class="eyebrow">Gaprism · interface</p>
+  <h1 class="mt-1">Style guide</h1>
+  <p class="mt-2 max-w-3xl text-sm text-muted">Colours, type, icons and components as the application uses them. The page is built from <code>assets/tokens.css</code>, the compiled stylesheet and the templates of the components, so it cannot differ from them. After changing any of them build it again with <code>uv run python scripts/styleguide.py</code>.</p>
+</header>
+
+<div class="lg:grid lg:grid-cols-[14rem_minmax(0,1fr)]">
+  <nav aria-label="Contents" class="border-b border-line bg-panel px-4 py-3 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-6 lg:py-6">
+    <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm lg:flex-col lg:gap-y-2">
+      {% for id, title in sections %}<li><a class="link" href="#{{ id }}">{{ title }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  <main id="main" tabindex="-1" class="min-w-0 max-w-6xl space-y-6 p-4 lg:p-8">
+
+{% call section('ok', 'The ok badge is the one whose look is still open. It marks a good result (a grade A, a signed record, a host name on no blocklist) and a positive state (shared, active, accepted). Each option below shows the same chips and the same hosts table next to the other tones. Choose one; the other two go, and this section with them.') %}
+<div class="grid gap-4">
+  {% for look in ok_looks %}
+  <article id="ok-{{ look.key|lower }}" class="rounded-lg border border-line p-4 md:grid md:grid-cols-[17rem_minmax(0,1fr)] md:gap-5" aria-labelledby="ok-{{ look.key|lower }}-title">
+    <div>
+      <h3 id="ok-{{ look.key|lower }}-title">{{ look.key }} · {{ look.name }}</h3>
+      <p class="mt-1 text-sm text-muted">{{ look.note }}</p>
+      <p class="mt-2 font-mono text-xs text-muted">{{ look.foreground }} on {{ look.background }} · {{ look.ratio }} : 1</p>
+      <p class="mt-3 flex flex-wrap gap-2">{% for label in ['Done', 'Shared', 'Active', 'Accepted', 'Not listed'] %}{{ ok_chip(look, label) }}{% endfor %}</p>
+    </div>
+    <div class="table-scroll mt-4 rounded-md border border-line md:mt-0">
+      <table class="data-table">
+        <caption class="sr-only">Hosts, with option {{ look.key }} for the ok badge</caption>
+        <thead><tr><th scope="col">Host</th><th scope="col">TLS</th><th scope="col">Blocklists</th><th scope="col">Findings</th></tr></thead>
+        <tbody>
+          <tr><td><bdi class="font-mono">www.example.com</bdi></td><td>{{ ok_chip(look, 'A · 12 tests') }}</td><td>{{ ok_chip(look, 'Not listed') }}</td><td>{{ badge('High · 1', 'high') }}</td></tr>
+          <tr><td><bdi class="font-mono">mail.example.com</bdi></td><td>{{ badge('C · 9 tests', 'medium') }}</td><td>{{ ok_chip(look, 'Not listed') }}</td><td>{{ badge('Low · 3', 'low') }}</td></tr>
+          <tr><td><bdi class="font-mono">old.example.com</bdi></td><td>{{ badge('F · 4 tests', 'critical') }}</td><td>{{ badge('URLhaus', 'high') }}</td><td>{{ badge('Critical · 2', 'critical') }}</td></tr>
+          <tr><td><bdi class="font-mono">shop.example.com</bdi></td><td>{{ badge('No data', 'muted') }}</td><td>{{ badge('Unavailable', 'medium') }}</td><td><span class="text-muted">—</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endcall %}
+
+{% call section('colour', 'Canvas, ink and action are the brand’s Paper, Graphite and Indigo. Signal Teal (#45C8C0) is for diagrams and stays out of the interface. Severity and status colours stay apart from the brand colours, and text and controls reach the contrast that WCAG 2.2 AA asks for.') %}
+{% for group in groups %}
+<h3 class="mt-8 first:mt-0">{{ group.title }}</h3>
+<ul class="mt-3 grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
+  {% for token in group.tokens %}
+  <li class="flex gap-3 rounded-md border border-line p-3">
+    <span class="size-12 shrink-0 rounded-md border border-line bg-(--swatch)" style="--swatch: {{ token.hex }}" aria-hidden="true"></span>
+    <div class="min-w-0">
+      <p class="text-sm font-semibold">{{ token.title }}</p>
+      <p class="font-mono text-xs text-muted">--color-{{ token.name }} · {{ token.hex }}</p>
+      <p class="mt-1 text-sm">{{ token.role }}</p>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+
+<h3 class="mt-10">Pairings and contrast</h3>
+<p class="mt-1 max-w-3xl text-sm text-muted">Text needs 4.5 : 1 against what it sits on; the borders of controls and the focus ring need 3 : 1. The ratios are computed from the tokens above, rounded down.</p>
+{% for title, rows, minimum in [('Text', text_pairings, '4.5'), ('Controls and focus', control_pairings, '3')] %}
+<div class="table-scroll mt-4 rounded-md border border-line">
+  <table class="data-table">
+    <caption class="sr-only">{{ title }}, at least {{ minimum }} : 1</caption>
+    <thead><tr><th scope="col">Pairing</th><th scope="col">Sample</th><th scope="col">Used for</th><th scope="col">Ratio</th><th scope="col">Needs</th><th scope="col">Result</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="whitespace-nowrap font-mono">{{ row.foreground }} on {{ row.background }}</td>
+        <td>{% if minimum == '4.5' %}<span class="inline-flex min-w-12 justify-center rounded-sm border border-line px-2 py-1 text-sm font-semibold bg-(--bg) text-(color:--fg)" style="--fg: {{ row.fg }}; --bg: {{ row.bg }}">Aa</span>{% else %}<span class="inline-flex size-9 rounded-md border-2 bg-(--bg) border-(color:--fg)" style="--fg: {{ row.fg }}; --bg: {{ row.bg }}"></span>{% endif %}</td>
+        <td>{{ row.use }}</td>
+        <td class="whitespace-nowrap">{{ row.ratio }} : 1</td>
+        <td class="whitespace-nowrap">{{ row.minimum }} : 1</td>
+        <td class="whitespace-nowrap"><span class="inline-flex items-center gap-1.5">{% if row.passes %}{{ icon('check') }}Passes{% else %}{{ icon('info') }}Fails{% endif %}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+{% endcall %}
+
+{% call section('shape', 'Three corner radii and one shadow. Menus and dialogs are the only things that float, so they are the only things that cast one.') %}
+<ul class="grid gap-3 sm:grid-cols-3">
+  {% for radius in radii %}
+  <li class="flex items-center gap-3 rounded-md border border-line p-3">
+    <span class="size-14 shrink-0 border-2 border-control bg-subtle rounded-(--corner)" style="--corner: {{ radius.size }}" aria-hidden="true"></span>
+    <div class="min-w-0">
+      <p class="text-sm font-semibold">{{ radius.name }} · {{ radius.size }}</p>
+      <p class="font-mono text-xs text-muted">--radius-{{ radius.name }}</p>
+      <p class="mt-1 text-sm">{{ radius.use }}</p>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+<div class="mt-4 flex items-center gap-3 rounded-lg border border-line bg-panel p-4 shadow-xl sm:max-w-sm">
+  <p class="text-sm"><span class="font-semibold">shadow-xl</span> · menus and dialogs.</p>
+</div>
+{% endcall %}
+
+{% call section('type', 'IBM Plex Sans for text and IBM Plex Mono for domains, addresses and identifiers, both served from the installation itself. Numerals in tables are tabular, so columns of counts line up.') %}
+<div class="table-scroll rounded-md border border-line">
+  <table class="data-table">
+    <caption class="sr-only">The type scale</caption>
+    <thead><tr><th scope="col">Role</th><th scope="col">Specimen</th><th scope="col">Size / line</th><th scope="col">Weight</th></tr></thead>
+    <tbody>
+      <tr><td class="whitespace-nowrap font-medium">Page title</td><td><p data-type="h1" class="text-2xl leading-8 font-semibold tracking-tight">Assessments</p></td><td class="whitespace-nowrap">24 / 32 px</td><td>600</td></tr>
+      <tr><td class="whitespace-nowrap font-medium">Section heading</td><td><p data-type="h2" class="text-lg leading-6 font-semibold">Open findings</p></td><td class="whitespace-nowrap">18 / 24 px</td><td>600</td></tr>
+      <tr><td class="whitespace-nowrap font-medium">Subheading</td><td><p data-type="h3" class="text-base font-semibold">Mail authentication</p></td><td class="whitespace-nowrap">16 / 24 px</td><td>600</td></tr>
+      <tr><td class="whitespace-nowrap font-medium">Body</td><td><p class="max-w-xl text-base">Technical verification of a domain: where the data is, who processes it, and how secure the external posture is.</p></td><td class="whitespace-nowrap">16 / 24 px</td><td>400</td></tr>
+      <tr><td class="whitespace-nowrap font-medium">Small</td><td><p class="text-sm">Scan of 2026-11-02 09:14 UTC · 3 hosts</p></td><td class="whitespace-nowrap">14 / 20 px</td><td>400 · 500 · 600</td></tr>
+      <tr><td class="whitespace-nowrap font-medium">Caption</td><td><p class="text-xs">Collected from Certificate Transparency logs</p></td><td class="whitespace-nowrap">12 / 16 px</td><td>400 · 600</td></tr>
+      <tr><td class="whitespace-nowrap font-medium">Eyebrow</td><td><p class="eyebrow">Scan of 2026-11-02</p></td><td class="whitespace-nowrap">12 / 16 px</td><td>600 · capitals</td></tr>
+      <tr><td class="whitespace-nowrap font-medium">Identifiers</td><td><p class="font-mono text-sm">mail.example.com · _dmarc.example.com · 203.0.113.7</p></td><td class="whitespace-nowrap">14 / 20 px</td><td>400 · 600</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="mt-6 grid gap-4 md:grid-cols-2">
+  <div class="rounded-md border border-line p-4">
+    <p class="eyebrow">IBM Plex Sans</p>
+    <p class="mt-2 text-base font-normal">Regular 400 · Where is the data?</p>
+    <p class="text-base font-medium">Medium 500 · Who processes it?</p>
+    <p class="text-base font-semibold">Semibold 600 · How secure is the external posture?</p>
+  </div>
+  <div class="rounded-md border border-line p-4">
+    <p class="eyebrow">IBM Plex Mono</p>
+    <p class="mt-2 font-mono text-base font-normal">Regular 400 · www.example.com</p>
+    <p class="font-mono text-base font-semibold">Semibold 600 · 2001:db8::7</p>
+    <p class="mt-3 text-sm tabular-nums">Tabular numerals: 1,111 · 2,222 · 3,333</p>
+  </div>
+</div>
+{% endcall %}
+
+{% call section('icons', 'Line icons on a 24 px grid with a 2 px stroke and round ends. They are decorative: the words next to them name the action. Each is shown as used (18 px) and as drawn (24 px).') %}
+<ul class="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3">
+  {% for name in glyphs %}
+  <li class="flex flex-col items-center gap-2 rounded-md border border-line p-3">
+    <span class="flex items-center gap-4">{{ icon(name) }}<span class="[&>svg]:size-6">{{ icon(name) }}</span></span>
+    <p class="text-xs text-muted"><code>{{ name }}</code></p>
+  </li>
+  {% endfor %}
+</ul>
+{% endcall %}
+
+{% call section('buttons', 'One size: 40 px high, 44 px on a touch screen. Primary is for the one thing a page is about, secondary is the default, quiet is for a third choice, destructive for what cannot be undone.') %}
+<div class="flex flex-wrap items-center gap-3">
+  {% for variant in variants %}{{ action(variant|capitalize, none, variant) }}{% endfor %}
+  <button class="btn btn-primary" type="button" disabled>Disabled</button>
+  {{ action('As a link', '#buttons', 'secondary') }}
+  <button class="btn btn-primary" type="button">{{ icon('check') }}With an icon</button>
+</div>
+<p class="mt-4 text-sm">A <a class="link" href="#buttons">link in running text</a> is Indigo with an underline.</p>
+<p class="mt-3 text-sm text-muted">The keyboard focus ring is two pixels of <code>--color-focus</code>, two pixels outside the control:</p>
+<p class="mt-2"><span class="btn btn-secondary outline-2 outline-offset-2 outline-focus">Focused</span></p>
+{% endcall %}
+
+{% call section('badges', 'A badge is always words plus colour, never colour alone. The tone says how much attention the fact needs; the words say what it is.') %}
+<h3>Tones</h3>
+<div class="table-scroll mt-3 rounded-md border border-line">
+  <table class="data-table">
+    <caption class="sr-only">Badge tones</caption>
+    <thead><tr><th scope="col">Tone</th><th scope="col">Badge</th><th scope="col">Classes</th><th scope="col">Means</th></tr></thead>
+    <tbody>
+      {% for tone in tones %}
+      <tr><td><code>{{ tone.name }}</code></td><td>{{ badge(tone.name|capitalize, tone.name) }}</td><td class="text-muted"><code>{{ tone.classes }}</code></td><td>{{ tone.meaning }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<h3 class="mt-8">Severity</h3>
+<p class="mt-3 flex flex-wrap items-center gap-2">{% for label, tone in severities %}{{ badge(label, tone) }}{% endfor %}</p>
+<p class="mt-2 flex flex-wrap items-center gap-2">{% for label, tone in severities %}{{ badge(label ~ ' · 3', tone) }}{% endfor %}</p>
+<h3 class="mt-8">Outcome of a check</h3>
+<p class="mt-1 max-w-3xl text-sm text-muted">A check ends in one of five typed outcomes (ok, no_data, unavailable, error, skipped), so that “not checked” never reads as “clean”; until then it is queued or running. The same words appear in the hosts table and on the host page.</p>
+<div class="table-scroll mt-3 rounded-md border border-line">
+  <table class="data-table">
+    <caption class="sr-only">Outcomes of a check</caption>
+    <thead><tr><th scope="col">Status</th><th scope="col">Badge</th><th scope="col">Means</th></tr></thead>
+    <tbody>
+      {% for cell in outcomes %}
+      <tr><td><code>{{ cell.status }}</code></td><td>{{ badge(cell.text, cell.tone) }}</td><td>{{ meanings[cell.status] }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endcall %}
+
+{% call section('messages', 'A notice explains something about the page; the border and the role say how urgent it is. An empty state says what to do next.') %}
+<div class="grid gap-3">
+  {{ notice('Scan queued', 'It starts as soon as a worker is free.', 'info') }}
+  {{ notice('Partial results', 'Two providers did not answer; the hosts below show what was collected.', 'warning') }}
+  {{ notice('Scan failed', 'The domain did not resolve.', 'danger') }}
+</div>
+<div class="mt-4 rounded-lg border border-line">{{ empty('No assessments yet', 'Start one with a domain name. It is checked from the outside only.') }}</div>
+{% endcall %}
+
+{% call section('forms', 'Every control has a visible label. Help text and errors are tied to the field with aria-describedby, and an error says what to do, not only what went wrong.') %}
+<div class="grid gap-6 md:grid-cols-2">
+  <div class="grid content-start gap-4">
+    <div class="field"><label for="sg-domain">Domain</label><input id="sg-domain" value="example.com" aria-describedby="sg-domain-help"><p class="field-help" id="sg-domain-help">The registered domain, without a path.</p></div>
+    <div class="field"><label for="sg-wrong">Domain</label><input id="sg-wrong" value="example" aria-invalid="true" aria-describedby="sg-wrong-error"><p class="text-sm text-danger" id="sg-wrong-error">Enter a full domain name such as example.com.</p></div>
+    <div class="field"><label for="sg-locked">Domain</label><input id="sg-locked" value="Fixed once a scan has run" disabled></div>
+  </div>
+  <div class="grid content-start gap-4">
+    <div class="field"><label for="sg-visibility">Who can see it</label><select id="sg-visibility"><option>Only me</option><option>Everyone who is signed in</option></select></div>
+    <div class="field"><label for="sg-note">Note</label><textarea id="sg-note" rows="3" class="rounded-md border border-control bg-panel px-3 py-2 text-base">Reviewed with the data protection officer.</textarea></div>
+    <fieldset>
+      <legend class="mb-2 text-sm font-medium">Scan depth</legend>
+      <div class="flex flex-col gap-2">
+        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3"><input type="radio" name="sg-depth" checked><span><span class="block text-sm font-medium">Standard</span><span class="block text-sm text-muted">Passive checks and the connections a browser would make.</span></span></label>
+        <label class="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3"><input type="radio" name="sg-depth"><span><span class="block text-sm font-medium">Quick</span><span class="block text-sm text-muted">The name servers and the certificate only.</span></span></label>
+      </div>
+    </fieldset>
+    <label class="flex items-center gap-3 text-sm"><input type="checkbox" checked>Include hosts found only in Certificate Transparency logs</label>
+  </div>
+</div>
+{% endcall %}
+
+{% call section('tables', 'Rows can be read across and compared down. Counts use tabular numerals; domain names and addresses are monospaced and may break anywhere.') %}
+<div class="panel">
+  <div class="section-head"><h3>Hosts</h3><span class="eyebrow">Scan of 2026-11-02</span></div>
+  <div class="table-scroll">
+    <table class="data-table">
+      <caption class="sr-only">Hosts of the last scan</caption>
+      <thead><tr><th scope="col">Host</th><th scope="col">TLS</th><th scope="col">Mail</th><th scope="col">HTTP</th><th scope="col">Ports</th><th scope="col">Findings</th></tr></thead>
+      <tbody>
+        <tr><td class="whitespace-nowrap"><a class="link" href="#tables"><bdi class="font-mono">www.example.com</bdi></a></td><td>{{ badge('A · 12 tests', 'ok') }}</td><td>{{ badge('SPF + DMARC', 'ok') }}</td><td>{{ badge('200', 'ok') }}</td><td>{{ badge('443', 'info') }}</td><td>{{ badge('High · 1', 'high') }}</td></tr>
+        <tr><td class="whitespace-nowrap"><a class="link" href="#tables"><bdi class="font-mono">mail.example.com</bdi></a></td><td>{{ badge('C · 9 tests', 'medium') }}</td><td>{{ badge('No data', 'muted') }}</td><td>{{ badge('301', 'ok') }}</td><td>{{ badge('25, 443', 'info') }}</td><td>{{ badge('Low · 3', 'low') }}</td></tr>
+        <tr><td class="whitespace-nowrap"><a class="link" href="#tables"><bdi class="font-mono">old.example.com</bdi></a></td><td>{{ badge('F · 4 tests', 'critical') }}</td><td>{{ badge('Info', 'info') }}</td><td>{{ badge('No data', 'muted') }}</td><td>{{ badge('21, 23', 'high') }}</td><td>{{ badge('Critical · 2', 'critical') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="mt-6 flex gap-1 overflow-x-auto border-b border-line">
+  <a class="tab" href="#tables" aria-current="page">Open (28)</a><a class="tab" href="#tables">Accepted (1)</a><a class="tab" href="#tables">False positive (0)</a>
+</div>
+<div class="mt-6 max-w-md">
+  <p class="mb-2 text-sm text-muted">Scan progress</p>
+  <progress value="40" max="100" aria-label="Scan progress">40%</progress>
+</div>
+{% endcall %}
+
+{% call section('dialog', 'A dialog asks one question and offers the safe answer first. The dark wash behind a modal dialog is a Graphite overlay; it cannot be shown on a page, so only the panel is here.') %}
+<dialog open class="static mx-0" aria-labelledby="sg-dialog-title">
+  <h3 id="sg-dialog-title">Delete this assessment?</h3>
+  <p class="mt-2 text-sm text-muted">Its scans, findings and decisions are removed for good. Archive it instead to keep them.</p>
+  <div class="mt-5 flex flex-wrap justify-end gap-2">{{ action('Cancel', none, 'secondary') }}{{ action('Delete', none, 'destructive') }}</div>
+</dialog>
+{% endcall %}
+
+{% call section('menus', 'The navigation is a sidebar that collapses to an icon rail and, on a phone, to a menu button. The top bar carries the breadcrumb and the account menu. Here are the parts; the sidebar itself belongs to the page layout.') %}
+<h3>Top bar</h3>
+<div class="topbar static mt-3 rounded-lg border">
+  <div class="topbar-start">{{ breadcrumbs([('Assessments', '#menus'), ('example.com', '#menus', true), ('Scan history', '#menus')]) }}</div>
+  <div class="topbar-end"><button type="button" class="account-button" aria-label="Account menu"><span class="avatar" aria-hidden="true">{{ initials('anna.meier@example.com') }}</span>{{ icon('chevron') }}</button></div>
+</div>
+<div class="mt-8 grid gap-8 md:grid-cols-2">
+  <div>
+    <h3>Account menu</h3>
+    <ul class="menu-panel menu-panel-end mt-3">
+      {{ account_menu_items(current_user) }}
+    </ul>
+  </div>
+  <div>
+    <h3>Navigation on a phone</h3>
+    <nav class="menu-panel mt-3" aria-label="Main navigation">
+      {{ primary_links(panel=True) }}
+    </nav>
+  </div>
+</div>
+{% endcall %}
+
+  </main>
+</div>
+<footer class="border-t border-line px-4 py-4 text-xs text-muted lg:px-8">Built by <code>scripts/styleguide.py</code> from the tokens, the stylesheet and the templates of this checkout.</footer>
+</body>
+</html>

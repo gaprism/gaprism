@@ -53,6 +53,9 @@ only with `-m live`.
   details never hold passwords, secrets or text somebody typed.
 - Provider keys come from the environment only. Strings in templates and flash messages go through
   `_()`. After a template change run `npm run build`: the compiled stylesheet is committed.
+- Colours, type, icons and components are shown on one page, built from the tokens and the real
+  templates: `uv run python scripts/styleguide.py` writes `var/styleguide/index.html`. A new colour
+  token needs a line in `TOKEN_ROLES` of that script, or the page (and its test) refuses to build.
 
 ## Pull requests
 
