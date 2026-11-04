@@ -63,6 +63,8 @@ class User(BaseUUIDModel, UserMixin):  # type: ignore[misc]
         nullable=False,
         index=True,
     )
+    # What the person calls themselves (profile page); the interface shows the e-mail without it.
+    name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     fs_uniquifier: Mapped[str] = mapped_column(

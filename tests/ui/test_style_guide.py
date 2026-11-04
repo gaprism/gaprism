@@ -202,9 +202,19 @@ def test_a_moment_is_shown_as_the_pages_show_it(page: str) -> None:
 def test_the_account_menu_is_the_one_the_pages_use(page: str) -> None:
     menu = re.search(r'<ul class="menu-panel[^"]*">(.*?)</ul>', page, re.S)
     assert menu is not None
-    for part in ('class="menu-head"', "Signed in as", "Administrator", "Password", "Two-factor"):
+    for part in ('class="menu-head"', "Signed in as", "Administrator", "Profile", "Password"):
         assert part in menu.group(1), part
+    assert "Two-factor" in menu.group(1)
     assert re.search(r'<button class="menu-item" type="submit">Sign out</button>', menu.group(1))
+
+
+def test_the_account_menu_is_shown_with_a_name_and_without(page: str) -> None:
+    heads = re.findall(r'<li class="menu-head">(.*?)</li>', page, re.S)
+    assert len(heads) == 2
+    named, plain = heads
+    assert "<bdi>Anna Meier</bdi>" in named and "anna.meier@example.com" in named
+    assert "<bdi>" not in plain and "tom.keller@example.com" in plain
+    assert "Administrator" in named and "Administrator" not in plain
 
 
 def test_contrast_follows_the_wcag_formula(styleguide: ModuleType) -> None:

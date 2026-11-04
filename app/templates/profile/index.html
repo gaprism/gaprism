@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from 'components/forms.html' import text_field %}
+{% from 'components/ui.html' import action %}
+{% from 'security/_card.html' import card with context %}
+{# The signed-in person's profile: the address they sign in with, and the name they go by. #}
+{% block title %}{{ _('Profile') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Profile') }}</h1>
+<p class="mt-1 max-w-3xl text-sm text-muted">{{ _('Your name is shown with your e-mail address in the account menu, and in the list of accounts that administrators see.') }}</p>
+{% call card() %}
+<form method="post" action="{{ url_for('profile.index') }}" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="mb-4">
+    <p class="text-sm font-medium">{{ _('E-mail address') }}</p>
+    <p class="mt-1"><bdi>{{ current_user.email }}</bdi></p>
+  </div>
+  {{ text_field(form.name, _('Name'), help=_('Optional. Up to %(max)d characters.', max=max_name), autocomplete='name') }}
+  <div class="flex flex-col sm:flex-row">{{ action(_('Save'), variant='primary', type='submit') }}</div>
+</form>
+{% endcall %}
+<p class="mt-4 max-w-lg text-sm text-muted">{{ _('More about your account:') }} <a class="link" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a>, <a class="link" href="{{ url_for_security('two_factor_setup') }}">{{ _('Two-factor') }}</a></p>
+{% endblock %}

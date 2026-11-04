@@ -282,6 +282,7 @@ class UserRow:
     created: datetime
     invited: bool = False  # the account has not accepted its invitation yet
     link: LinkInfo | None = None
+    name: str | None = None  # what the person calls themselves, if they said
 
 
 def _link_info(rows: list[UserInvitation], now: datetime) -> LinkInfo | None:
@@ -315,6 +316,7 @@ def list_users(session: Session) -> list[UserRow]:
             created=user.create_datetime,
             invited=any(r.purpose == INVITE_PURPOSE for r in links.get(user.id, [])),
             link=_link_info(links.get(user.id, []), now),
+            name=user.name,
         )
         for user in session.scalars(select(User))
     ]

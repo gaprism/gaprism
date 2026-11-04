@@ -10,6 +10,7 @@ from app.blueprints.accounts import accounts_bp, invitation_bp
 from app.blueprints.assessments import assessments_bp
 from app.blueprints.audit import audit_bp
 from app.blueprints.core import core_bp
+from app.blueprints.profile import profile_bp
 from app.commands import register_cli_commands
 from app.config import (
     BaseConfig,
@@ -96,6 +97,7 @@ def create_app(config_object: str | type[BaseConfig] | None = None) -> Flask:
     app.register_blueprint(audit_bp)
     app.register_blueprint(accounts_bp)
     app.register_blueprint(invitation_bp)
+    app.register_blueprint(profile_bp)
 
     register_cli_commands(app)
 

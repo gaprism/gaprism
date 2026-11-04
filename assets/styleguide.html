@@ -313,6 +313,10 @@
     <ul class="menu-panel menu-panel-end mt-3">
       {{ account_menu_items(current_user) }}
     </ul>
+    <p class="mt-4 text-sm text-muted">A person who has not given a name is shown by the address alone, and the avatar takes its initials from the address.</p>
+    <ul class="menu-panel menu-panel-end mt-3">
+      {{ account_menu_items(unnamed) }}
+    </ul>
   </div>
   <div>
     <h3>Navigation on a phone</h3>

@@ -231,6 +231,24 @@ def test_every_refusal_of_an_invitation_is_translated_when_it_is_shown(
         assert f"[xx] {message}" in html(client.get(response.headers["Location"])), message
 
 
+def test_the_list_shows_the_names_people_gave_themselves(
+    client: FlaskClient, db_session: Session
+) -> None:
+    signed_in_boss(client, db_session)
+    named = member(db_session, "named@example.org")
+    named.name = "Anna Meier"
+    odd = member(db_session, "odd@example.org")
+    odd.name = "<i>Mallory</i>"
+    member(db_session, "plain@example.org")
+    db_session.commit()
+
+    page = html(client.get("/accounts/"))
+    assert page.count("Anna Meier") == 1
+    assert page.index("Anna Meier") < page.index("named@example.org")  # the name leads
+    assert "<bdi>plain@example.org</bdi>" in page  # without a name: the address alone, as before
+    assert "<i>Mallory</i>" not in page and "&lt;i&gt;Mallory&lt;/i&gt;" in page  # escaped
+
+
 def test_sending_a_link_again_withdraws_the_first(client: FlaskClient, db_session: Session) -> None:
     signed_in_boss(client, db_session)
     user, first = invitations.invite_user(db_session, "new@example.org", admin=False, hours=72)

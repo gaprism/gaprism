@@ -57,6 +57,49 @@ def test_upgrade_and_downgrade_round_trip(database_url: str) -> None:
         engine.dispose()
 
 
+def test_accounts_get_an_optional_name_and_lose_it_again(database_url: str) -> None:
+    """Migration 0007 adds the name; accounts that exist have none, and it can be undone."""
+    schema = f"t_{uuid.uuid4().hex[:12]}"
+    engine = sa.create_engine(database_url)
+    try:
+        migrated_app = make_app(database_url, schema)
+        with migrated_app.app_context():
+            upgrade(directory=str(MIGRATIONS_DIRECTORY), revision="0006_user_invitation")
+            with db.engine.begin() as connection:
+                connection.execute(
+                    sa.text(
+                        'INSERT INTO "user" (id, email, password, active, fs_uniquifier,'
+                        " create_datetime, update_datetime, login_count) VALUES (:id,"
+                        " 'old@example.org', 'x', true, :uniquifier, now(), now(), 0)"
+                    ),
+                    {"id": uuid.uuid4(), "uniquifier": uuid.uuid4().hex},
+                )
+
+            upgrade(directory=str(MIGRATIONS_DIRECTORY))
+            with db.engine.begin() as connection:
+                assert connection.execute(sa.text('SELECT name FROM "user"')).scalar_one() is None
+                connection.execute(sa.text('UPDATE "user" SET name = :name'), {"name": "Anna"})
+            name = next(
+                column
+                for column in sa.inspect(db.engine).get_columns("user", schema=schema)
+                if column["name"] == "name"
+            )
+            assert name["nullable"] and name["type"].length == 100
+
+            downgrade(directory=str(MIGRATIONS_DIRECTORY), revision="0006_user_invitation")
+            columns = {c["name"] for c in sa.inspect(db.engine).get_columns("user", schema=schema)}
+            assert "name" not in columns and "email" in columns
+            with db.engine.begin() as connection:  # the account itself is still there
+                assert connection.execute(sa.text('SELECT email FROM "user"')).scalar_one() == (
+                    "old@example.org"
+                )
+            db.engine.dispose()
+    finally:
+        with engine.begin() as connection:
+            connection.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        engine.dispose()
+
+
 def test_visibility_team_becomes_shared_and_back(database_url: str) -> None:
     """Migration 0005 renames the stored value, the constraint follows, and it can be undone."""
     schema = f"t_{uuid.uuid4().hex[:12]}"

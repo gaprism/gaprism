@@ -5,7 +5,7 @@
 {# Not deferred: the stored state of the sidebar has to apply before the first paint. #}
 {% block head %}<script src="{{ url_for('static', filename='js/nav.js') }}"></script>{% endblock %}
 {% block body %}
-{% set mark = initials(current_user.email) %}
+{% set mark = initials(current_user.name or current_user.email) %}
 <div class="shell">
   <aside class="sidebar">
     {# The lockup while the sidebar is open, the symbol when it is a rail (assets/app.css): one is shown at a time. #}

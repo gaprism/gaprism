@@ -80,6 +80,7 @@ ACTIONS: dict[str, str] = {
     "user.invitation_revoked": N_("Withdrew a link"),
     "user.reset_link_created": N_("Made a reset link"),
     "user.sessions_ended": N_("Signed an account out everywhere"),
+    "user.profile_changed": N_("Changed their own profile"),
 }
 GROUPS: dict[str, str] = {
     "auth": N_("Sign-in"),

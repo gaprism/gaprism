@@ -224,6 +224,7 @@ class _Specimen:
     is_active = True
     is_anonymous = False
     email = "anna.meier@example.com"
+    name: str | None = "Anna Meier"
 
     def __init__(self) -> None:
         from app.service.assessments import ADMIN_ROLE
@@ -232,6 +233,16 @@ class _Specimen:
 
     def get_id(self) -> str:
         return "specimen"
+
+
+class _Unnamed(_Specimen):
+    """A member who has not said what they are called: the menu shows the address alone."""
+
+    email = "tom.keller@example.com"
+    name = None
+
+    def __init__(self) -> None:
+        self.roles = ()
 
 
 def _project_on_path() -> None:
@@ -300,6 +311,7 @@ def _context() -> dict[str, Any]:
         # A value passed to the render call beats the context processor of Flask-WTF, which would
         # put a different token into the sign-out form on every build.
         "csrf_token": lambda: "specimen",
+        "unnamed": _Unnamed(),
         "sections": SECTIONS,
         "groups": [{"title": title, "tokens": found} for title, found in groups.items()],
         "text_pairings": rows([p for p in PAIRINGS if p.minimum == TEXT]),

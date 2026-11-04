@@ -29,7 +29,7 @@
       <caption class="sr-only">{{ _('The accounts: administrators first') }}</caption>
       <thead>
         <tr>
-          <th scope="col">{{ _('E-mail') }}</th>
+          <th scope="col">{{ _('Account') }}</th>
           <th scope="col">{{ _('Role') }}</th>
           <th scope="col">{{ _('State') }}</th>
           <th scope="col">{{ _('Authenticator') }}</th>
@@ -41,7 +41,7 @@
         {% for row in rows %}
         {% set mine = row.id == me_id %}
         <tr>
-          <td><bdi>{{ row.email }}</bdi>{% if mine %} <span class="text-muted">({{ _('you') }})</span>{% endif %}</td>
+          <td>{% if row.name %}<span class="block font-medium"><bdi>{{ row.name }}</bdi></span><bdi class="text-muted">{{ row.email }}</bdi>{% else %}<bdi>{{ row.email }}</bdi>{% endif %}{% if mine %} <span class="text-muted">({{ _('you') }})</span>{% endif %}</td>
           <td>{{ _('Administrator') if row.admin else _('Member') }}</td>
           <td class="text-sm">
             {% if not row.active %}{{ badge(_('Switched off'), 'muted') }}
