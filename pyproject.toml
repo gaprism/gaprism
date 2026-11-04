@@ -57,7 +57,10 @@ target-version = "py311"
 extend-exclude = ["migrations/versions", "docs"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "B", "UP", "RUF", "S"]
+# PLE25: an invisible character written into a string (zero-width space, backspace, escape,
+# NUL) and the bidirectional overrides of "Trojan Source". It does not see a byte order mark or
+# a soft hyphen: tests/test_source_characters.py covers every kind of character in every file.
+select = ["E", "F", "W", "I", "N", "B", "UP", "RUF", "S", "PLE25"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]

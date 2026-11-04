@@ -67,8 +67,7 @@ def imported_distributions(folders: tuple[str, ...]) -> dict[str, set[str]]:
 
 def top_level_imports(path: Path) -> set[str]:
     modules: set[str] = set()
-    # utf-8-sig: the baseline migration starts with a byte order mark, which Python accepts
-    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Import):
             modules.update(alias.name.split(".")[0] for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:

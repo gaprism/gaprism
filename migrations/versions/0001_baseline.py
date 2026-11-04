@@ -1,4 +1,4 @@
-﻿"""Baseline schema for the MVP: auth, assessment, scan, host, check_result, finding, cache.
+"""Baseline schema for the MVP: auth, assessment, scan, host, check_result, finding, cache.
 
 Replaces the six migrations of the first baseline (archived under docs/archive), which
 carried multi-tenant tables and row-level-security helpers the MVP does not need.

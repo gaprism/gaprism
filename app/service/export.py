@@ -43,7 +43,7 @@ from app.service.host_view import CHECK_ORDER, DOMAIN_CHECK_ORDER, blocklist_abo
 
 FORMAT_NAME = "gaprism-export"
 FORMAT_VERSION = 1
-CSV_BOM = "﻿"
+CSV_BOM = "\N{ZERO WIDTH NO-BREAK SPACE}"
 MAX_EVIDENCE_SHOWN = 3  # evidence references named in a CSV cell
 MAX_TECHNOLOGIES_SHOWN = 40  # technologies named in a CSV cell
 CT_SOURCE_NAMES = {"ctlogs": "ctlogs.dev", "certspotter": "CertSpotter", "crtsh": "crt.sh"}

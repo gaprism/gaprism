@@ -18,6 +18,7 @@ from app.models import CheckResult, Finding, FindingDisposition, Scan, User
 from app.models.base import utc_now
 from app.service import decisions
 from app.service import findings as findings_service
+from app.service.export import CSV_BOM
 from tests.helpers import audit_rows, create_assessment, create_user, login_as
 from tests.test_decisions import SPF, TLS
 from tests.test_findings_service import RULES_CONFIG, populated_scan
@@ -407,7 +408,7 @@ def test_what_comes_from_the_network_or_from_people_is_escaped(
     reasons = {f["decision"]["reason"] for f in document["findings"] if f["decision"]}
     assert reasons == {evil}
     text = client.get(url(scan, "export/findings.csv")).get_data(as_text=True)
-    rows_csv = list(csv.DictReader(io.StringIO(text.removeprefix("﻿"), newline="")))
+    rows_csv = list(csv.DictReader(io.StringIO(text.removeprefix(CSV_BOM), newline="")))
     assert {r["decision_reason"] for r in rows_csv if r["decision_reason"]} == {evil}
 
 
