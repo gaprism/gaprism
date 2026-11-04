@@ -96,6 +96,10 @@ services:
       start_period: 20s
     stop_grace_period: 35s
     mem_limit: 512m
+    networks:
+      - default
+      - tunnel
+      - backend
 
   # Runs the checks of the scans the web app queues. More than one can run:
   # docker compose up -d --scale worker=2
@@ -112,6 +116,8 @@ services:
     stop_signal: SIGINT
     stop_grace_period: 30s
     mem_limit: 1g
+    networks:
+      - backend
 
   # One-off commands, never started by `up`:
   #   docker compose run --rm cli flask users create-admin
@@ -125,6 +131,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    networks:
+      - backend
 
   # HTTPS in front of the web app: docker compose --profile proxy up -d
   # (set SITE_ADDRESS, and TRUSTED_PROXY_COUNT=1 in .env).
@@ -149,10 +157,35 @@ services:
     cap_add: [NET_BIND_SERVICE]
     security_opt: ["no-new-privileges:true"]
     logging: *logging
+    networks:
+      - tunnel
+
+  cloudflare-tunnel:
+    profiles: [cloudflare]
+    image: cloudflare/cloudflared
+    container_name: cloudflare-tunnel
+    hostname: cloudflare-tunnel
+    restart: always
+    command: tunnel run
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - "TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}"
+    healthcheck:
+      test: ["CMD", "cloudflared", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - tunnel
+
 
 networks:
   backend:
     internal: true
+  tunnel:
+    external: true
 
 volumes:
   pgdata:
