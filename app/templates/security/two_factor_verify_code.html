@@ -5,15 +5,23 @@
 {# The second step of the sign-in: the code from the authenticator app. The library also puts a
    "rescue" form here (send the code by e-mail, mail the administrator). Both need a mail server, which
    this application does not have: one ends in an error page and the other can only say that sending
-   failed. The way out is an administrator, who resets the authenticator with a link (Accounts). #}
-{% block title %}{{ _('Two-factor authentication') }}{% endblock %}
+   failed. The way out is an administrator, who resets the authenticator with a link (Accounts).
+   The library shows this page too when the code is wrong at the end of the first sign-in's setup
+   (the session then says tf_state = validating_profile): nobody has an authenticator to lose
+   yet, so the page says that the setup is not finished and offers to start again. #}
+{% block title %}{% if session.get('tf_state') == 'validating_profile' %}{{ _('Set up two-factor authentication') }}{% else %}{{ _('Two-factor authentication') }}{% endif %}{% endblock %}
 {% block content %}
-<h1>{{ _('Two-factor authentication') }}</h1>
-<p class="mt-2 text-sm text-muted">{{ _('Enter the code from your authenticator app.') }}</p>
+{% set setting_up = session.get('tf_state') == 'validating_profile' %}
+<h1>{% if setting_up %}{{ _('Set up two-factor authentication') }}{% else %}{{ _('Two-factor authentication') }}{% endif %}</h1>
+<p class="mt-2 text-sm text-muted">{% if setting_up %}{{ _('Enter the code that your authenticator app shows to finish the setup.') }}{% else %}{{ _('Enter the code from your authenticator app.') }}{% endif %}</p>
 <form action="{{ url_for_security('two_factor_token_validation') }}{{ prop_next() }}" method="post" name="two_factor_verify_code_form" class="mt-5">
   {{ two_factor_verify_code_form.hidden_tag() }}
   {{ text_field(two_factor_verify_code_form.code, _('Authentication code'), autocomplete='one-time-code', attrs={'inputmode': 'numeric', 'value': ''}) }}
   <div class="flex flex-col">{{ action(_('Verify code'), variant='primary', type='submit') }}</div>
 </form>
+{% if setting_up %}
+<p class="mt-6 border-t border-line pt-4 text-sm text-balance text-muted">{{ _('The code is not working?') }} <a class="link" href="{{ url_for_security('two_factor_setup') }}">{{ _('Start again') }}</a> {{ _('to get a new code.') }}</p>
+{% else %}
 <p class="mt-6 border-t border-line pt-4 text-sm text-balance text-muted">{{ _('Lost your authenticator? Ask an administrator to reset it.') }}</p>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,6 @@
+{# Where the form of a page goes. Inside the application's layout the form has a panel of its own, as
+   the other forms do; the pages before sign-in sit in a card already, so there it only follows the
+   title. Import it with context: it asks who is signed in. #}
+{% macro card() -%}
+{% if current_user.is_authenticated %}<div class="panel mt-5 max-w-lg p-5">{{ caller() }}</div>{% else %}<div class="mt-5">{{ caller() }}</div>{% endif %}
+{%- endmacro %}

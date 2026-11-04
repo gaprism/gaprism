@@ -1,0 +1,62 @@
+{% extends "security/base.html" %}
+{% from 'components/forms.html' import text_field %}
+{% from 'components/ui.html' import notice %}
+{% from 'security/_card.html' import card with context %}
+{# Setting up, changing or turning off the second factor: Flask-Security-Too's forms in the
+   application's own markup. Only the authenticator app is enabled, so there is nothing to choose:
+   one button posts setup=authenticator (or setup=disable, where turning it off is allowed).
+   Once the app is chosen the page shows the code, the key and the field for the code that the app
+   shows, and not the button that chose it: pressing that again makes a new secret, and the one that
+   was scanned stops working. The same page serves the first sign-in, when two-factor is required
+   and nobody is signed in yet (the layout of the pages before sign-in). #}
+{% block title %}{{ _('Two-factor authentication') }}{% endblock %}
+{% block content %}
+{% if chosen_method == 'authenticator' %}
+{% set faction = url_for_security('two_factor_setup_validate', token=state_token) if changing else url_for_security('two_factor_token_validation') %}
+<h1>{{ _('Set up two-factor authentication') }}</h1>
+{% call card() %}
+<ol class="grid list-decimal gap-6 pl-5 text-sm marker:font-semibold">
+  <li>{{ _('Open an authenticator app on your phone.') }}</li>
+  <li>
+    {{ _('Scan this code with the app, or type the key in by hand.') }}
+    <div class="mt-3 flex flex-col items-start gap-3">
+      <img id="qrcode" src="{{ authr_qrcode }}" width="185" height="185" alt="{{ _('Code to scan with your authenticator app') }}" class="rounded-md border border-line bg-white p-2">
+      <p>{{ _('Key') }}: <code class="font-mono font-semibold">{{ authr_key }}</code></p>
+    </div>
+  </li>
+  <li>
+    {{ _('Enter the code that the app shows.') }}
+    <form action="{{ faction }}" method="post" name="two_factor_verify_code_form" class="mt-3" novalidate>
+      {{ two_factor_verify_code_form.hidden_tag() }}
+      {{ text_field(two_factor_verify_code_form.code, _('Authentication code'), autocomplete='one-time-code', attrs={'inputmode': 'numeric', 'value': ''}) }}
+      <div class="flex flex-col sm:flex-row"><button class="btn btn-primary" type="submit">{{ _('Verify code') }}</button></div>
+    </form>
+  </li>
+</ol>
+<p class="mt-6 border-t border-line pt-4 text-sm text-muted">{{ _('The code is not working?') }} <a class="link" href="{{ url_for_security('two_factor_setup') }}">{{ _('Start again') }}</a> {{ _('to get a new code.') }}</p>
+{% endcall %}
+{% else %}
+{% set enabled = current_user.is_authenticated and current_user.tf_primary_method %}
+<h1>{{ _('Two-factor authentication') }}</h1>
+{% call card() %}
+<p class="text-sm">
+  {% if not current_user.is_authenticated %}{{ _('Set up an authenticator app to finish signing in. From then on you enter a code from it each time you sign in.') }}
+  {% elif enabled %}{{ _('Two-factor authentication is on for your account. You enter a code from your authenticator app each time you sign in.') }}
+  {% else %}{{ _('Two-factor authentication is off for your account. Turn it on to enter a code from an authenticator app each time you sign in.') }}{% endif %}
+</p>
+<form action="{{ url_for_security('two_factor_setup') }}" method="post" name="two_factor_setup_form" class="mt-5" novalidate>
+  {{ two_factor_setup_form.hidden_tag() }}
+  {% for error in two_factor_setup_form.form_errors %}<div class="mb-4">{{ notice(error, tone='danger') }}</div>{% endfor %}
+  {% for error in two_factor_setup_form.setup.errors %}<p class="mb-4 text-sm text-danger">{{ error }}</p>{% endfor %}
+  {% for error in (two_factor_setup_form.csrf_token.errors if two_factor_setup_form.csrf_token else []) %}<p class="mb-4 text-sm text-danger">{{ error }}</p>{% endfor %}
+  <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+    <button class="btn btn-primary" type="submit" name="setup" value="authenticator">{{ _('Set up a new authenticator app') if enabled else _('Set up an authenticator app') }}</button>
+    {% if 'disable' in choices %}<button class="btn btn-secondary" type="submit" name="setup" value="disable">{{ _('Turn off two-factor authentication') }}</button>{% endif %}
+  </div>
+</form>
+{% if enabled %}
+<p class="mt-4 text-sm text-muted">{{ _('Your current authenticator keeps working until you finish.') }}{% if two_factor_required|default(false) %} {{ _('It is required in this installation, so it cannot be turned off.') }}{% endif %}</p>
+{% endif %}
+{% endcall %}
+{% endif %}
+{% endblock %}

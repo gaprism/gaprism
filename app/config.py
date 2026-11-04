@@ -116,6 +116,9 @@ class BaseConfig:
     SECURITY_TWO_FACTOR_RESCUE_MAIL: bool = False
     SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS: bool = False
     SECURITY_TOTP_SECRETS: ClassVar[dict[str, str]] = {}
+    # The same minimum as the command line and the invitation page (app.service.users): the
+    # library's own is 8, which let a password be changed to one that no other screen accepts.
+    SECURITY_PASSWORD_LENGTH_MIN: int = 12
     # What the sign-in screen says when something goes wrong: what happened and what to do, in the
     # voice of the brand (the library's own words are terse). The first one is the answer for an
     # unknown account and for a wrong password alike. English only until the catalogues exist.
@@ -131,6 +134,60 @@ class BaseConfig:
     SECURITY_MSG_TWO_FACTOR_PERMISSION_DENIED: ClassVar[tuple[str, str]] = (
         "The sign-in has expired. Enter your email address and password again.",
         "error",
+    )
+    # The password and two-factor pages, the same way. The one for an empty password serves all
+    # three fields of the form, so it names none of them.
+    SECURITY_MSG_INVALID_PASSWORD: ClassVar[tuple[str, str]] = (
+        "The current password is not correct. Enter the password you sign in with.",
+        "error",
+    )
+    SECURITY_MSG_RETYPE_PASSWORD_MISMATCH: ClassVar[tuple[str, str]] = (
+        "The two new passwords are not the same. Enter the same password twice.",
+        "error",
+    )
+    SECURITY_MSG_PASSWORD_INVALID_LENGTH: ClassVar[tuple[str, str]] = (
+        "The new password is too short. Use at least %(length)s characters.",
+        "error",
+    )
+    SECURITY_MSG_PASSWORD_NOT_PROVIDED: ClassVar[tuple[str, str]] = (
+        "This field is empty. Enter a password.",
+        "error",
+    )
+    SECURITY_MSG_PASSWORD_IS_THE_SAME: ClassVar[tuple[str, str]] = (
+        "The new password is the same as the current one. Choose a different password.",
+        "error",
+    )
+    SECURITY_MSG_PASSWORD_CHANGE: ClassVar[tuple[str, str]] = (
+        "Your password has been changed.",
+        "success",
+    )
+    SECURITY_MSG_TWO_FACTOR_DISABLED: ClassVar[tuple[str, str]] = (
+        "Two-factor authentication is turned off.",
+        "success",
+    )
+    SECURITY_MSG_TWO_FACTOR_CHANGE_METHOD_SUCCESSFUL: ClassVar[tuple[str, str]] = (
+        "Two-factor authentication is set up. Use your authenticator app at your next sign-in.",
+        "success",
+    )
+    SECURITY_MSG_TWO_FACTOR_LOGIN_SUCCESSFUL: ClassVar[tuple[str, str]] = (
+        "Your code is confirmed.",
+        "success",
+    )
+    SECURITY_MSG_TWO_FACTOR_SETUP_EXPIRED: ClassVar[tuple[str, str]] = (
+        "The setup took too long: it must be finished within %(within)s. Start again.",
+        "error",
+    )
+    SECURITY_MSG_TWO_FACTOR_METHOD_NOT_AVAILABLE: ClassVar[tuple[str, str]] = (
+        "That method is not available. Use the authenticator app.",
+        "error",
+    )
+    SECURITY_MSG_REAUTHENTICATION_REQUIRED: ClassVar[tuple[str, str]] = (
+        "Enter your password to continue.",
+        "info",
+    )
+    SECURITY_MSG_REAUTHENTICATION_SUCCESSFUL: ClassVar[tuple[str, str]] = (
+        "Your password is confirmed.",
+        "info",
     )
 
     # The audit log keeps its entries this many days (0 = forever); the worker removes older ones.
