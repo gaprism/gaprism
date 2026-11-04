@@ -3,7 +3,7 @@
     template of the application and no route serves it, so the content security policy does not apply to it:
     the swatches carry their colour in a style attribute. Tailwind reads the class names of this file as well
     (assets/app.css, @source); after changing it run `npm run build`. -#}
-{% from 'components/ui.html' import action, badge, empty, icon, moment, notice %}
+{% from 'components/ui.html' import action, avatar, badge, empty, icon, moment, notice %}
 {% from 'components/nav.html' import breadcrumbs, primary_links with context %}
 {% from 'components/account.html' import account_menu_items with context %}
 {% set titles = dict(sections) %}
@@ -317,6 +317,13 @@
     <ul class="menu-panel menu-panel-end mt-3">
       {{ account_menu_items(unnamed) }}
     </ul>
+    <h3 class="mt-8">Avatars</h3>
+    <p class="mt-1 text-sm text-muted">The capitals of the name, or of the address; a picture fills the circle (here the symbol stands in for one, because the route that serves pictures is not part of this page); and the large one of the profile page.</p>
+    <div class="mt-3 flex items-center gap-4">
+      {{ avatar(current_user) }}
+      <span class="avatar" aria-hidden="true"><img src="static/brand/gaprism-symbol-color.svg" alt=""></span>
+      {{ avatar(current_user, true) }}
+    </div>
   </div>
   <div>
     <h3>Navigation on a phone</h3>

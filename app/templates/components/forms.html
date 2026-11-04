@@ -15,6 +15,21 @@
 </div>
 {%- endmacro %}
 
+{# A file to upload: the label, help and errors of a text field, wired the same way. #}
+{% macro file_field(field, label, help='') -%}
+{% set described = [] %}
+{% if help %}{% set _unused = described.append(field.id ~ '-help') %}{% endif %}
+{% if field.errors %}{% set _unused = described.append(field.id ~ '-error') %}{% endif %}
+{% set extra = {'aria-invalid': 'true' if field.errors else 'false'} %}
+{% if described %}{% set _unused = extra.update({'aria-describedby': described|join(' ')}) %}{% endif %}
+<div class="field mb-4">
+  <label for="{{ field.id }}">{{ label }}</label>
+  {{ field(**extra) }}
+  {% if help %}<p class="field-help" id="{{ field.id }}-help">{{ help }}</p>{% endif %}
+  {% for error in field.errors %}<p class="text-sm text-danger" id="{{ field.id }}-error">{{ error }}</p>{% endfor %}
+</div>
+{%- endmacro %}
+
 {# options maps each value to (label, help). #}
 {% macro radio_group(field, legend, options) -%}
 <fieldset class="mb-4">

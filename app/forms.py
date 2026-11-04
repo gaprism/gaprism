@@ -5,6 +5,9 @@ language is the request's."""
 
 from __future__ import annotations
 
+from typing import ClassVar
+
+from werkzeug.datastructures import FileStorage
 from wtforms import Field, Form
 from wtforms.validators import DataRequired, Length, StopValidation, ValidationError
 
@@ -37,3 +40,18 @@ class AtMost(Length):
     def __call__(self, form: Form, field: Field) -> None:
         if len(field.data or "") > self.max:
             raise ValidationError(_(self.refusal, max=self.max))
+
+
+class Chosen:
+    """FileRequired that refuses with what to do, not that "this field is required". It still
+    marks the input as required. ``refusal`` is the English text, translated on use."""
+
+    field_flags: ClassVar[dict[str, bool]] = {"required": True}
+
+    def __init__(self, refusal: str) -> None:
+        self.refusal = refusal
+
+    def __call__(self, form: Form, field: Field) -> None:
+        if isinstance(field.data, FileStorage) and field.data.filename:
+            return
+        raise StopValidation(_(self.refusal))

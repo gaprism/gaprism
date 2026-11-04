@@ -208,6 +208,14 @@ def test_the_account_menu_is_the_one_the_pages_use(page: str) -> None:
     assert re.search(r'<button class="menu-item" type="submit">Sign out</button>', menu.group(1))
 
 
+def test_the_avatar_is_shown_as_initials_as_a_picture_and_large(page: str) -> None:
+    assert '<span class="avatar" aria-hidden="true">AM</span>' in page
+    assert re.search(
+        r'<span class="avatar" aria-hidden="true"><img src="[^"]+" alt=""></span>', page
+    )
+    assert '<span class="avatar avatar-lg" aria-hidden="true">AM</span>' in page
+
+
 def test_the_account_menu_is_shown_with_a_name_and_without(page: str) -> None:
     heads = re.findall(r'<li class="menu-head">(.*?)</li>', page, re.S)
     assert len(heads) == 2

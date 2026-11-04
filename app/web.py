@@ -34,6 +34,11 @@ _ERROR_TEXTS: dict[int, tuple[str, str]] = {
     403: ("Access denied", "You do not have access to this page."),
     404: ("Not found", "This page does not exist, or you do not have access to it."),
     405: ("Method not allowed", "This action is not available here."),
+    413: (
+        "Request too large",
+        "The request was larger than this installation accepts. "
+        "If you were sending a picture, choose a smaller one.",
+    ),
     429: ("Too many attempts", "Sign-in is paused after repeated failed attempts."),
 }
 _FALLBACK_ERROR = ("Something went wrong", "The request could not be completed.")
@@ -84,7 +89,12 @@ def register_security_headers(app: Flask) -> None:
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if app.config["SESSION_COOKIE_SECURE"]:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        if request.endpoint != "static":
+        # A person's picture is the one thing besides our own files that a browser may keep: it is
+        # not about a vendor, its URL names the picture (a new one has a new URL), and the view
+        # sets its own Cache-Control, private. An error for it is kept out of every cache as well.
+        delivered = response.status_code in (200, 304)  # the picture, or "you have it already"
+        picture_served = request.endpoint == "profile.picture" and delivered
+        if request.endpoint != "static" and not picture_served:
             # Findings about a vendor are sensitive: keep them out of every cache. Assigned, not
             # defaulted: Flask-Security emits a malformed "private=True, no-store=True" itself.
             response.headers["Cache-Control"] = "no-store"

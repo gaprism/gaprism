@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
+import uuid
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.auth import User
+from app.models.user_image import UserImage
 from app.service import audit as audit_service
+from app.service import images
 from app.service.users import UserAdminError
 
 MAX_NAME_LENGTH = 100
@@ -69,5 +74,63 @@ def change_name(session: Session, user: User, raw: str | None) -> bool:
         "user.profile_changed",
         subject=str(user.id),
         details={"email": user.email, "name": "set" if name else "cleared"},
+    )
+    return True
+
+
+def picture_version(content: bytes) -> str:
+    """The name of a stored picture: the start of its SHA-256. It is in the URL of the picture, so
+    a browser keeps one for as long as the name stays the same, and asks again when it changes."""
+    return hashlib.sha256(content).hexdigest()[:16]
+
+
+def picture_of(session: Session, user_id: uuid.UUID) -> UserImage | None:
+    """The stored picture of an account, or ``None`` when it has none."""
+    return session.scalar(select(UserImage).where(UserImage.user_id == user_id))
+
+
+def change_picture(session: Session, user: User, data: bytes) -> bool:
+    """Give ``user`` the picture that ``data`` (an upload) is made into, see ``images``.
+
+    What is stored replaces the old picture: there is one for each account. Returns whether
+    anything changed (the same picture again does not). The audit log says that a picture was set,
+    never what it shows. Raises ``UserAdminError`` for an upload that cannot be used; the account
+    is untouched then. The caller commits.
+    """
+    content = images.make_avatar(data)
+    version = picture_version(content)
+    if user.picture_version == version:
+        return False
+    stored = picture_of(session, user.id)
+    if stored is None:
+        session.add(UserImage(user_id=user.id, content=content))
+    else:
+        stored.content = content
+    user.picture_version = version
+    session.flush()
+    audit_service.record(
+        session,
+        "user.profile_changed",
+        subject=str(user.id),
+        details={"email": user.email, "picture": "set"},
+    )
+    return True
+
+
+def remove_picture(session: Session, user: User) -> bool:
+    """Take the picture of ``user`` away; its bytes are deleted, not hidden. Returns whether there
+    was one. The caller commits."""
+    stored = picture_of(session, user.id)
+    if stored is None and user.picture_version is None:
+        return False
+    if stored is not None:
+        session.delete(stored)
+    user.picture_version = None
+    session.flush()
+    audit_service.record(
+        session,
+        "user.profile_changed",
+        subject=str(user.id),
+        details={"email": user.email, "picture": "removed"},
     )
     return True

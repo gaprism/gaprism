@@ -1,7 +1,7 @@
 """The licences of everything the lock installs: an allowlist, one reviewed exception, no surprises.
 
 The project is Apache-2.0 and promises to stay open. Whatever it ships with has to allow that, so
-every package in ``uv.lock`` (runtime, deployment, optional and development, 83 today) is listed
+every package in ``uv.lock`` (runtime, deployment, optional and development, 84 today) is listed
 below with the licence it was checked to have, and the test refuses
 
 - a package that is in the lock but not in the table (add it after reading its licence),
@@ -86,6 +86,7 @@ LICENCES = {
     "pip": "MIT",
     "pip-api": "Apache-2.0",
     "pip-audit": "Apache-2.0",
+    "pillow": "MIT-CMU",
     "pip-requirements-parser": "MIT",
     "platformdirs": "MIT",
     "playwright": "Apache-2.0",

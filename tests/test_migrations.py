@@ -100,6 +100,53 @@ def test_accounts_get_an_optional_name_and_lose_it_again(database_url: str) -> N
         engine.dispose()
 
 
+def test_a_picture_belongs_to_one_account_goes_with_it_and_can_be_undone(
+    database_url: str,
+) -> None:
+    """Migration 0008: the version on the account, and one stored picture for each account."""
+    schema = f"t_{uuid.uuid4().hex[:12]}"
+    engine = sa.create_engine(database_url)
+    owner = uuid.uuid4()
+    try:
+        migrated_app = make_app(database_url, schema)
+        with migrated_app.app_context():
+            upgrade(directory=str(MIGRATIONS_DIRECTORY), revision="0007_user_name")
+            with db.engine.begin() as connection:
+                connection.execute(
+                    sa.text(
+                        'INSERT INTO "user" (id, email, password, active, fs_uniquifier,'
+                        " create_datetime, update_datetime, login_count) VALUES (:id,"
+                        " 'old@example.org', 'x', true, :uniquifier, now(), now(), 0)"
+                    ),
+                    {"id": owner, "uniquifier": uuid.uuid4().hex},
+                )
+
+            upgrade(directory=str(MIGRATIONS_DIRECTORY))
+            insert = sa.text("INSERT INTO user_image (id, user_id, content) VALUES (:id, :u, :c)")
+            with db.engine.begin() as connection:
+                query = sa.text('SELECT picture_version FROM "user"')
+                assert connection.execute(query).scalar_one() is None  # no picture: no version
+                connection.execute(insert, {"id": uuid.uuid4(), "u": owner, "c": b"\x00\x01\xff"})
+                stored = sa.text("SELECT content FROM user_image")
+                assert bytes(connection.execute(stored).scalar_one()) == b"\x00\x01\xff"
+            with pytest.raises(sa.exc.IntegrityError), db.engine.begin() as connection:
+                connection.execute(insert, {"id": uuid.uuid4(), "u": owner, "c": b"second"})
+            with db.engine.begin() as connection:  # the picture goes with its account
+                connection.execute(sa.text('DELETE FROM "user"'))
+                assert connection.execute(sa.text("SELECT count(*) FROM user_image")).scalar() == 0
+
+            downgrade(directory=str(MIGRATIONS_DIRECTORY), revision="0007_user_name")
+            inspector = sa.inspect(db.engine)
+            assert "user_image" not in inspector.get_table_names(schema=schema)
+            columns = {c["name"] for c in inspector.get_columns("user", schema=schema)}
+            assert "picture_version" not in columns and "name" in columns
+            db.engine.dispose()
+    finally:
+        with engine.begin() as connection:
+            connection.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        engine.dispose()
+
+
 def test_visibility_team_becomes_shared_and_back(database_url: str) -> None:
     """Migration 0005 renames the stored value, the constraint follows, and it can be undone."""
     schema = f"t_{uuid.uuid4().hex[:12]}"

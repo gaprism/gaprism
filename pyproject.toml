@@ -30,6 +30,7 @@ dependencies = [
     "maxminddb>=2.6.0",
     "babel>=2.14.0",
     "python-dotenv>=1.0.0",  # `flask` loads .env with it (the non-Docker way to configure)
+    "pillow>=13.0.0",  # profile pictures: decodes, crops and re-encodes what is uploaded
 ]
 
 [project.optional-dependencies]

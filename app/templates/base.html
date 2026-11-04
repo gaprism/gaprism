@@ -1,11 +1,10 @@
 {% extends "layout.html" %}
-{% from 'components/ui.html' import icon %}
+{% from 'components/ui.html' import avatar, icon %}
 {% from 'components/nav.html' import primary_links, breadcrumbs with context %}
 {% from 'components/account.html' import account_menu_items with context %}
 {# Not deferred: the stored state of the sidebar has to apply before the first paint. #}
 {% block head %}<script src="{{ url_for('static', filename='js/nav.js') }}"></script>{% endblock %}
 {% block body %}
-{% set mark = initials(current_user.name or current_user.email) %}
 <div class="shell">
   <aside class="sidebar">
     {# The lockup while the sidebar is open, the symbol when it is a rail (assets/app.css): one is shown at a time. #}
@@ -28,7 +27,7 @@
         {% block topbar_links %}{% endblock %}
       </div>
       <div class="topbar-end">
-        <button type="button" class="account-button" popovertarget="account-menu" aria-label="{{ _('Account menu') }}"><span class="avatar" aria-hidden="true">{% if mark %}{{ mark }}{% else %}{{ icon('user') }}{% endif %}</span>{{ icon('chevron') }}</button>
+        <button type="button" class="account-button" popovertarget="account-menu" aria-label="{{ _('Account menu') }}">{{ avatar(current_user) }}{{ icon('chevron') }}</button>
         <ul id="account-menu" popover class="menu-panel menu-panel-end">
           {{ account_menu_items(current_user) }}
         </ul>

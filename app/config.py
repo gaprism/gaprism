@@ -79,6 +79,11 @@ class BaseConfig:
     SESSION_COOKIE_SECURE: bool = True
     SESSION_COOKIE_SAMESITE: str = "Lax"
 
+    # No request is larger than this: a profile picture (at most 2 MB) is the biggest thing anybody
+    # sends. The bound is global because Flask-WTF checks the CSRF token of every POST before any
+    # view runs, and that reads the whole body; a limit set inside the view would come too late.
+    MAX_CONTENT_LENGTH: int = 3 * 1024 * 1024
+
     WTF_CSRF_ENABLED: bool = True
     WTF_CSRF_CHECK_DEFAULT: bool = True
     WTF_CSRF_TIME_LIMIT: int | None = 3600

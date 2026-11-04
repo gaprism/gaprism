@@ -7,6 +7,7 @@ door, the form, the words and the places where the name appears.
 from __future__ import annotations
 
 import re
+import uuid
 
 import pytest
 from flask import Flask
@@ -57,11 +58,17 @@ def test_the_page_is_for_somebody_who_is_signed_in(
     app: Flask, client: FlaskClient, db_session: Session
 ) -> None:
     rules = [rule for rule in app.url_map.iter_rules() if rule.endpoint.startswith("profile.")]
-    assert {rule.endpoint for rule in rules} == {"profile.index"}  # a new route needs a test here
+    assert {rule.endpoint for rule in rules} == {  # a new route needs a test here
+        "profile.index",
+        "profile.upload_picture",
+        "profile.remove_picture",
+        "profile.picture",
+    }
     for rule in rules:
+        url = re.sub(r"<uuid:[a-z_]+>", str(uuid.uuid4()), rule.rule)
         for method in sorted(rule.methods - {"HEAD", "OPTIONS"}):
-            response = client.open(rule.rule, method=method, data={"name": "Eve"})
-            assert response.status_code == 302, method
+            response = client.open(url, method=method, data={"name": "Eve"})
+            assert response.status_code == 302, (method, url)
             assert "/auth/login" in response.headers["Location"]
     assert db_session.scalar(select(func.count()).select_from(AuditEvent)) == 0
 

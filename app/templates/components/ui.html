@@ -14,6 +14,15 @@
 </svg>
 {%- endmacro %}
 
+{# The face of a person: their picture when they have one, otherwise the capitals of their name (of
+   their address without a name). `user` is anybody with an id, a name, an e-mail address and a
+   picture_version: an account, or a row of the list of accounts. The picture is decoration, the name
+   stands next to it, so it has no text of its own. #}
+{% macro avatar(user, large=false) -%}
+{% set mark = initials(user.name or user.email) %}
+<span class="avatar{% if large %} avatar-lg{% endif %}" aria-hidden="true">{% if user.picture_version %}<img src="{{ url_for('profile.picture', user_id=user.id, v=user.picture_version) }}" alt="">{% elif mark %}{{ mark }}{% else %}{{ icon('user') }}{% endif %}</span>
+{%- endmacro %}
+
 {% macro action(label, href=none, variant='secondary', type='button') -%}
 {% set variants = {'primary': 'btn-primary', 'secondary': 'btn-secondary', 'quiet': 'btn-quiet', 'destructive': 'btn-destructive'} %}
 {% if href %}<a class="btn {{ variants.get(variant, 'btn-secondary') }}" href="{{ href }}">{{ label }}</a>

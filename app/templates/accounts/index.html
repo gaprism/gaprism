@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from 'components/forms.html' import text_field %}
-{% from 'components/ui.html' import action, badge %}
+{% from 'components/ui.html' import action, avatar, badge %}
 {% block title %}{{ _('Accounts') }}{% endblock %}
 {% block content %}
 {# What an account's link is up to, in words. Nothing here is trusted: addresses are escaped. #}
@@ -41,7 +41,7 @@
         {% for row in rows %}
         {% set mine = row.id == me_id %}
         <tr>
-          <td>{% if row.name %}<span class="block font-medium"><bdi>{{ row.name }}</bdi></span><bdi class="text-muted">{{ row.email }}</bdi>{% else %}<bdi>{{ row.email }}</bdi>{% endif %}{% if mine %} <span class="text-muted">({{ _('you') }})</span>{% endif %}</td>
+          <td><div class="flex items-center gap-3">{{ avatar(row) }}<div class="min-w-0">{% if row.name %}<span class="block font-medium"><bdi>{{ row.name }}</bdi></span><bdi class="text-muted">{{ row.email }}</bdi>{% else %}<bdi>{{ row.email }}</bdi>{% endif %}{% if mine %} <span class="text-muted">({{ _('you') }})</span>{% endif %}</div></div></td>
           <td>{{ _('Administrator') if row.admin else _('Member') }}</td>
           <td class="text-sm">
             {% if not row.active %}{{ badge(_('Switched off'), 'muted') }}

@@ -11,6 +11,7 @@ from app.models.host import Host
 from app.models.invitation import UserInvitation
 from app.models.provider_cache import ProviderCache
 from app.models.scan import Scan
+from app.models.user_image import UserImage
 
 __all__ = [
     "Assessment",
@@ -26,6 +27,7 @@ __all__ = [
     "Scan",
     "TimestampMixin",
     "User",
+    "UserImage",
     "UserInvitation",
     "UserRoles",
     "utc_now",

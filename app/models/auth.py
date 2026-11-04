@@ -65,6 +65,9 @@ class User(BaseUUIDModel, UserMixin):  # type: ignore[misc]
     )
     # What the person calls themselves (profile page); the interface shows the e-mail without it.
     name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Which picture the person has (the start of its SHA-256), empty without one. The bytes are in
+    # user_image; this says whether to ask for them, and names the URL so a browser can keep them.
+    picture_version: Mapped[str | None] = mapped_column(String(16), nullable=True)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     fs_uniquifier: Mapped[str] = mapped_column(

@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% from 'components/forms.html' import text_field %}
-{% from 'components/ui.html' import action %}
+{% from 'components/forms.html' import file_field, text_field %}
+{% from 'components/ui.html' import action, avatar %}
 {% from 'security/_card.html' import card with context %}
-{# The signed-in person's profile: the address they sign in with, and the name they go by. #}
+{# The signed-in person's profile: the address they sign in with, the name they go by and their picture. #}
 {% block title %}{{ _('Profile') }}{% endblock %}
 {% block content %}
 <h1>{{ _('Profile') }}</h1>
-<p class="mt-1 max-w-3xl text-sm text-muted">{{ _('Your name is shown with your e-mail address in the account menu, and in the list of accounts that administrators see.') }}</p>
+<p class="mt-1 max-w-3xl text-sm text-muted">{{ _('Your name and picture are shown with your e-mail address in the account menu, and in the list of accounts that administrators see.') }}</p>
 {% call card() %}
 <form method="post" action="{{ url_for('profile.index') }}" novalidate>
   {{ form.hidden_tag() }}
@@ -18,5 +18,23 @@
   <div class="flex flex-col sm:flex-row">{{ action(_('Save'), variant='primary', type='submit') }}</div>
 </form>
 {% endcall %}
+<section class="panel mt-5 max-w-lg p-5" aria-labelledby="picture-title">
+  <h2 id="picture-title">{{ _('Picture') }}</h2>
+  <div class="mt-3 flex items-center gap-4">
+    {{ avatar(current_user, large=true) }}
+    <p class="text-sm text-muted">{{ _('JPEG, PNG or WebP, up to %(max)d MB. It is cropped to a square, and details such as where it was taken are removed.', max=max_picture) }}</p>
+  </div>
+  <form method="post" action="{{ url_for('profile.upload_picture') }}" enctype="multipart/form-data" class="mt-4" novalidate>
+    {{ picture_form.hidden_tag() }}
+    {{ file_field(picture_form.picture, _('Choose a picture')) }}
+    <div class="flex flex-col sm:flex-row">{{ action(_('Upload picture'), variant='primary', type='submit') }}</div>
+  </form>
+  {% if current_user.picture_version %}
+  <form method="post" action="{{ url_for('profile.remove_picture') }}" class="mt-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex flex-col sm:flex-row">{{ action(_('Remove picture'), variant='quiet', type='submit') }}</div>
+  </form>
+  {% endif %}
+</section>
 <p class="mt-4 max-w-lg text-sm text-muted">{{ _('More about your account:') }} <a class="link" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a>, <a class="link" href="{{ url_for_security('two_factor_setup') }}">{{ _('Two-factor') }}</a></p>
 {% endblock %}
