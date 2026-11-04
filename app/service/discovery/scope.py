@@ -1,7 +1,5 @@
 """Domain scope canonicalisation, IDNA translation, and boundary validation."""
 
-# ruff: noqa: RUF001 - the wording that people read uses typographic quotes, as the templates do
-
 from __future__ import annotations
 
 import ipaddress
@@ -32,12 +30,12 @@ class ScopeValidationError(ValueError):
         self.params = params
 
 
-EMPTY = "Enter the vendor’s domain, for example example.com."
+EMPTY = "Enter the vendor's domain, for example example.com."
 EMPTY_PART = (
     "The domain has an empty part: two dots in a row, or a dot at the start. Check the spelling."
 )
 LONG_PART = (
-    "A part of the domain (“%(start)s...”) has more than 63 characters, "
+    'A part of the domain ("%(start)s...") has more than 63 characters, '
     "which a domain name cannot have. Check the spelling."
 )
 
@@ -86,19 +84,19 @@ def canonicalise_domain(raw_input: str) -> DomainScope:
     if is_ip:
         raise ScopeValidationError(
             "That is an IP address, not a domain name. "
-            "Enter the vendor’s domain name instead, for example example.com."
+            "Enter the vendor's domain name instead, for example example.com."
         )
 
     # Reject URLs, schemes, paths, userinfo, ports, fragments, query strings
     if "://" in cleaned or cleaned.startswith(("http:", "https:", "ftp:", "file:", "ws:", "wss:")):
-        raise ScopeValidationError("Enter the domain only, without “https://” or another scheme.")
+        raise ScopeValidationError('Enter the domain only, without "https://" or another scheme.')
     if "/" in cleaned or "\\" in cleaned:
         raise ScopeValidationError(
             "Enter the domain only, without a path. Remove the slash and everything after it."
         )
     if "@" in cleaned:
         raise ScopeValidationError(
-            "Enter the domain only. Remove the “@” and everything before it."
+            'Enter the domain only. Remove the "@" and everything before it.'
         )
     if ":" in cleaned:
         raise ScopeValidationError(
@@ -106,12 +104,12 @@ def canonicalise_domain(raw_input: str) -> DomainScope:
         )
     if "?" in cleaned or "#" in cleaned:
         raise ScopeValidationError(
-            "Enter the domain only. Remove the “?” or “#” and everything after it."
+            'Enter the domain only. Remove the "?" or "#" and everything after it.'
         )
     if "*" in cleaned:
         raise ScopeValidationError(
             "Enter a single domain, such as example.com. "
-            "A wildcard such as “*.example.com” is not accepted."
+            'A wildcard such as "*.example.com" is not accepted.'
         )
 
     # Check for empty labels or consecutive dots before IDNA encoding
@@ -135,8 +133,9 @@ def canonicalise_domain(raw_input: str) -> DomainScope:
     # Screen against Public Suffix List (including single-label TLDs)
     if is_public_suffix(canonical):
         raise ScopeValidationError(
-            "“%(domain)s” is a top-level domain or public suffix, not one organisation’s domain. "
-            "Enter the vendor’s own domain, for example vendor.%(domain)s.",
+            '"%(domain)s" is a top-level domain or public suffix, '
+            "not one organisation's domain. Enter the vendor's own domain, "
+            "for example vendor.%(domain)s.",
             domain=canonical,
         )
 
@@ -162,7 +161,7 @@ def canonicalise_domain(raw_input: str) -> DomainScope:
             raise ScopeValidationError(LONG_PART, start=label[:10])
         if not _LABEL_REGEX.match(label):
             raise ScopeValidationError(
-                "“%(part)s” cannot be part of a domain name. "
+                '"%(part)s" cannot be part of a domain name. '
                 "Use letters, digits and hyphens, with no hyphen at the start or end of a part.",
                 part=label,
             )

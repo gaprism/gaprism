@@ -35,7 +35,7 @@ Internal tool for security teams: enter a domain → discover hosts via Certific
 
 ## Process
 - Small vertical slices; one commit per slice on branch `mvp`; ask before pushing.
-- Strings in templates and flash messages go through `_()`; English first, de-CH later.
+- Strings in templates and flash messages go through `_()`; English first, de-CH later. Quotes and apostrophes in Python strings are straight (`"` `'`; ruff's RUF001 refuses the typographic ones); in template text an apostrophe is `’` and a quotation mark is `"`. A test that looks for a sentence in a page decodes the page's entities first with `html.unescape` (Jinja writes `'` as `&#39;`).
 - UI uses the existing design tokens (`assets/tokens.css`, `assets/app.css`); rebuild the CSS after template changes.
 - The logo and icons in `app/static/brand/` come from the brand kit and are used as supplied (rules and sizes in its README); every document names them through `components/brand_head.html`.
 - Every page of Flask-Security-Too that is switched on is a template of ours (`app/templates/security/`: sign-in and its second step, two-factor setup, password change, re-authentication; the library still does the work and the forms post what it expects); its terse wording for failures and confirmations is replaced by `SECURITY_MSG_*` in `app/config.py`. The one rule for the length of a password is `SECURITY_PASSWORD_LENGTH_MIN` (the same as `MIN_PASSWORD_LENGTH` of the account service). The library's pages that are off here would still be its own markup, styled by the `fs-*` classes.

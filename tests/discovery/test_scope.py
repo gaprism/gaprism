@@ -1,7 +1,5 @@
 """Unit tests for domain scope normalisation, IDNA conversion, PSL screening, and boundaries."""
 
-# ruff: noqa: RUF001 - the wording that people read uses typographic quotes, as the templates do
-
 import pytest
 
 from app.service.discovery.scope import (
@@ -11,19 +9,19 @@ from app.service.discovery.scope import (
     is_in_scope,
 )
 
-EMPTY = "Enter the vendor’s domain, for example example.com."
+EMPTY = "Enter the vendor's domain, for example example.com."
 IP_ADDRESS = (
     "That is an IP address, not a domain name. "
-    "Enter the vendor’s domain name instead, for example example.com."
+    "Enter the vendor's domain name instead, for example example.com."
 )
-SCHEME = "Enter the domain only, without “https://” or another scheme."
+SCHEME = 'Enter the domain only, without "https://" or another scheme.'
 PATH = "Enter the domain only, without a path. Remove the slash and everything after it."
-USER = "Enter the domain only. Remove the “@” and everything before it."
+USER = 'Enter the domain only. Remove the "@" and everything before it.'
 PORT = "Enter the domain only, without a port number. Remove the colon and what follows it."
-QUERY = "Enter the domain only. Remove the “?” or “#” and everything after it."
+QUERY = 'Enter the domain only. Remove the "?" or "#" and everything after it.'
 WILDCARD = (
     "Enter a single domain, such as example.com. "
-    "A wildcard such as “*.example.com” is not accepted."
+    'A wildcard such as "*.example.com" is not accepted.'
 )
 EMPTY_PART = (
     "The domain has an empty part: two dots in a row, or a dot at the start. Check the spelling."
@@ -32,22 +30,23 @@ EMPTY_PART = (
 
 def long_part(start: str) -> str:
     return (
-        f"A part of the domain (“{start}...”) has more than 63 characters, "
+        f'A part of the domain ("{start}...") has more than 63 characters, '
         "which a domain name cannot have. Check the spelling."
     )
 
 
 def bad_part(part: str) -> str:
     return (
-        f"“{part}” cannot be part of a domain name. "
+        f'"{part}" cannot be part of a domain name. '
         "Use letters, digits and hyphens, with no hyphen at the start or end of a part."
     )
 
 
 def suffix(domain: str) -> str:
     return (
-        f"“{domain}” is a top-level domain or public suffix, not one organisation’s domain. "
-        f"Enter the vendor’s own domain, for example vendor.{domain}."
+        f'"{domain}" is a top-level domain or public suffix, '
+        "not one organisation's domain. Enter the vendor's own domain, "
+        f"for example vendor.{domain}."
     )
 
 

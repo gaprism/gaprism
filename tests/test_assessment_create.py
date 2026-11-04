@@ -1,5 +1,6 @@
 """S1.1: creating an assessment from a domain name."""
 
+import html
 import re
 
 import pytest
@@ -118,12 +119,13 @@ def test_invalid_domains_are_refused_with_a_reason(
 
     response = client.post("/assessments/new", data={"domain": entered, "visibility": "private"})
     assert response.status_code == 200
-    assert f'id="domain-error">{message}</p>' in response.get_data(as_text=True)
+    assert f'id="domain-error">{message}</p>' in html.unescape(response.get_data(as_text=True))
     assert _count(db_session) == 0
 
 
 def post_form(client: FlaskClient, **data: str) -> str:
-    return client.post("/assessments/new", data=data).get_data(as_text=True)
+    """The page the form answers with, as text: Jinja writes ' as &#39;, decoded here."""
+    return html.unescape(client.post("/assessments/new", data=data).get_data(as_text=True))
 
 
 def test_the_form_refuses_in_our_words_and_keeps_what_its_fields_tell_the_browser(
