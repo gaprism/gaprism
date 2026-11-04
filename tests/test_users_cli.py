@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.models import UserInvitation
 from app.models.auth import User
 from app.service import users as user_service
+from tests.test_users_service import ROLE_REFUSAL, SWITCH_OFF_REFUSAL
 
 PASSWORD = "Correct-Horse-Battery-1"
 TWICE = f"{PASSWORD}\n{PASSWORD}\n"
@@ -127,9 +128,9 @@ def test_the_last_administrator_cannot_be_switched_off_or_demoted(
     cli_runner: FlaskCliRunner, db_session: Session
 ) -> None:
     boss = account(db_session, "boss@example.org", admin=True)
-    for command in ("deactivate", "revoke-admin"):
+    for command, message in (("deactivate", SWITCH_OFF_REFUSAL), ("revoke-admin", ROLE_REFUSAL)):
         code, output = run(cli_runner, command, boss.email)
-        assert code != 0 and "last active administrator" in output, command
+        assert code != 0 and message in output, command
     db_session.refresh(boss)
     assert boss.active and user_service.holds_admin_role(boss)
 

@@ -49,6 +49,20 @@ class AccountExistsError(UserAdminError):
     do next, with their own words: the sentence here is only what happened."""
 
 
+# What the last active administrator is told: what happened, what to do, and why an invitation does
+# not help yet. A whole sentence for each change, so that a catalogue can list it as it stands.
+LAST_ADMIN_SWITCH_OFF = (
+    "This account is the last active administrator, so it cannot be switched off. "
+    "Make another account an administrator first. "
+    "A person who was invited counts once they have set a password."
+)
+LAST_ADMIN_ROLE = (
+    "This account is the last active administrator, so it cannot lose the administrator role. "
+    "Make another account an administrator first. "
+    "A person who was invited counts once they have set a password."
+)
+
+
 def normalise_email(raw: str) -> str:
     """Return the canonical (trimmed, lower-case) e-mail address or raise ``UserAdminError``."""
     email = raw.strip().lower()
@@ -112,13 +126,10 @@ def _other_active_admins(session: Session, user: User) -> int:
     )
 
 
-def _keep_an_administrator(session: Session, user: User, what: str) -> None:
-    """Refuse a change that would leave nobody who can administer the accounts."""
-    if user.active and holds_admin_role(user) and _other_active_admins(session, user) == 0:
-        raise UserAdminError(
-            f"This is the last active administrator: {what} would leave nobody to administer "
-            "the accounts. Create another administrator first."
-        )
+def _is_last_administrator(session: Session, user: User) -> bool:
+    """Whether ``user`` is the only one who can administer the accounts now: a change that ends
+    that (switching the account off, taking the role away) is refused."""
+    return bool(user.active) and holds_admin_role(user) and _other_active_admins(session, user) == 0
 
 
 def _record(session: Session, action: str, user: User, **details: object) -> None:
@@ -215,8 +226,8 @@ def set_active(session: Session, email: str, active: bool) -> bool:
     user = find_user(session, email)
     if user.active == active:
         return False
-    if not active:
-        _keep_an_administrator(session, user, "deactivating it")
+    if not active and _is_last_administrator(session, user):
+        raise UserAdminError(LAST_ADMIN_SWITCH_OFF)
     user.active = active
     session.flush()
     _record(session, "user.activated" if active else "user.deactivated", user)
@@ -230,8 +241,9 @@ def set_admin(session: Session, email: str, admin: bool) -> bool:
         return False
     if admin:
         user.roles.append(_admin_role(session))
+    elif _is_last_administrator(session, user):
+        raise UserAdminError(LAST_ADMIN_ROLE)
     else:
-        _keep_an_administrator(session, user, "taking the role away")
         user.roles = [role for role in user.roles if role.name != ADMIN_ROLE]
     session.flush()
     _record(session, "user.admin_granted" if admin else "user.admin_revoked", user)

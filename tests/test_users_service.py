@@ -17,6 +17,18 @@ from tests.helpers import audit_rows, login_as
 
 PASSWORD = "Correct-Horse-Battery-1"
 ACCENTED = "Grüezi-mitenand-2026"  # the u-umlaut as the one character a Swiss keyboard types
+# What the last active administrator is told: what happened, what to do, and why an invitation does
+# not help yet. Whole sentences, one for each change: nothing is filled in afterwards.
+SWITCH_OFF_REFUSAL = (
+    "This account is the last active administrator, so it cannot be switched off. "
+    "Make another account an administrator first. "
+    "A person who was invited counts once they have set a password."
+)
+ROLE_REFUSAL = (
+    "This account is the last active administrator, so it cannot lose the administrator role. "
+    "Make another account an administrator first. "
+    "A person who was invited counts once they have set a password."
+)
 
 
 def member(session: Session, email: str = "member@example.org") -> User:
@@ -194,8 +206,10 @@ def test_a_switched_off_account_loses_its_session_at_once(
 
 def test_the_last_active_administrator_cannot_be_switched_off(db_session: Session) -> None:
     boss = admin(db_session)
-    with pytest.raises(UserAdminError, match="last active administrator"):
+    with pytest.raises(UserAdminError) as refused:
         user_service.set_active(db_session, boss.email, False)
+    assert (refused.value.message, refused.value.params) == (SWITCH_OFF_REFUSAL, {})
+    assert str(refused.value) == SWITCH_OFF_REFUSAL  # the command line prints it as it stands
     assert boss.active
 
     second = admin(db_session, "second@example.org")
@@ -228,8 +242,10 @@ def test_the_administrator_role_can_be_given_and_taken_away(db_session: Session)
 
 def test_the_last_active_administrator_keeps_the_role(db_session: Session) -> None:
     boss = admin(db_session)
-    with pytest.raises(UserAdminError, match="last active administrator"):
+    with pytest.raises(UserAdminError) as refused:
         user_service.set_admin(db_session, boss.email, False)
+    assert (refused.value.message, refused.value.params) == (ROLE_REFUSAL, {})
+    assert str(refused.value) == ROLE_REFUSAL
     assert user_service.holds_admin_role(boss)
 
 

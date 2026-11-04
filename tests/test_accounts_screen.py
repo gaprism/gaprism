@@ -29,6 +29,7 @@ from tests.helpers import (
     login_as,
     make_app,
 )
+from tests.test_users_service import ROLE_REFUSAL, SWITCH_OFF_REFUSAL
 
 PASSWORD = "Correct-Horse-Battery-1"
 TOKEN = re.compile(r"/auth/invitation/([A-Za-z0-9_-]{43})")
@@ -309,18 +310,38 @@ def test_giving_and_taking_the_administrator_role(client: FlaskClient, db_sessio
     assert len(audit_rows(db_session, "user.admin_granted", "user.admin_revoked")) == 2
 
 
+# The page does not offer a row of your own these buttons; the server refuses them all the same.
+LOCK_OUT = [
+    ("active", {"active": "0"}, SWITCH_OFF_REFUSAL),
+    ("admin", {"admin": "0"}, ROLE_REFUSAL),
+]
+
+
+@pytest.mark.parametrize(("route", "data", "message"), LOCK_OUT)
 def test_the_last_administrator_cannot_be_locked_out_here(
-    client: FlaskClient, db_session: Session
+    client: FlaskClient, db_session: Session, route: str, data: dict[str, str], message: str
 ) -> None:
     me = signed_in_boss(client, db_session)  # the only administrator
-    for url, data in (
-        (f"/accounts/{me.id}/active", {"active": "0"}),
-        (f"/accounts/{me.id}/admin", {"admin": "0"}),
-    ):
-        response = client.post(url, data=data)
-        assert "last active administrator" in html(client.get(response.headers["Location"]))
+    response = client.post(f"/accounts/{me.id}/{route}", data=data)
+    assert response.status_code == 302
+    assert html(client.get(response.headers["Location"])).count(message) == 1
     db_session.refresh(me)
     assert me.active and user_service.holds_admin_role(me)
+
+
+@pytest.mark.parametrize(("route", "data", "message"), LOCK_OUT)
+def test_the_refusal_to_lock_the_last_administrator_out_is_translated_when_it_is_shown(
+    client: FlaskClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    route: str,
+    data: dict[str, str],
+    message: str,
+) -> None:
+    me = signed_in_boss(client, db_session)
+    monkeypatch.setattr("app.i18n._translations", lambda: Marked())
+    response = client.post(f"/accounts/{me.id}/{route}", data=data)
+    assert f"[xx] {message}" in html(client.get(response.headers["Location"]))
 
 
 def test_signing_an_account_out_everywhere(
