@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.extensions import security
 from app.models.auth import User
 from app.service import users as user_service
-from app.service.users import UserAdminError
+from app.service.users import AccountExistsError, UserAdminError
 from tests.helpers import audit_rows, login_as
 
 PASSWORD = "Correct-Horse-Battery-1"
@@ -85,8 +85,28 @@ def test_a_bad_address_or_a_short_password_creates_nothing(
 
 def test_an_address_can_have_one_account_only(db_session: Session) -> None:
     member(db_session)
-    with pytest.raises(UserAdminError, match="exists already"):
+    with pytest.raises(AccountExistsError, match="exists already"):
         user_service.create_user(db_session, "MEMBER@example.org", PASSWORD)
+
+
+def test_a_refusal_keeps_its_text_apart_from_what_fills_it(db_session: Session) -> None:
+    """The screens translate the text first and fill it in after (``_(e.message, **e.params)``);
+    the command line prints the English sentence."""
+    with pytest.raises(UserAdminError) as short:
+        user_service.check_password("short")
+    assert short.value.message == "The password is too short. Use at least %(length)s characters."
+    assert short.value.params == {"length": user_service.MIN_PASSWORD_LENGTH}
+    assert str(short.value) == "The password is too short. Use at least 12 characters."
+
+    with pytest.raises(UserAdminError) as bad:
+        user_service.normalise_email("not-an-address")
+    assert (bad.value.message, bad.value.params) == ("Enter a valid e-mail address.", {})
+
+    member(db_session)
+    with pytest.raises(AccountExistsError) as taken:
+        user_service.create_user(db_session, "member@example.org", PASSWORD)
+    assert str(taken.value) == "An account for this e-mail address exists already."
+    assert isinstance(taken.value, UserAdminError)  # whoever catches the family still catches it
 
 
 def test_an_unknown_account_is_a_message_not_a_crash(db_session: Session) -> None:

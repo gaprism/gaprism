@@ -1,7 +1,6 @@
 """S1.1: creating an assessment from a domain name."""
 
 import re
-from gettext import NullTranslations
 
 import pytest
 from flask import Flask
@@ -17,7 +16,7 @@ from app.service.assessments import (
 from app.service.discovery.scope import ScopeValidationError
 from app.service.users import create_admin
 from tests.discovery.test_scope import EMPTY, IP_ADDRESS, PORT, SCHEME, WILDCARD, suffix
-from tests.helpers import attributes, create_user, login_as, make_app
+from tests.helpers import Marked, attributes, create_user, login_as, make_app
 from tests.helpers import create_assessment as persist_assessment
 
 DOMAIN_TOO_LONG = "A domain name has at most 253 characters. Check what you entered."
@@ -155,17 +154,6 @@ def test_a_blocked_domain_is_refused_and_the_person_is_told_what_to_do(
     page = post_form(client, domain="intranet.corp.example", visibility="private")
     assert f'id="domain-error">{BLOCKED}</p>' in page
     assert _count(db_session) == 0
-
-
-class Marked(NullTranslations):
-    """A language in which every sentence starts with its code: proof that a text went through
-    gettext, at the time it is shown and not when the module was loaded."""
-
-    def gettext(self, message: str) -> str:
-        return f"[xx] {message}"
-
-    def ngettext(self, singular: str, plural: str, n: int) -> str:
-        return f"[xx] {singular if n == 1 else plural}"
 
 
 def test_every_refusal_of_the_form_is_translated_when_it_is_shown(

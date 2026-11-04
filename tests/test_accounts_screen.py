@@ -20,7 +20,15 @@ from app.models.auth import Role
 from app.models.base import utc_now
 from app.service import invitations
 from app.service import users as user_service
-from tests.helpers import NEUTRAL_BADGE, audit_rows, badge_classes, create_user, login_as, make_app
+from tests.helpers import (
+    NEUTRAL_BADGE,
+    Marked,
+    audit_rows,
+    badge_classes,
+    create_user,
+    login_as,
+    make_app,
+)
 
 PASSWORD = "Correct-Horse-Battery-1"
 TOKEN = re.compile(r"/auth/invitation/([A-Za-z0-9_-]{43})")
@@ -180,19 +188,46 @@ def test_inviting_shows_the_link_once(client: FlaskClient, db_session: Session) 
     assert invitations.open_link(db_session, token).user_id == user.id
 
 
-def test_inviting_an_existing_address_says_so_and_creates_nothing(
-    client: FlaskClient, db_session: Session
+EXISTS = (
+    "An account for this e-mail address exists already. "
+    "Use its row in the list below to send it a new link."
+)
+INVITE_REFUSALS = [
+    ({"email": ""}, "Enter the e-mail address of the person to invite."),
+    ({"email": "   "}, "Enter the e-mail address of the person to invite."),
+    ({"email": "a" * 256}, "An e-mail address has at most 255 characters. Check what you entered."),
+    ({"email": "not an address"}, "Enter a valid e-mail address."),
+    ({"email": "THERE@example.org"}, EXISTS),
+]
+
+
+@pytest.mark.parametrize(("data", "message"), INVITE_REFUSALS)
+def test_a_refused_invitation_says_what_to_do_and_creates_nothing(
+    client: FlaskClient, db_session: Session, data: dict[str, str], message: str
 ) -> None:
     signed_in_boss(client, db_session)
     member(db_session, "there@example.org")
     before = counts(db_session)
-    response = client.post("/accounts/invite", data={"email": "THERE@example.org"})
+
+    response = client.post("/accounts/invite", data=data)
     assert response.status_code == 302
-    assert "exists already" in html(client.get(response.headers["Location"]))
+    page = html(client.get(response.headers["Location"]))
+    assert page.count(message) == 1, message
+    for wording in ("This field is required", "Field cannot be longer", "flask users"):
+        assert wording not in page, wording  # no library default, no advice for the command line
     assert counts(db_session) == before
 
-    response = client.post("/accounts/invite", data={"email": ""})
-    assert response.status_code == 302 and counts(db_session) == before
+
+def test_every_refusal_of_an_invitation_is_translated_when_it_is_shown(
+    client: FlaskClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    signed_in_boss(client, db_session)
+    member(db_session, "there@example.org")
+    monkeypatch.setattr("app.i18n._translations", lambda: Marked())
+
+    for data, message in INVITE_REFUSALS:
+        response = client.post("/accounts/invite", data=data)
+        assert f"[xx] {message}" in html(client.get(response.headers["Location"])), message
 
 
 def test_sending_a_link_again_withdraws_the_first(client: FlaskClient, db_session: Session) -> None:

@@ -21,7 +21,7 @@ from app.i18n import gettext as _
 from app.models.auth import User
 from app.service import invitations as invitation_service
 from app.service import users as user_service
-from app.service.users import UserAdminError
+from app.service.users import AccountExistsError, UserAdminError
 
 
 def _require_admin() -> User:
@@ -44,7 +44,7 @@ def _hours() -> int:
 
 def _refused(exc: UserAdminError) -> Response:
     db.session.rollback()
-    flash(str(exc), "warning")
+    flash(_(exc.message, **exc.params), "warning")
     return redirect(url_for("accounts.index"))
 
 
@@ -82,12 +82,23 @@ def invite() -> str | Response:
     _require_admin()
     form = InviteForm()
     if not form.validate_on_submit():
-        flash(_("Enter the e-mail address of the person to invite."), "warning")
+        first = next(iter(form.email.errors), None)
+        flash(first or _("Enter the e-mail address of the person to invite."), "warning")
         return redirect(url_for("accounts.index"))
     try:
         user, link = invitation_service.invite_user(
             db.session(), form.email.data, admin=bool(form.admin.data), hours=_hours()
         )
+    except AccountExistsError:  # the list below has the account: say what to do on this screen
+        db.session.rollback()
+        flash(
+            _(
+                "An account for this e-mail address exists already. "
+                "Use its row in the list below to send it a new link."
+            ),
+            "warning",
+        )
+        return redirect(url_for("accounts.index"))
     except UserAdminError as exc:
         return _refused(exc)
     db.session.commit()

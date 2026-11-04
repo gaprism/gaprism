@@ -24,6 +24,18 @@ from app.service import users as user_service
 from app.service import worker as worker_service
 
 
+def _refusal(exc: user_service.UserAdminError) -> str:
+    """What the command line says for a refusal: the sentence, and for an address that has an
+    account already, what to run next (the screen says what to click)."""
+    text = str(exc)
+    if isinstance(exc, user_service.AccountExistsError):
+        text += (
+            " Use `flask users reset-link` to send it a new link, or `flask users activate` to "
+            "switch it on again."
+        )
+    return text
+
+
 def _megabytes(size: int | None) -> str:
     return f"{(size or 0) / (1024 * 1024):.1f} MB"
 
@@ -182,7 +194,7 @@ def register_cli_commands(app: Flask) -> None:
         try:
             user = user_service.create_admin(db.session(), email, password)
         except user_service.UserAdminError as exc:
-            raise click.ClickException(str(exc)) from exc
+            raise click.ClickException(_refusal(exc)) from exc
         db.session.commit()
         click.echo(f"Administrator '{user.email}' is ready.")
 
@@ -196,7 +208,7 @@ def register_cli_commands(app: Flask) -> None:
             message = action()
         except user_service.UserAdminError as exc:
             db.session.rollback()
-            raise click.ClickException(str(exc)) from exc
+            raise click.ClickException(_refusal(exc)) from exc
         db.session.commit()
         click.echo(message)
 

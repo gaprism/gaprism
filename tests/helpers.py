@@ -3,6 +3,7 @@
 import re
 import uuid
 from datetime import UTC, datetime
+from gettext import NullTranslations
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,18 @@ from app.models import Assessment, AuditEvent, User
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS_DIRECTORY = PROJECT_ROOT / "migrations"
 NEUTRAL_BADGE = "bg-subtle text-muted"  # the info and muted tones: a fact, or nothing to report
+
+
+class Marked(NullTranslations):
+    """A language in which every sentence starts with its code: proof that a text went through
+    gettext, at the time it is shown and not when the module was loaded. Put it in front of the
+    application with ``monkeypatch.setattr("app.i18n._translations", lambda: Marked())``."""
+
+    def gettext(self, message: str) -> str:
+        return f"[xx] {message}"
+
+    def ngettext(self, singular: str, plural: str, n: int) -> str:
+        return f"[xx] {singular if n == 1 else plural}"
 
 
 def make_app(database_url: str, schema: str, **overrides: Any) -> Flask:

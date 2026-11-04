@@ -19,7 +19,7 @@ from app.models import User, UserInvitation
 from app.models.base import utc_now
 from app.service import invitations
 from app.service import users as user_service
-from tests.helpers import create_user, make_app
+from tests.helpers import Marked, create_user, make_app
 
 GOOD = "A-Long-Enough-Pass-1"
 ACCENTED = "Grüezi-mitenand-2026"  # the u-umlaut as the one character a Swiss keyboard types
@@ -88,21 +88,52 @@ def test_a_good_password_sets_it_and_sends_the_person_to_sign_in(
     assert again.status_code == 404 and "This link does not work" in body(again)
 
 
-def test_a_mistyped_or_short_password_shows_the_form_again_and_keeps_the_link(
-    client: FlaskClient, db_session: Session
+NEW_EMPTY = "Enter a new password."
+AGAIN_EMPTY = "Enter the same password again."
+MISMATCH = "The two passwords are not the same. Enter the same password twice."
+TOO_SHORT = "The password is too short. Use at least 12 characters."
+TOO_LONG = "The password has more than 256 characters. Use a shorter one."
+# What the library's validators say by themselves.
+LIBRARY_WORDING = ("This field is required", "Field cannot be longer")
+REFUSALS = [
+    ((GOOD, GOOD + "x"), {"confirm": MISMATCH}),
+    (("short", "short"), {"password": TOO_SHORT}),
+    (("", ""), {"password": NEW_EMPTY, "confirm": AGAIN_EMPTY}),
+    ((GOOD, ""), {"confirm": AGAIN_EMPTY}),
+    (("x" * 257, "x" * 257), {"password": TOO_LONG}),
+]
+
+
+@pytest.mark.parametrize(("typed", "expected"), REFUSALS)
+def test_a_refused_password_says_what_to_do_under_the_field_and_keeps_the_link(
+    client: FlaskClient, db_session: Session, typed: tuple[str, str], expected: dict[str, str]
 ) -> None:
     user, token = invited(db_session)
-    for password, confirm, message in (
-        (GOOD, GOOD + "x", "not the same"),
-        ("short", "short", "at least 12 characters"),
-        ("", "", "required"),
-    ):
-        response = client.post(path(token), data={"password": password, "confirm": confirm})
-        assert response.status_code == 200 and message in body(response), message
-        assert db_session.scalars(select(UserInvitation)).one().user_id == user.id
+    password, confirm = typed
+
+    response = client.post(path(token), data={"password": password, "confirm": confirm})
+    page = body(response)
+    assert response.status_code == 200
+    for field, message in expected.items():
+        assert f'id="{field}-error">{message}</p>' in page, (field, message)
+    for wording in LIBRARY_WORDING:
+        assert wording not in page, wording
+    assert db_session.scalars(select(UserInvitation)).one().user_id == user.id
 
     done = client.post(path(token), data={"password": GOOD, "confirm": GOOD})
     assert done.status_code == 302  # the same link still worked
+
+
+def test_every_refusal_of_the_page_is_translated_when_it_is_shown(
+    client: FlaskClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, token = invited(db_session)
+    monkeypatch.setattr("app.i18n._translations", lambda: Marked())
+
+    for typed, expected in REFUSALS:
+        response = client.post(path(token), data={"password": typed[0], "confirm": typed[1]})
+        for message in expected.values():
+            assert f"[xx] {message}" in body(response), message
 
 
 def test_with_mfa_required_the_first_sign_in_asks_for_an_authenticator(

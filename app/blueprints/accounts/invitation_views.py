@@ -52,7 +52,9 @@ def accept(token: str) -> str | Response | tuple[str, int]:
     form = SetPasswordForm()
     if form.validate_on_submit():
         if form.password.data != form.confirm.data:
-            form.confirm.errors.append(_("The two passwords are not the same."))
+            form.confirm.errors.append(
+                _("The two passwords are not the same. Enter the same password twice.")
+            )
         else:
             try:
                 invitation_service.accept_link(session, token, form.password.data)
@@ -61,7 +63,7 @@ def accept(token: str) -> str | Response | tuple[str, int]:
                 return _dead_link()
             except UserAdminError as exc:  # the password is refused; the link stays as it was
                 session.rollback()
-                form.password.errors.append(str(exc))
+                form.password.errors.append(_(exc.message, **exc.params))
             else:
                 session.commit()
                 flash(_("Password set. Sign in to finish setting up."), "info")

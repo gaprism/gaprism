@@ -16,6 +16,10 @@ from app.service import users as user_service
 
 PASSWORD = "Correct-Horse-Battery-1"
 TWICE = f"{PASSWORD}\n{PASSWORD}\n"
+EXISTING_ACCOUNT_HINT = (
+    "Use `flask users reset-link` to send it a new link, or `flask users activate` to switch it "
+    "on again."
+)
 
 
 def run(cli_runner: FlaskCliRunner, *args: str, text: str = "") -> tuple[int, str]:
@@ -64,6 +68,7 @@ def test_create_refuses_an_existing_account_a_short_password_and_a_password_argu
     account(db_session, "there@example.org")
     code, output = run(cli_runner, "create", "there@example.org", text=TWICE)
     assert code != 0 and "exists already" in output
+    assert EXISTING_ACCOUNT_HINT in output  # what to do at the command line, not on the screen
 
     code, output = run(cli_runner, "create", "new@example.org", text="short\nshort\n")
     assert code != 0 and "at least 12 characters" in output
@@ -238,7 +243,7 @@ def test_invite_refuses_an_existing_account_and_a_bad_address_or_base_url(
 ) -> None:
     account(db_session, "there@example.org")
     code, output = run(cli_runner, "invite", "there@example.org")
-    assert code != 0 and "exists already" in output
+    assert code != 0 and "exists already" in output and EXISTING_ACCOUNT_HINT in output
     code, output = run(cli_runner, "invite", "not-an-address")
     assert code != 0 and "valid e-mail address" in output
     code, output = run(cli_runner, "invite", "x@example.org", "--base-url", "dd.example.org")

@@ -30,7 +30,23 @@ _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
 class UserAdminError(ValueError):
-    """Raised when an account cannot be created or changed as requested."""
+    """Raised when an account cannot be created or changed as requested.
+
+    The message is for the person who asked: what is wrong, and what to do. ``message`` is the
+    English text with %(name)s placeholders and ``params`` fill them, so that a screen translates
+    the text first and fills it in after: ``_(e.message, **e.params)``. ``str(e)`` is the English
+    sentence, which the command line prints.
+    """
+
+    def __init__(self, message: str, **params: object) -> None:
+        super().__init__(message % params if params else message)
+        self.message = message
+        self.params = params
+
+
+class AccountExistsError(UserAdminError):
+    """An account for the address exists already. The command line and the screen each say what to
+    do next, with their own words: the sentence here is only what happened."""
 
 
 def normalise_email(raw: str) -> str:
@@ -45,7 +61,8 @@ def check_password(password: str) -> None:
     """Refuse a password that is too short (the only rule there is)."""
     if len(password) < MIN_PASSWORD_LENGTH:
         raise UserAdminError(
-            f"The password must contain at least {MIN_PASSWORD_LENGTH} characters."
+            "The password is too short. Use at least %(length)s characters.",
+            length=MIN_PASSWORD_LENGTH,
         )
 
 
@@ -133,10 +150,7 @@ def create_user(
     clean_email = normalise_email(email)
     check_password(password)
     if session.scalar(select(User.id).where(User.email == clean_email)) is not None:
-        raise UserAdminError(
-            "An account for this e-mail address exists already. Use `flask users set-password` "
-            "to give it a new password, or `flask users activate` to switch it on again."
-        )
+        raise AccountExistsError("An account for this e-mail address exists already.")
     user = User(email=clean_email, password=hash_new_password(password), active=True)
     session.add(user)
     if admin:

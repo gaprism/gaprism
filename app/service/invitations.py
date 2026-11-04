@@ -97,8 +97,9 @@ def _make_room(session: Session, replacing: UserInvitation | None, now: datetime
     )
     if (open_links or 0) >= MAX_OPEN_LINKS:
         raise UserAdminError(
-            f"Too many links work at the moment ({MAX_OPEN_LINKS}). Withdraw some, or wait "
-            "until they have expired."
+            "Too many links work at the moment (%(limit)s). Withdraw some, or wait until they "
+            "have expired.",
+            limit=MAX_OPEN_LINKS,
         )
 
 
