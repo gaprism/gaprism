@@ -123,10 +123,13 @@ def new() -> str | Response:
                 blocked_domains=current_app.config["BLOCKED_DOMAINS"],
             )
         except ScopeValidationError as exc:
-            form.domain.errors = [*form.domain.errors, str(exc)]
+            form.domain.errors = [*form.domain.errors, _(exc.message, **exc.params)]
         except assessment_service.DuplicateAssessmentError as exc:
             existing = exc.existing
-            form.domain.errors = [*form.domain.errors, _("This domain is already being assessed.")]
+            form.domain.errors = [
+                *form.domain.errors,
+                _("This domain already has an assessment. Open that one instead."),
+            ]
         except ValueError as exc:
             form.label.errors = [*form.label.errors, str(exc)]
         else:

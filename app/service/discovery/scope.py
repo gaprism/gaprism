@@ -1,5 +1,7 @@
 """Domain scope canonicalisation, IDNA translation, and boundary validation."""
 
+# ruff: noqa: RUF001 - the wording that people read uses typographic quotes, as the templates do
+
 from __future__ import annotations
 
 import ipaddress
@@ -15,7 +17,29 @@ _LABEL_REGEX = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
 
 class ScopeValidationError(ValueError):
-    """Raised when an entered domain scope violates syntax or boundary rules."""
+    """Raised when an entered domain violates syntax or boundary rules.
+
+    The message is written for the person who typed the domain: what happened, and what to do about
+    it. ``message`` is the English text with %(name)s placeholders and ``params`` fill them, so that
+    whoever shows it translates the text first and fills it in after: ``_(e.message, **e.params)``.
+    ``str(e)`` is the English sentence, for logs and the command line. This module stays free of
+    Flask: the discovery check imports it too.
+    """
+
+    def __init__(self, message: str, **params: object) -> None:
+        super().__init__(message % params if params else message)
+        self.message = message
+        self.params = params
+
+
+EMPTY = "Enter the vendor’s domain, for example example.com."
+EMPTY_PART = (
+    "The domain has an empty part: two dots in a row, or a dot at the start. Check the spelling."
+)
+LONG_PART = (
+    "A part of the domain (“%(start)s...”) has more than 63 characters, "
+    "which a domain name cannot have. Check the spelling."
+)
 
 
 @dataclass(frozen=True)
@@ -40,11 +64,11 @@ def canonicalise_domain(raw_input: str) -> DomainScope:
     - DNS label length (1..63) and total length (<= 253) validation (RFC 1035 / RFC 1123).
     """
     if not isinstance(raw_input, str):
-        raise ScopeValidationError("Domain scope must be a string.")
+        raise ScopeValidationError("A domain must be text.")
 
     cleaned = raw_input.strip()
     if not cleaned:
-        raise ScopeValidationError("Domain scope cannot be empty.")
+        raise ScopeValidationError(EMPTY)
 
     # Strip single terminal root dot if present
     if cleaned.endswith(".") and not cleaned.endswith(".."):
@@ -60,69 +84,87 @@ def canonicalise_domain(raw_input: str) -> DomainScope:
         is_ip = False
 
     if is_ip:
-        raise ScopeValidationError("IP address literals are not allowed as domain scope.")
+        raise ScopeValidationError(
+            "That is an IP address, not a domain name. "
+            "Enter the vendor’s domain name instead, for example example.com."
+        )
 
     # Reject URLs, schemes, paths, userinfo, ports, fragments, query strings
     if "://" in cleaned or cleaned.startswith(("http:", "https:", "ftp:", "file:", "ws:", "wss:")):
-        raise ScopeValidationError("URL schemes (e.g. 'https://') are not allowed.")
+        raise ScopeValidationError("Enter the domain only, without “https://” or another scheme.")
     if "/" in cleaned or "\\" in cleaned:
-        raise ScopeValidationError("Path syntax is not allowed in domain scope.")
+        raise ScopeValidationError(
+            "Enter the domain only, without a path. Remove the slash and everything after it."
+        )
     if "@" in cleaned:
-        raise ScopeValidationError("Userinfo ('@') is not allowed in domain scope.")
+        raise ScopeValidationError(
+            "Enter the domain only. Remove the “@” and everything before it."
+        )
     if ":" in cleaned:
-        raise ScopeValidationError("Port numbers or IPv6 bracket syntax are not allowed.")
+        raise ScopeValidationError(
+            "Enter the domain only, without a port number. Remove the colon and what follows it."
+        )
     if "?" in cleaned or "#" in cleaned:
-        raise ScopeValidationError("Query strings and fragments are not allowed.")
+        raise ScopeValidationError(
+            "Enter the domain only. Remove the “?” or “#” and everything after it."
+        )
     if "*" in cleaned:
-        raise ScopeValidationError("Wildcard domains ('*.example.com') are not allowed as scope.")
+        raise ScopeValidationError(
+            "Enter a single domain, such as example.com. "
+            "A wildcard such as “*.example.com” is not accepted."
+        )
 
     # Check for empty labels or consecutive dots before IDNA encoding
     if ".." in cleaned or cleaned.startswith(".") or cleaned.endswith("."):
-        raise ScopeValidationError("Domain contains empty labels (consecutive dots).")
+        raise ScopeValidationError(EMPTY_PART)
 
     # Pre-check raw label lengths
     raw_labels = cleaned.split(".")
     for raw_label in raw_labels:
         if len(raw_label) > 63:
-            raise ScopeValidationError(
-                f"Domain label '{raw_label[:10]}...' exceeds maximum length of 63 characters."
-            )
+            raise ScopeValidationError(LONG_PART, start=raw_label[:10])
 
     # IDNA encoding to ASCII lowercase
     try:
         canonical = cleaned.encode("idna").decode("ascii").lower()
     except Exception as e:
-        raise ScopeValidationError(f"Invalid internationalised domain name: {e}") from e
+        raise ScopeValidationError(
+            "This is not a valid internationalised domain name. Check the spelling."
+        ) from e
 
     # Screen against Public Suffix List (including single-label TLDs)
     if is_public_suffix(canonical):
         raise ScopeValidationError(
-            f"'{canonical}' is a public suffix / TLD and cannot be used as an assessment scope."
+            "“%(domain)s” is a top-level domain or public suffix, not one organisation’s domain. "
+            "Enter the vendor’s own domain, for example vendor.%(domain)s.",
+            domain=canonical,
         )
 
     # Check total length (max 253 octets per RFC 1035)
     if len(canonical) > 253:
         raise ScopeValidationError(
-            f"Domain exceeds maximum allowed length of 253 characters (got {len(canonical)})."
+            "The domain has %(length)s characters. A domain name has at most 253. "
+            "Check what you entered.",
+            length=len(canonical),
         )
 
     # Validate labels
     labels = canonical.split(".")
     if len(labels) < 2:
         raise ScopeValidationError(
-            "Domain scope must contain at least two labels (e.g. 'example.com')."
+            "Enter a full domain name with at least two parts, for example example.com."
         )
 
     for label in labels:
         if not label:
-            raise ScopeValidationError("Domain contains empty labels (consecutive dots).")
+            raise ScopeValidationError(EMPTY_PART)
         if len(label) > 63:
-            raise ScopeValidationError(
-                f"Domain label '{label[:10]}...' exceeds maximum length of 63 characters."
-            )
+            raise ScopeValidationError(LONG_PART, start=label[:10])
         if not _LABEL_REGEX.match(label):
             raise ScopeValidationError(
-                f"Domain label '{label}' contains invalid characters or illegal hyphen placement."
+                "“%(part)s” cannot be part of a domain name. "
+                "Use letters, digits and hyphens, with no hyphen at the start or end of a part.",
+                part=label,
             )
 
     # Human-readable unicode form

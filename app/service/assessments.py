@@ -249,12 +249,15 @@ def create_assessment(
     """
     scope = canonicalise_domain(raw_domain)
     if any(is_in_scope(scope.canonical, blocked) for blocked in blocked_domains):
-        raise ScopeValidationError("This domain is on the blocklist and cannot be assessed.")
+        raise ScopeValidationError(
+            "This installation does not assess this domain: it is on the list of blocked domains. "
+            "Ask an administrator if that is a mistake."
+        )
     if visibility not in VISIBILITIES:
         raise ValueError(f"Unknown visibility: {visibility!r}")
     clean_label = (label or "").strip()
     if len(clean_label) > MAX_LABEL_LENGTH:
-        raise ValueError(f"The label may not exceed {MAX_LABEL_LENGTH} characters.")
+        raise ValueError(f"The label has more than {MAX_LABEL_LENGTH} characters. Shorten it.")
 
     for existing in list_visible(session, user, archived=None):  # an archived one keeps its domain
         if existing.domain == scope.canonical:
