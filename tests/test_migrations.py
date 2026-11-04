@@ -147,6 +147,45 @@ def test_a_picture_belongs_to_one_account_goes_with_it_and_can_be_undone(
         engine.dispose()
 
 
+def test_accounts_get_an_optional_language_and_lose_it_again(database_url: str) -> None:
+    """Migration 0009 adds the language of an account; accounts that exist have none."""
+    schema = f"t_{uuid.uuid4().hex[:12]}"
+    engine = sa.create_engine(database_url)
+    try:
+        migrated_app = make_app(database_url, schema)
+        with migrated_app.app_context():
+            upgrade(directory=str(MIGRATIONS_DIRECTORY), revision="0008_user_picture")
+            with db.engine.begin() as connection:
+                connection.execute(
+                    sa.text(
+                        'INSERT INTO "user" (id, email, password, active, fs_uniquifier,'
+                        " create_datetime, update_datetime, login_count) VALUES (:id,"
+                        " 'old@example.org', 'x', true, :uniquifier, now(), now(), 0)"
+                    ),
+                    {"id": uuid.uuid4(), "uniquifier": uuid.uuid4().hex},
+                )
+
+            upgrade(directory=str(MIGRATIONS_DIRECTORY))
+            with db.engine.begin() as connection:
+                assert connection.execute(sa.text('SELECT locale FROM "user"')).scalar_one() is None
+                connection.execute(sa.text('UPDATE "user" SET locale = :code'), {"code": "de_CH"})
+            column = next(
+                c
+                for c in sa.inspect(db.engine).get_columns("user", schema=schema)
+                if c["name"] == "locale"
+            )
+            assert column["nullable"] and column["type"].length == 10
+
+            downgrade(directory=str(MIGRATIONS_DIRECTORY), revision="0008_user_picture")
+            columns = {c["name"] for c in sa.inspect(db.engine).get_columns("user", schema=schema)}
+            assert "locale" not in columns and "picture_version" in columns
+            db.engine.dispose()
+    finally:
+        with engine.begin() as connection:
+            connection.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        engine.dispose()
+
+
 def test_visibility_team_becomes_shared_and_back(database_url: str) -> None:
     """Migration 0005 renames the stored value, the constraint follows, and it can be undone."""
     schema = f"t_{uuid.uuid4().hex[:12]}"

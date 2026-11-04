@@ -270,6 +270,7 @@ def _title(name: str) -> str:
 
 
 def _context() -> dict[str, Any]:
+    from app.i18n import language_choices
     from app.service.findings import SEVERITIES, severity_label, severity_tone
     from app.service.host_view import summarize
 
@@ -312,6 +313,7 @@ def _context() -> dict[str, Any]:
         # put a different token into the sign-out form on every build.
         "csrf_token": lambda: "specimen",
         "unnamed": _Unnamed(),
+        "languages": language_choices(["en", "de_CH"], "en"),
         "sections": SECTIONS,
         "groups": [{"title": title, "tokens": found} for title, found in groups.items()],
         "text_pairings": rows([p for p in PAIRINGS if p.minimum == TEXT]),

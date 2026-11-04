@@ -1,7 +1,7 @@
-{% from 'components/ui.html' import badge %}
+{% from 'components/ui.html' import badge, icon %}
 {# The items of the account menu: who is signed in, the account's own pages, and signing out. base.html puts
    them into the popover list of the top bar; the style guide shows the same items in a plain list. #}
-{% macro account_menu_items(user) -%}
+{% macro account_menu_items(user, languages=none) -%}
 <li class="menu-head">
   <span class="text-xs text-muted">{{ _('Signed in as') }}</span>
   {% if user.name %}
@@ -15,6 +15,19 @@
 <li><a class="menu-item" href="{{ url_for('profile.index') }}">{{ _('Profile') }}</a></li>
 <li><a class="menu-item" href="{{ url_for_security('change_password') }}">{{ _('Password') }}</a></li>
 <li><a class="menu-item" href="{{ url_for_security('two_factor_setup') }}">{{ _('Two-factor') }}</a></li>
+{# Only when the installation offers more than one language. The name of each is in its own words and
+   marked with its own lang, so that it is read out right; next brings the person back to this page. #}
+{% if languages %}
+<li class="menu-sep" role="separator"></li>
+<li>
+  <form action="{{ url_for('profile.language') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+    <span class="block px-3 pb-1 pt-2 text-xs text-muted">{{ _('Language') }}</span>
+    {% for language in languages %}<button class="menu-item" type="submit" name="locale" value="{{ language.code }}" lang="{{ language.code|replace('_', '-') }}"{% if language.current %} aria-current="true"{% endif %}>{{ language.name }}{% if language.current %}<span class="ml-auto">{{ icon('check') }}</span>{% endif %}</button>{% endfor %}
+  </form>
+</li>
+{% endif %}
 <li class="menu-sep" role="separator"></li>
 <li>
   <form action="{{ url_for_security('logout') }}" method="post">

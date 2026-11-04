@@ -29,7 +29,7 @@
       <div class="topbar-end">
         <button type="button" class="account-button" popovertarget="account-menu" aria-label="{{ _('Account menu') }}">{{ avatar(current_user) }}{{ icon('chevron') }}</button>
         <ul id="account-menu" popover class="menu-panel menu-panel-end">
-          {{ account_menu_items(current_user) }}
+          {{ account_menu_items(current_user, languages) }}
         </ul>
       </div>
     </header>

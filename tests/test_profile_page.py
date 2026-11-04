@@ -63,6 +63,7 @@ def test_the_page_is_for_somebody_who_is_signed_in(
         "profile.upload_picture",
         "profile.remove_picture",
         "profile.picture",
+        "profile.language",
     }
     for rule in rules:
         url = re.sub(r"<uuid:[a-z_]+>", str(uuid.uuid4()), rule.rule)

@@ -208,6 +208,17 @@ def test_the_account_menu_is_the_one_the_pages_use(page: str) -> None:
     assert re.search(r'<button class="menu-item" type="submit">Sign out</button>', menu.group(1))
 
 
+def test_the_language_group_of_the_menu_is_shown_with_two_languages_and_absent_with_one(
+    page: str,
+) -> None:
+    menus = re.findall(r'<ul class="menu-panel[^"]*">(.*?)</ul>', page, re.S)
+    first, second = menus[0], menus[1]
+    assert re.findall(r'<button [^>]*name="locale"[^>]*value="([^"]+)"', first) == ["en", "de_CH"]
+    assert "Language" in first and first.count('aria-current="true"') == 1
+    assert 'lang="de-CH"' in first and "Deutsch" in first and "English" in first
+    assert 'name="locale"' not in second and "Language" not in second
+
+
 def test_the_avatar_is_shown_as_initials_as_a_picture_and_large(page: str) -> None:
     assert '<span class="avatar" aria-hidden="true">AM</span>' in page
     assert re.search(

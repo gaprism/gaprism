@@ -6,6 +6,7 @@ import hashlib
 import re
 import unicodedata
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -21,6 +22,7 @@ NAME_TOO_LONG = "The name has more than %(max)d characters. Shorten it."
 NAME_CHARACTER = (
     "The name contains a character that cannot be shown, such as a text-direction mark. Remove it."
 )
+LANGUAGE_UNKNOWN = "That language is not available. Choose one from the list."
 
 _LETTERS = re.compile(r"[^\W\d_]+")  # runs of letters: no digits, no underscore
 _SPACES = re.compile(r"\s+")
@@ -132,5 +134,25 @@ def remove_picture(session: Session, user: User) -> bool:
         "user.profile_changed",
         subject=str(user.id),
         details={"email": user.email, "picture": "removed"},
+    )
+    return True
+
+
+def change_locale(session: Session, user: User, locale: str, offered: Sequence[str]) -> bool:
+    """Keep ``locale`` (a code of ``offered``, "de_CH") as the language of ``user``. Returns whether
+    anything changed. A code that is not offered is refused: nobody can make the pages speak a
+    language that has no catalogue. The audit log has the code, which is not text anybody typed.
+    The caller commits."""
+    if locale not in offered:
+        raise UserAdminError(LANGUAGE_UNKNOWN)
+    if user.locale == locale:
+        return False
+    user.locale = locale
+    session.flush()
+    audit_service.record(
+        session,
+        "user.profile_changed",
+        subject=str(user.id),
+        details={"email": user.email, "locale": locale},
     )
     return True

@@ -310,8 +310,9 @@
 <div class="mt-8 grid gap-8 md:grid-cols-2">
   <div>
     <h3>Account menu</h3>
+    <p class="mt-1 text-sm text-muted">With more than one language on offer the menu has a Language group: each language in its own words, the one in use marked, and the page comes back in the language that was chosen. With one language there is no group.</p>
     <ul class="menu-panel menu-panel-end mt-3">
-      {{ account_menu_items(current_user) }}
+      {{ account_menu_items(current_user, languages) }}
     </ul>
     <p class="mt-4 text-sm text-muted">A person who has not given a name is shown by the address alone, and the avatar takes its initials from the address.</p>
     <ul class="menu-panel menu-panel-end mt-3">

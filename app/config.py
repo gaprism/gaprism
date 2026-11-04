@@ -92,7 +92,8 @@ class BaseConfig:
     # Derived into SECURITY_TWO_FACTOR_REQUIRED by resolve_config(). On by default.
     REQUIRE_MFA: bool = True
 
-    # UI languages offered (first = default); catalogs live in app/translations
+    # UI languages offered (first = default); catalogs live in app/translations. With more than
+    # one the account menu has a Language group; the choice is user.locale (see app/i18n.py).
     LANGUAGES: ClassVar[list[str]] = ["en"]
 
     # Flask-Security-Too defaults

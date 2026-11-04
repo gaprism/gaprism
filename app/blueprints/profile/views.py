@@ -2,10 +2,22 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 
-from flask import Response, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Response,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_security import login_required
+from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import Response as WerkzeugResponse
 
 from app.blueprints.assessments.access import current_user_object
@@ -19,6 +31,8 @@ from app.service.users import UserAdminError
 
 _MEGABYTE = 1024 * 1024
 _A_YEAR = 365 * 24 * 60 * 60
+# What no path of ours holds: a backslash (a browser reads it as a slash) or a control character.
+_NOT_A_PATH = re.compile(r"[\\\x00-\x1f\x7f]")
 
 
 def _page(form: ProfileForm, picture_form: PictureForm) -> str:
@@ -99,3 +113,38 @@ def picture(user_id: uuid.UUID) -> WerkzeugResponse:
         f"private, max-age={_A_YEAR}, immutable" if named else "private, no-cache"
     )
     return response.make_conditional(request)
+
+
+def _back(sent: str) -> str:
+    """Where to go after a choice: the page it was made on, when that is a path of this application
+    that can be opened with a GET; otherwise the profile. Never another site, whatever is sent."""
+    if sent.startswith("/") and not sent.startswith("//") and not _NOT_A_PATH.search(sent):
+        try:
+            current_app.url_map.bind("localhost").match(sent.split("?", 1)[0], method="GET")
+        except HTTPException:  # no such page, not for a GET, or a redirect to the right spelling
+            pass
+        else:
+            return sent
+    return url_for("profile.index")
+
+
+@profile_bp.post("/language")
+@login_required
+def language() -> WerkzeugResponse:
+    """Make a language the one of this person's pages, and go back to where they were. It is kept
+    with the account (so it follows them to other devices) and in this browser's session (so the
+    sign-in page after a sign-out speaks it too)."""
+    me = current_user_object()
+    back = _back(request.form.get("next", ""))
+    try:
+        changed = profile_service.change_locale(
+            db.session(), me, request.form.get("locale", ""), current_app.config["LANGUAGES"]
+        )
+    except UserAdminError as exc:
+        db.session.rollback()
+        flash(_(exc.message, **exc.params), "warning")
+        return redirect(back)
+    if changed:
+        db.session.commit()
+    session["locale"] = me.locale
+    return redirect(back)
