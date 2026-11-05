@@ -59,6 +59,9 @@ keeps its old translation as a guess marked `fuzzy`: check it and remove the fla
   `docs/rules.md`, the facts in the audit log (identifiers, counts, rule ids), and the names of
   Flask-Security's second-factor methods (`authenticator`, `email`, `none`), which its templates
   compare as text: no catalogue entry may change them.
+- **The files for programs are always English.** The JSON and CSV exports are built inside
+  `with english():` (`app/i18n.py`), so two people download the same file whatever their language;
+  the printable report follows the language of the person. See `docs/export-format.md`.
 
 ## What the tests keep
 

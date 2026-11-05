@@ -12,7 +12,8 @@ count; the account menu offers the choice when there is more than one.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from gettext import NullTranslations
 from pathlib import Path
@@ -116,6 +117,27 @@ def _translations() -> NullTranslations:
         cached = Translations.load(str(TRANSLATIONS_DIR), [locale])
         g._translations = cached
     return cached
+
+
+@contextmanager
+def english() -> Iterator[None]:
+    """Inside the block everything that is translated stays English, whatever the language of the
+    request is. For what is written for programs and not for a person: the JSON and CSV files carry
+    titles, advice and sources that other tools read and compare between exports, so they must not
+    change with the language of whoever downloads them."""
+    if not has_request_context():
+        yield
+        return
+    missing = object()
+    before = g.get("_translations", missing)
+    g._translations = NullTranslations()
+    try:
+        yield
+    finally:
+        if before is missing:
+            g.pop("_translations", None)
+        else:
+            g._translations = before
 
 
 def gettext(message: str, **variables: object) -> str:

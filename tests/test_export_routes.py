@@ -8,8 +8,10 @@ import json
 import re
 import uuid
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,9 +21,10 @@ from app.models.base import utc_now
 from app.service import decisions
 from app.service import findings as findings_service
 from app.service.export import CSV_BOM
-from tests.helpers import audit_rows, create_assessment, create_user, login_as
+from tests.helpers import audit_rows, create_assessment, create_user, load_script, login_as
 from tests.test_decisions import SPF, TLS
 from tests.test_findings_service import RULES_CONFIG, populated_scan
+from tests.test_languages import forget_the_language
 from tests.test_summary import evaluated
 
 Finished = tuple[FlaskClient, Scan, dict[str, Finding]]
@@ -423,3 +426,54 @@ def test_the_report_of_a_scan_without_findings_says_nothing_was_evaluated(
     opened = page.split('id="r-open"')[1].split('id="r-decided"')[0]
     assert "This scan has no findings" in opened  # not evaluated: said, not "none"
     assert "No open findings" not in opened
+
+
+# ----- the language: the screens follow it, the files for tools do not
+
+
+@pytest.fixture
+def asked_in_german(
+    finished: Finished, app: Flask, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Finished:
+    """The finished scan on an installation that offers German, with the real catalogue."""
+    translations = load_script("translations")
+    catalogue = translations.read_catalogue(translations.po_path("de_CH"))
+    folder = tmp_path / "de_CH" / "LC_MESSAGES"
+    folder.mkdir(parents=True)
+    (folder / "messages.mo").write_bytes(translations.compile_mo(catalogue))
+    monkeypatch.setattr("app.i18n.TRANSLATIONS_DIR", tmp_path)
+    monkeypatch.setitem(app.config, "LANGUAGES", ["en", "de_CH"])
+    return finished
+
+
+def fetch(client: FlaskClient, path: str, language: str | None = None) -> str:
+    """One page or file, as a browser that asks for ``language`` would get it. One application
+    context serves the whole test and keeps the language of the last request: forget it."""
+    forget_the_language()
+    headers = {"Accept-Language": language} if language else {}
+    return client.get(path, headers=headers).get_data(as_text=True)
+
+
+def test_the_report_follows_the_language_of_the_person(asked_in_german: Finished) -> None:
+    client, scan, _ = asked_in_german
+    english = fetch(client, url(scan, "report"))
+    german = fetch(client, url(scan, "report"), "de-CH,de;q=0.9")
+    assert "1. Summary" in english and "1. Summary" not in german
+    assert "1. Zusammenfassung" in german
+
+
+def test_the_files_for_tools_are_english_whatever_language_the_person_has(
+    asked_in_german: Finished,
+) -> None:
+    """Their words (titles, advice, sources) are read by programs and compared between exports:
+    they must not change with the language of whoever downloads them."""
+    client, scan, _ = asked_in_german
+    german_asked = "de-CH,de;q=0.9"
+    english_json = json.loads(fetch(client, url(scan, "export/scan.json")))
+    german_json = json.loads(fetch(client, url(scan, "export/scan.json"), german_asked))
+    assert german_json["findings"] == english_json["findings"]
+    assert german_json["attributions"] == english_json["attributions"]
+    assert any(" " in finding["title"] for finding in english_json["findings"])
+    for what in ("hosts", "findings"):
+        path = url(scan, f"export/{what}.csv")
+        assert fetch(client, path, german_asked) == fetch(client, path)

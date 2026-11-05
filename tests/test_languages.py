@@ -22,7 +22,7 @@ from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 from werkzeug.test import TestResponse
 
-from app.i18n import Language, language_choices, language_names
+from app.i18n import Language, english, gettext, language_choices, language_names
 from app.service import profile as profile_service
 from app.service.users import UserAdminError
 from tests.helpers import Marked, audit_rows, create_user, login_as, make_app
@@ -37,8 +37,8 @@ UNKNOWN = "That language is not available. Choose one from the list."
 def german(app: Flask, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Flask:
     """An installation that offers English and de_CH, with a small catalogue for de_CH."""
     catalog = Catalog(locale="de_CH")
-    for english, translated in GERMAN.items():
-        catalog.add(english, translated)
+    for source, translated in GERMAN.items():
+        catalog.add(source, translated)
     folder = tmp_path / "de_CH" / "LC_MESSAGES"
     folder.mkdir(parents=True)
     with (folder / "messages.mo").open("wb") as stream:
@@ -346,3 +346,35 @@ def test_the_menu_speaks_the_language_it_offers_to_leave(
     items = menu(html(get(client, "/assessments/")))
     assert "Sprache" in items and "Profil" in items and "Passwort" in items
     assert 'value="de_CH" lang="de-CH" aria-current' in items
+
+
+# ------------------------------------------------------------------------------ English on demand
+
+
+def test_english_is_english_inside_the_block_and_gives_the_language_back(german: Flask) -> None:
+    forget_the_language()
+    with german.test_request_context("/", headers={"Accept-Language": "de-CH"}):
+        german.preprocess_request()
+        assert gettext("Profile") == "Profil"
+        with english():
+            assert gettext("Profile") == "Profile"
+            with english():  # blocks nest
+                assert gettext("Profile") == "Profile"
+            assert gettext("Profile") == "Profile"
+        assert gettext("Profile") == "Profil"
+    forget_the_language()
+
+
+def test_english_gives_the_language_back_when_the_block_fails(german: Flask) -> None:
+    forget_the_language()
+    with german.test_request_context("/", headers={"Accept-Language": "de-CH"}):
+        german.preprocess_request()
+        with pytest.raises(RuntimeError), english():
+            raise RuntimeError("the export failed")
+        assert gettext("Profile") == "Profil"
+    forget_the_language()
+
+
+def test_english_outside_a_request_changes_nothing() -> None:
+    with english():
+        assert gettext("Profile") == "Profile"

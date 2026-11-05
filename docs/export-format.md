@@ -15,6 +15,8 @@ Anyone who can open the assessment can export it; a stranger gets a 404, as for 
 
 The date is the day the scan was created. File names are ASCII whatever the domain looks like.
 
+**Language.** The printable report is worded in the language of the person who opens it. The JSON and CSV files are for programs and for comparing exports, so their words (finding titles, messages and advice, the names of sources, the column headings) are always English, whatever language the person has: two people download the same file. Keys, ids, statuses and enumerations were language-neutral already.
+
 ## JSON
 
 `format.name` is `gaprism-export`; `format.version` is `1`. The version changes only when a key is removed, renamed or changes its meaning; new keys can appear without a new version, so readers should ignore keys they do not know.

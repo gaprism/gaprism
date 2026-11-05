@@ -8,6 +8,7 @@ never cached (the application sets ``Cache-Control: no-store`` on every response
 from __future__ import annotations
 
 import uuid
+from contextlib import nullcontext
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_security import login_required
@@ -16,6 +17,7 @@ from werkzeug.wrappers import Response
 from app.blueprints.assessments import assessments_bp
 from app.blueprints.assessments.access import get_accessible, uuid_or_none
 from app.extensions import db
+from app.i18n import english
 from app.i18n import gettext as _
 from app.models.assessment import Assessment
 from app.service import audit as audit_service
@@ -25,9 +27,12 @@ from app.service import report as report_service
 from app.service import scans as scan_service
 
 
-def _export_data(assessment: Assessment, kind: str) -> export_service.ExportData | None:
+def _export_data(
+    assessment: Assessment, kind: str, *, for_tools: bool = False
+) -> export_service.ExportData | None:
     """The export of the latest scan, or of the one the history names (``?scan=``), or ``None``
-    (with a message) when there is nothing to export: no scan yet, or one that still runs."""
+    (with a message) when there is nothing to export: no scan yet, or one that still runs. The data
+    of a file for tools is worded in English; that of the report in the language of the person."""
     wanted = request.args.get("scan")
     if wanted is None:
         scan = scan_service.get_latest_scan(db.session(), assessment.id)
@@ -43,7 +48,8 @@ def _export_data(assessment: Assessment, kind: str) -> export_service.ExportData
     if scan is None or not scan.is_terminal:
         flash(_("Export a scan once it has finished."), "warning")
         return None
-    data = export_service.build_export(db.session(), assessment, scan, current_app.config)
+    with english() if for_tools else nullcontext():
+        data = export_service.build_export(db.session(), assessment, scan, current_app.config)
     audit_service.record(
         db.session(),
         f"export.{kind}",
@@ -81,13 +87,15 @@ def report(assessment_id: uuid.UUID) -> str | Response:
 @assessments_bp.get("/<uuid:assessment_id>/export/scan.json")
 @login_required
 def export_json(assessment_id: uuid.UUID) -> Response:
-    """Everything the scan found, as JSON (see docs/export-format.md)."""
+    """Everything the scan found, as JSON (see docs/export-format.md), always in English."""
     assessment = get_accessible(assessment_id)
-    data = _export_data(assessment, "json")
+    data = _export_data(assessment, "json", for_tools=True)
     if data is None:
         return _back(assessment)
+    with english():
+        body = export_service.to_json(data)
     return _download(
-        export_service.to_json(data),
+        body,
         "application/json; charset=utf-8",
         export_service.export_filename(data, "scan", "json"),
     )
@@ -98,11 +106,13 @@ def export_json(assessment_id: uuid.UUID) -> Response:
 def export_hosts_csv(assessment_id: uuid.UUID) -> Response:
     """One row per host."""
     assessment = get_accessible(assessment_id)
-    data = _export_data(assessment, "hosts_csv")
+    data = _export_data(assessment, "hosts_csv", for_tools=True)
     if data is None:
         return _back(assessment)
+    with english():
+        body = export_service.hosts_csv(data)
     return _download(
-        export_service.hosts_csv(data),
+        body,
         "text/csv; charset=utf-8",
         export_service.export_filename(data, "hosts", "csv"),
     )
@@ -113,11 +123,13 @@ def export_hosts_csv(assessment_id: uuid.UUID) -> Response:
 def export_findings_csv(assessment_id: uuid.UUID) -> Response:
     """One row per finding, with what the team decided about it."""
     assessment = get_accessible(assessment_id)
-    data = _export_data(assessment, "findings_csv")
+    data = _export_data(assessment, "findings_csv", for_tools=True)
     if data is None:
         return _back(assessment)
+    with english():
+        body = export_service.findings_csv(data)
     return _download(
-        export_service.findings_csv(data),
+        body,
         "text/csv; charset=utf-8",
         export_service.export_filename(data, "findings", "csv"),
     )
