@@ -96,7 +96,9 @@ class BaseConfig:
 
     # UI languages offered (first = default); catalogs live in app/translations. With more than
     # one the account menu has a Language group; the choice is user.locale (see app/i18n.py).
-    LANGUAGES: ClassVar[list[str]] = ["en"]
+    # de_CH is German as written in Switzerland; a language that is listed here must be complete
+    # and compiled (tests/test_translations.py), see docs/translation.md.
+    LANGUAGES: ClassVar[list[str]] = ["en", "de_CH"]
 
     # Flask-Security-Too defaults
     SECURITY_REGISTERABLE: bool = False

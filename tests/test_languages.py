@@ -317,8 +317,9 @@ def test_the_refusal_is_translated_when_it_is_shown(
 
 
 def test_the_menu_has_no_language_group_while_only_one_language_is_offered(
-    client: FlaskClient, db_session: Session
+    app: Flask, client: FlaskClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setitem(app.config, "LANGUAGES", ["en"])
     signed_in(client, db_session)
     items = menu(html(get(client, "/assessments/")))
     assert 'name="locale"' not in items and "Language" not in items

@@ -75,5 +75,10 @@ keeps its old translation as a guess marked `fuzzy`: check it and remove the fla
    `.mo` holds exactly the sentences of its `.po`. A language that is not offered yet may be
    unfinished, but what is translated has to be right.
 
+4. **The German screens ask for nothing the catalogue lacks** (`tests/test_german_screens.py`): the
+   screens are opened with the real catalogue, as a browser that asks for German, and the test fails
+   when one asks for a sentence that is not in it. That catches what the template cannot: a sentence
+   looked up through a variable (`_(label)`) that was never marked with `N_`.
+
 So a new `_()` sentence fails the suite until its German translation exists. That is the point:
 the German interface is not allowed to fall behind the English one.

@@ -21,6 +21,7 @@
   h3 { @apply text-base font-semibold; overflow-wrap: anywhere; }
   input, select { @apply min-h-10 rounded-md border border-control bg-panel px-3 text-base; }
   input { min-width: 0; }
+  select { min-width: 0; max-width: 100%; } /* the longest option decides its width: German is longer than English */
   input[aria-invalid=true], select[aria-invalid=true] { @apply border-danger; } /* a refused field: the message says what is wrong, the border says where */
   input[type=checkbox], input[type=radio] { @apply min-h-0 size-5 shrink-0 accent-action; }
   input[type=file] { @apply py-1.5 text-sm; }
@@ -85,7 +86,7 @@
   .data-table tbody tr:hover { @apply bg-canvas; }
   .data-table caption { @apply px-4 py-3 text-left text-sm text-muted; }
   .data-table-dense th, .data-table-dense td { @apply px-2; } /* many columns: the hosts of a scan */
-  .field { @apply flex flex-col gap-1.5; }
+  .field { @apply flex min-w-0 max-w-full flex-col gap-1.5; }
   .field label { @apply text-sm font-medium; }
   .field-help { @apply text-sm text-muted; }
   .skip { @apply fixed left-4 top-2 z-50 -translate-y-20 bg-panel px-4 py-2 focus:translate-y-0; }

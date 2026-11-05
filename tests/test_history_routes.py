@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 
 import pytest
@@ -131,10 +132,17 @@ def test_the_newest_two_scans_are_compared_by_default(client: FlaskClient, two: 
 def test_the_same_page_comes_whichever_way_round_the_scans_are_named(
     client: FlaskClient, two: Two
 ) -> None:
+    def without_the_language_menu(html: str) -> str:
+        """The account menu has a form that names the page it is on and carries a CSRF token of its
+        own: the pages differ in that and in nothing else."""
+        return re.sub(r'<form action="/profile/language".*?</form>', "", html, flags=re.S)
+
     forward = page(client, url(two, "compare", **{"from": two.older.id, "to": two.newer.id}))
     reverse = page(client, url(two, "compare", **{"from": two.newer.id, "to": two.older.id}))
-    assert forward == reverse
-    assert forward == page(client, url(two, "compare"))
+    assert without_the_language_menu(forward) == without_the_language_menu(reverse)
+    assert without_the_language_menu(forward) == without_the_language_menu(
+        page(client, url(two, "compare"))
+    )
 
 
 def test_a_scan_that_did_not_finish_everywhere_says_so(
