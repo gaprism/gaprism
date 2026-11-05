@@ -73,6 +73,32 @@ change (change them here and in the catalogue together).
 | shared infrastructure | gemeinsam genutzte Infrastruktur | |
 | queued, running, finished, cancelled, failed | in der Warteschlange, läuft, abgeschlossen, abgebrochen, fehlgeschlagen | |
 
+## Terms chosen while translating
+
+Open to change like the others; the catalogue holds them in these forms.
+
+| English | Deutsch (CH) | Note |
+|---|---|---|
+| discovery (of hosts) | Ermittlung | *Quellen der Ermittlung* |
+| record (DNS, SPF, CAA …) | Eintrag | *DNS-Eintrag*, *SPF-Eintrag* |
+| grade (Mozilla Observatory) | Note | the score is the *Punktzahl* |
+| provider (hosting, cloud) / data provider | Provider / Datenquelle | *Datenquelle* is Shodan, DB-IP and the like |
+| data processor, sub-processor | Auftragsverarbeiter, Unterauftragsverarbeiter | the GDPR word, known in Switzerland too |
+| recipient | Empfänger | of what a scan sends |
+| a rule fires | eine Regel wird ausgelöst | *ausgelöst*, never *angesprochen* |
+| host reviewed | Host geprüft | |
+| alias (CNAME) | Alias (Pl. Aliasse) | |
+| cipher suite, forward secrecy, handshake, edge | Cipher Suite, Forward Secrecy, Handshake, Edge | |
+| listed (on a blocklist) | gelistet | the reason is *Grund der Listung* |
+| takeover (of a subdomain) | Übernahme | |
+| switched on, switched off | eingeschaltet, ausgeschaltet | accounts and features |
+| session, sign out everywhere | Sitzung, Überall abmelden | |
+| everyone here | alle hier | everyone who is signed in to this installation |
+| queued | in der Warteschlange | |
+| owner of an assessment, owner of a network | zuständig, Inhaber | one source word *Owner* is *Zuständig* on every screen; the lower-case *owner: …* of an address is *Inhaber* |
+| clean bill of health | Beleg für Unbedenklichkeit | "no finding is not a clean bill of health" |
+| withdraw (a link) | zurückziehen | |
+
 ## Phrases that look like terms
 
 "Attribution" is not a term: the screen never prints it. These phrases are translated as
