@@ -28,14 +28,11 @@ from sqlalchemy.orm import Session
 
 from app.audit import AUDIT_LOGGER
 from app.i18n import gettext as _
+from app.messages import N_
 from app.models import Assessment, AuditEvent, User
 from app.models.base import utc_now
 
 log = logging.getLogger(AUDIT_LOGGER)
-
-
-def N_(message: str) -> str:  # noqa: N802 - the gettext marker: translated when shown, not here
-    return message
 
 
 PAGE_SIZE = 50

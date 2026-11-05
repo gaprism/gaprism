@@ -6,6 +6,7 @@ import ipaddress
 import re
 from dataclasses import dataclass
 
+from app.messages import N_
 from app.service.discovery.psl import PSL_VERSION, is_public_suffix
 
 NORMALISER_VERSION = "v1"
@@ -30,11 +31,11 @@ class ScopeValidationError(ValueError):
         self.params = params
 
 
-EMPTY = "Enter the vendor's domain, for example example.com."
-EMPTY_PART = (
+EMPTY = N_("Enter the vendor's domain, for example example.com.")
+EMPTY_PART = N_(
     "The domain has an empty part: two dots in a row, or a dot at the start. Check the spelling."
 )
-LONG_PART = (
+LONG_PART = N_(
     'A part of the domain ("%(start)s...") has more than 63 characters, '
     "which a domain name cannot have. Check the spelling."
 )

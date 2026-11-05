@@ -18,6 +18,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.extensions import security
+from app.messages import N_
 from app.models.auth import Role, User
 from app.models.base import utc_now
 from app.models.invitation import UserInvitation
@@ -51,12 +52,12 @@ class AccountExistsError(UserAdminError):
 
 # What the last active administrator is told: what happened, what to do, and why an invitation does
 # not help yet. A whole sentence for each change, so that a catalogue can list it as it stands.
-LAST_ADMIN_SWITCH_OFF = (
+LAST_ADMIN_SWITCH_OFF = N_(
     "This account is the last active administrator, so it cannot be switched off. "
     "Make another account an administrator first. "
     "A person who was invited counts once they have set a password."
 )
-LAST_ADMIN_ROLE = (
+LAST_ADMIN_ROLE = N_(
     "This account is the last active administrator, so it cannot lose the administrator role. "
     "Make another account an administrator first. "
     "A person who was invited counts once they have set a password."

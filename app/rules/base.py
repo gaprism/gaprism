@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
+from app.messages import N_ as N_  # the rules import the marker from here
+
 Severity = Literal["informational", "low", "medium", "high", "critical"]
 Confidence = Literal["unknown", "low", "medium", "high"]
 Attribution = Literal["hostname_supported", "ip_only", "shared_infrastructure", "domain"]
@@ -33,10 +35,6 @@ SEVERITY_RANK: dict[str, int] = {
     "critical": 4,
 }
 CONFIDENCE_RANK: dict[str, int] = {"unknown": 0, "low": 1, "medium": 2, "high": 3}
-
-
-def N_(message: str) -> str:  # noqa: N802 - the gettext marker: translated when shown, not here
-    return message
 
 
 def fingerprint(rule_id: str, subject: str) -> str:

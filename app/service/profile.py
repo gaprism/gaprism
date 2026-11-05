@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.messages import N_
 from app.models.auth import User
 from app.models.user_image import UserImage
 from app.service import audit as audit_service
@@ -18,11 +19,11 @@ from app.service import images
 from app.service.users import UserAdminError
 
 MAX_NAME_LENGTH = 100
-NAME_TOO_LONG = "The name has more than %(max)d characters. Shorten it."
-NAME_CHARACTER = (
+NAME_TOO_LONG = N_("The name has more than %(max)d characters. Shorten it.")
+NAME_CHARACTER = N_(
     "The name contains a character that cannot be shown, such as a text-direction mark. Remove it."
 )
-LANGUAGE_UNKNOWN = "That language is not available. Choose one from the list."
+LANGUAGE_UNKNOWN = N_("That language is not available. Choose one from the list.")
 
 _LETTERS = re.compile(r"[^\W\d_]+")  # runs of letters: no digits, no underscore
 _SPACES = re.compile(r"\s+")

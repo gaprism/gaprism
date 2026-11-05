@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.checks import DISCOVERY_KEY
 from app.i18n import gettext as _
 from app.i18n import ngettext
+from app.messages import N_
 from app.models import Assessment, CheckResult, Host, Scan
 from app.service.blocklists import PROVIDERS as BLOCKLIST_PROVIDERS
 
@@ -47,10 +48,6 @@ DOMAIN_CHECK_ORDER = (
     "observatory",
 )
 MAX_RAW_JSON_CHARS = 100_000
-
-
-def N_(message: str) -> str:  # noqa: N802 - the gettext marker: translated when used, not here
-    return message
 
 
 CHECK_TITLES = {

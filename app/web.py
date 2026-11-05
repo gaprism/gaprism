@@ -10,6 +10,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.wrappers import Response
 
 from app.i18n import gettext as _
+from app.messages import N_
 
 log = logging.getLogger(__name__)
 
@@ -29,19 +30,24 @@ CONTENT_SECURITY_POLICY = (
 
 # Generic on purpose: no internals, and 404 also covers "exists but is not yours".
 _ERROR_TEXTS: dict[int, tuple[str, str]] = {
-    400: ("Request not accepted", "The request could not be processed. Reload the page and retry."),
-    401: ("Sign in required", "Please sign in to continue."),
-    403: ("Access denied", "You do not have access to this page."),
-    404: ("Not found", "This page does not exist, or you do not have access to it."),
-    405: ("Method not allowed", "This action is not available here."),
-    413: (
-        "Request too large",
-        "The request was larger than this installation accepts. "
-        "If you were sending a picture, choose a smaller one.",
+    400: (
+        N_("Request not accepted"),
+        N_("The request could not be processed. Reload the page and retry."),
     ),
-    429: ("Too many attempts", "Sign-in is paused after repeated failed attempts."),
+    401: (N_("Sign in required"), N_("Please sign in to continue.")),
+    403: (N_("Access denied"), N_("You do not have access to this page.")),
+    404: (N_("Not found"), N_("This page does not exist, or you do not have access to it.")),
+    405: (N_("Method not allowed"), N_("This action is not available here.")),
+    413: (
+        N_("Request too large"),
+        N_(
+            "The request was larger than this installation accepts. "
+            "If you were sending a picture, choose a smaller one."
+        ),
+    ),
+    429: (N_("Too many attempts"), N_("Sign-in is paused after repeated failed attempts.")),
 }
-_FALLBACK_ERROR = ("Something went wrong", "The request could not be completed.")
+_FALLBACK_ERROR = (N_("Something went wrong"), N_("The request could not be completed."))
 
 
 def register_proxy_fix(app: Flask) -> None:

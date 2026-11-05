@@ -1,0 +1,7258 @@
+# Gaprism, translation into German (Switzerland).
+# Edit the msgstr lines; scripts/translations.py keeps the rest in step with the source.
+msgid ""
+msgstr ""
+"Project-Id-Version: Gaprism 1\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-01-01 00:00+0000\n"
+"PO-Revision-Date: 2026-01-01 00:00+0000\n"
+"Last-Translator: Gaprism\n"
+"Language: de_CH\n"
+"Language-Team: Gaprism\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: app/blueprints/accounts/forms.py
+msgid "Enter a new password."
+msgstr ""
+
+#: app/blueprints/accounts/forms.py
+#, python-format
+msgid "The password has more than %(max)d characters. Use a shorter one."
+msgstr ""
+
+#: app/blueprints/accounts/forms.py
+msgid "Enter the same password again."
+msgstr ""
+
+#: app/blueprints/accounts/forms.py app/blueprints/accounts/views.py
+msgid "Enter the e-mail address of the person to invite."
+msgstr ""
+
+#: app/blueprints/accounts/forms.py
+#, python-format
+msgid "An e-mail address has at most %(max)d characters. Check what you entered."
+msgstr ""
+
+#: app/blueprints/accounts/invitation_views.py
+msgid "This link does not work"
+msgstr ""
+
+#: app/blueprints/accounts/invitation_views.py
+msgid "It may have been used, withdrawn or expired. Ask the person who sent it for a new one."
+msgstr ""
+
+#: app/blueprints/accounts/invitation_views.py
+msgid "The two passwords are not the same. Enter the same password twice."
+msgstr ""
+
+#: app/blueprints/accounts/invitation_views.py
+msgid "Password set. Sign in to finish setting up."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+msgid ""
+"An account for this e-mail address exists already. Use its row in the list below to send it a new"
+" link."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "Withdrew the link of %(email)s."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s has no working link."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is switched on already."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is switched off already."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is switched on again."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is switched off. Their sessions end with their next request."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is an administrator."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is one already."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is not an administrator any more."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is not an administrator."
+msgstr ""
+
+#: app/blueprints/accounts/views.py
+#, python-format
+msgid "%(email)s is signed out everywhere."
+msgstr ""
+
+#: app/blueprints/assessments/exports.py
+msgid "Export a scan once it has finished."
+msgstr ""
+
+#: app/blueprints/assessments/forms.py
+msgid "Choose who can see the assessment."
+msgstr ""
+
+#: app/blueprints/assessments/forms.py
+#, python-format
+msgid "A domain name has at most %(max)d characters. Check what you entered."
+msgstr ""
+
+#: app/blueprints/assessments/forms.py
+#, python-format
+msgid "The label has more than %(max)d characters. Shorten it."
+msgstr ""
+
+#: app/blueprints/assessments/history.py
+msgid "Choose two different scans to compare."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "This domain already has an assessment. Open that one instead."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Assessment created."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+#, python-format
+msgid "A shared assessment for %(domain)s already exists, so this one cannot be shared as well."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Shared with everyone here: every signed-in user can open it."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Now private: only the owner and the administrators can open it."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "This assessment is archived and read-only. Restore it to change it."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "A scan is queued or running for this assessment. Cancel it, or wait for it, before archiving it."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Archived. It is hidden from the list: the Archived tab has it, and you can restore it."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Restored from the archive."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "That is not the domain, so nothing was deleted."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "A scan is queued or running for this assessment. Cancel it, or wait for it, before deleting it."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+#, python-format
+msgid "Deleted %(domain)s."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "A scan is already queued or running for this assessment."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+#, python-format
+msgid ""
+"You have started the most scans allowed in an hour (%(count)s). The next one can start in about "
+"%(num)s minute."
+msgid_plural ""
+"You have started the most scans allowed in an hour (%(count)s). The next one can start in about "
+"%(num)s minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/blueprints/assessments/views.py
+msgid "Scan queued."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Scan cancelled. Checks that were already running will finish."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "There is no running scan to cancel."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Finding reopened."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "This finding was already open."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Finding accepted."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Finding marked as a false positive."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+#, python-format
+msgid "%(count)s host(s) added. They are included in the next scan."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+#, python-format
+msgid "Already included: %(hosts)s"
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+#, python-format
+msgid "Not added: %(host)s (%(reason)s)"
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+msgid "Enter at least one hostname."
+msgstr ""
+
+#: app/blueprints/assessments/views.py
+#, python-format
+msgid "Removed %(host)s."
+msgstr ""
+
+#: app/blueprints/profile/forms.py
+msgid "Choose a picture to upload."
+msgstr ""
+
+#: app/blueprints/profile/views.py
+msgid "Profile saved."
+msgstr ""
+
+#: app/blueprints/profile/views.py
+msgid "Picture saved."
+msgstr ""
+
+#: app/blueprints/profile/views.py
+msgid "Picture removed."
+msgstr ""
+
+#: app/blueprints/profile/views.py
+msgid "There is no picture to remove."
+msgstr ""
+
+#: app/config.py
+msgid "The email address or password is not correct. Check them and try again."
+msgstr ""
+
+#: app/config.py
+msgid "The code is not correct or has expired. Enter the current code from your authenticator app."
+msgstr ""
+
+#: app/config.py
+msgid "The sign-in has expired. Enter your email address and password again."
+msgstr ""
+
+#: app/config.py
+msgid "The current password is not correct. Enter the password you sign in with."
+msgstr ""
+
+#: app/config.py
+msgid "The two new passwords are not the same. Enter the same password twice."
+msgstr ""
+
+#: app/config.py
+#, python-format
+msgid "The new password is too short. Use at least %(length)s characters."
+msgstr ""
+
+#: app/config.py
+msgid "This field is empty. Enter a password."
+msgstr ""
+
+#: app/config.py
+msgid "The new password is the same as the current one. Choose a different password."
+msgstr ""
+
+#: app/config.py
+msgid "Your password has been changed."
+msgstr ""
+
+#: app/config.py
+msgid "Two-factor authentication is turned off."
+msgstr ""
+
+#: app/config.py
+msgid "Two-factor authentication is set up. Use your authenticator app at your next sign-in."
+msgstr ""
+
+#: app/config.py
+msgid "Your code is confirmed."
+msgstr ""
+
+#: app/config.py
+#, python-format
+msgid "The setup took too long: it must be finished within %(within)s. Start again."
+msgstr ""
+
+#: app/config.py
+msgid "That method is not available. Use the authenticator app."
+msgstr ""
+
+#: app/config.py
+msgid "Enter your password to continue."
+msgstr ""
+
+#: app/config.py
+msgid "Your password is confirmed."
+msgstr ""
+
+#: app/config.py
+msgid "You must sign in to view this resource."
+msgstr ""
+
+#: app/config.py
+msgid "You do not have permission to view this resource."
+msgstr ""
+
+#: app/config.py
+msgid "You can only access this endpoint when not logged in."
+msgstr ""
+
+#: app/config.py
+msgid "Account is disabled."
+msgstr ""
+
+#: app/config.py
+msgid "Specified user does not exist"
+msgstr ""
+
+#: app/config.py
+msgid "Email not provided"
+msgstr ""
+
+#: app/config.py
+msgid "Invalid email address"
+msgstr ""
+
+#: app/config.py
+msgid "Redirections outside the domain are forbidden"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "No SPF record"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "%(domain)s publishes no SPF record, so receivers cannot tell forged mail from real."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Publish an SPF record; a domain that sends no mail should say so with `v=spf1 -all`."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "SPF does not restrict senders"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid ""
+"The SPF record of %(domain)s ends in %(ending)s, which does not tell receivers to reject mail "
+"from other senders."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "End the record with `-all` (or `~all` while rolling it out)."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Record ends in"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "SPF record is broken"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "The SPF record of %(domain)s is invalid for receivers: %(problems)s."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Publish a single SPF record that needs at most 10 DNS lookups."
+msgstr ""
+
+#: app/rules/domain.py app/rules/host.py
+msgid "Problems"
+msgstr ""
+
+#: app/rules/domain.py app/templates/assessments/checks/email.html
+msgid "DNS lookups"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "No DMARC record"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "%(domain)s publishes no DMARC policy, so receivers have no instruction for forged mail."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Publish a DMARC record, starting with `p=none` and reporting, then move to `reject`."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "DMARC only monitors"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "The DMARC policy of %(domain)s is `none`: forged mail is reported but still delivered."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Once the reports look clean, move the policy to `quarantine` and then `reject`."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Aggregate reports sent to"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "DMARC record is broken"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "The DMARC record of %(domain)s is not valid, so receivers ignore it: %(problems)s."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Publish a single DMARC record with a valid `p=` policy."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "No MTA-STS policy"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "%(domain)s receives mail but publishes no MTA-STS policy, so mail can be downgraded in transit."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Publish an MTA-STS policy (and TLS-RPT reporting) so senders insist on TLS."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "DNSSEC is not enabled"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "The domain %(domain)s is not signed with DNSSEC."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "DNSSEC protects DNS answers from forgery; ask whether it is planned."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Domain registration expires soon"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "The registration of %(domain)s runs out on %(expires)s (days left: %(days)s)."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Ask whether auto-renewal is on and who is responsible for the registration."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Days left"
+msgstr ""
+
+#: app/rules/domain.py app/rules/host.py app/templates/assessments/checks/registration.html
+#: app/templates/assessments/checks/security_txt.html
+msgid "Expires"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Domain registered recently"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "%(domain)s was registered %(age)s days ago."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "A young domain has no track record; check who the vendor is before relying on it."
+msgstr ""
+
+#: app/rules/domain.py app/templates/assessments/checks/registration.html
+msgid "Registered"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Domain has no transfer lock"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "%(domain)s can be transferred to another registrar without a lock in the way."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Ask the registrar to set the transfer lock (clientTransferProhibited)."
+msgstr ""
+
+#: app/rules/domain.py app/templates/assessments/checks/registration.html
+msgid "Status flags"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Public breach on record"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "Have I Been Pwned lists a breach of %(domain)s: %(title)s (%(breach_date)s)."
+msgstr ""
+
+#: app/rules/domain.py
+msgid ""
+"Ask what happened, what was done about it and whether the data was protected (for example hashed "
+"passwords)."
+msgstr ""
+
+#: app/rules/domain.py app/service/audit.py app/templates/accounts/index.html
+#: app/templates/assessments/checks/breaches.html app/templates/components/nav.html
+msgid "Accounts"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Data exposed"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Verified by HIBP"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Months ago"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "No security.txt"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "%(domain)s publishes no security.txt, so there is no stated way to report a vulnerability."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Publish /.well-known/security.txt (RFC 9116) with a contact and an expiry date."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "security.txt is unusable"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "The security.txt of %(domain)s has problems: %(problems)s."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Keep security.txt current: a contact, a future expiry date, one Expires field."
+msgstr ""
+
+#: app/rules/domain.py app/templates/assessments/checks/security_txt.html
+msgid "Found at"
+msgstr ""
+
+#: app/rules/domain.py
+msgid "No CAA records"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "%(domain)s has no CAA records, so any certificate authority may issue for it."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Publish CAA records naming the certificate authorities you use."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Name servers are not redundant"
+msgstr ""
+
+#: app/rules/domain.py
+#, python-format
+msgid "The name servers of %(domain)s are not redundant: %(problems)s."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Use at least two name servers in different networks."
+msgstr ""
+
+#: app/rules/domain.py
+msgid "Name servers"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Certificate not valid"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "The TLS certificate of %(host)s is not valid for clients: %(failures)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Ask the vendor to replace the certificate and to monitor expiry and names."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Days remaining"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Certificate expires soon"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "The TLS certificate of %(host)s expires in %(days)s days."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Renewal should be automated; ask how certificate expiry is monitored."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Weak certificate key"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "The certificate of %(host)s uses a weak %(key_type)s key (%(key_bits)s bits)."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Keys should be RSA with 2048 bits or more, or elliptic-curve (P-256 or better)."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Key type"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Key size (bits)"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Weak certificate signature"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "The certificate of %(host)s is signed with the weak algorithm %(algorithm)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Certificates must be signed with SHA-256 or stronger."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Signature algorithm"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Outdated TLS versions accepted"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid ""
+"%(host)s still accepts %(versions)s next to the current versions. TLS 1.0 and 1.1 were retired in"
+" 2021 (RFC 8996)."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Switch off TLS 1.0 and TLS 1.1 so that only TLS 1.2 and TLS 1.3 are accepted."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Outdated versions accepted"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Current versions accepted"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Only outdated TLS versions accepted"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid ""
+"%(host)s accepts %(versions)s and refuses TLS 1.2 and TLS 1.3: current browsers and libraries "
+"cannot connect securely."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Enable TLS 1.2 and TLS 1.3 and switch off TLS 1.0 and TLS 1.1."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Versions accepted"
+msgstr ""
+
+#: app/rules/host.py
+msgid "TLS 1.3 not offered"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s accepts TLS 1.2 but not TLS 1.3."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Enable TLS 1.3 when the server software supports it: it is faster and drops the weak options of "
+"older versions. Not urgent."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Suites without encryption or authentication accepted"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid ""
+"%(host)s accepts the cipher suite %(cipher)s, which has no encryption or no authentication of the"
+" server."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Remove NULL and anonymous cipher suites from the server's configuration: with them traffic can be"
+" read, or anyone can pose as the server."
+msgstr ""
+
+#: app/rules/host.py app/templates/assessments/checks/tls_protocols.html
+msgid "Suite it chose"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Suite without forward secrecy chosen"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid ""
+"In a TLS 1.2 handshake %(host)s chose %(cipher)s, a suite that gives no forward secrecy, although"
+" better ones were offered."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Put the ECDHE suites first in the server's preference order, so that a stolen server key cannot "
+"open recorded sessions."
+msgstr ""
+
+#: app/rules/host.py
+msgid "No HTTPS"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s answers on plain HTTP but offers no HTTPS."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Ask the vendor to serve the site over HTTPS only."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Why HTTPS failed"
+msgstr ""
+
+#: app/rules/host.py
+msgid "HTTP is not redirected to HTTPS"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s serves content over plain HTTP instead of redirecting to HTTPS."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Port 80 should redirect to HTTPS (or be closed)."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Status on port 80"
+msgstr ""
+
+#: app/rules/host.py
+msgid "HSTS not set"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s does not send a Strict-Transport-Security header."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Send Strict-Transport-Security so browsers stay on HTTPS."
+msgstr ""
+
+#: app/rules/host.py
+msgid "HSTS lifetime is short"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "The Strict-Transport-Security lifetime of %(host)s is %(max_age)s seconds."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Use a max-age of at least six months (15552000 seconds)."
+msgstr ""
+
+#: app/rules/host.py
+msgid "max-age (seconds)"
+msgstr ""
+
+#: app/rules/host.py
+msgid "No Content-Security-Policy"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s does not send a Content-Security-Policy header."
+msgstr ""
+
+#: app/rules/host.py
+msgid "A Content-Security-Policy limits the damage of injected scripts."
+msgstr ""
+
+#: app/rules/host.py
+msgid "No X-Content-Type-Options"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s does not send X-Content-Type-Options: nosniff."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Send X-Content-Type-Options: nosniff so browsers do not guess content types."
+msgstr ""
+
+#: app/rules/host.py
+msgid "No clickjacking protection"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s sets neither X-Frame-Options nor a CSP frame-ancestors directive."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Forbid framing with X-Frame-Options or Content-Security-Policy: frame-ancestors."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Session cookie without protection flags"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s sets session-like cookies without the Secure or HttpOnly flag: %(cookies)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Session cookies should be Secure and HttpOnly (and carry a SameSite attribute)."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Without Secure"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Without HttpOnly"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Software version disclosed"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s reveals software versions in its response headers: %(versions)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Hide version numbers from Server and X-Powered-By; they help attackers."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Old software version"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s shows software that is old: %(outdated)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Find out which version really runs and whether it still receives security fixes, and update what "
+"has reached its end of life. A version that only a server header or a file name shows can be "
+"patched without changing the number, or be wrong, so ask rather than assume."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Software"
+msgstr ""
+
+#: app/rules/host.py
+msgid "What is known"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Version read from"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Page loads from a host that served malware"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid ""
+"%(host)s loads content from %(flagged)s, which is known to have served malicious code to the "
+"visitors of the pages that load from it."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Remove the reference, or replace it with a copy of the file that the site serves itself or with a"
+" trusted mirror, and review what the page loaded in the meantime. Whoever controls such a host "
+"can run code in every visitor's browser."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Loaded as"
+msgstr ""
+
+#: app/rules/host.py app/service/audit.py app/templates/assessments/_scan_panel.html
+#: app/templates/assessments/delete.html app/templates/assessments/history.html
+#: app/templates/assessments/report.html
+msgid "Hosts"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Blocked by security DNS resolvers"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid ""
+"%(host)s is blocked by %(blocked_by)s, which refuse names that their threat intelligence flags as"
+" malicious."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Find out what the host serves and who controls it: a compromised site, a taken-over subdomain or "
+"a phishing page under the vendor's name are all possible. Ask the vendor whether they know. If "
+"the name is blocked by mistake, the resolvers' operators have a way to ask for a review."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Blocked by"
+msgstr ""
+
+#: app/rules/host.py
+msgid "How it shows"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Resolvers asked"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Host name on a blocklist"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s is listed by %(lists)s for %(listed_for)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Find out what the host serves and who controls it: a compromised site, a taken-over subdomain or "
+"a phishing page under the vendor's name are all possible. Ask the vendor whether they know and "
+"what they did about it. A listing can be out of date or mistaken; the maintainers of the list "
+"have a way to ask for a review."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Listed by"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Listed for"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Alias of a blocklisted host"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s is an alias for %(listed)s, which is listed by %(lists)s for %(listed_for)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Ask the vendor why the name points there. An alias to a host that serves malware or phishing is "
+"either a leftover that someone else has since taken over, or a sign that the vendor's DNS was "
+"changed. Remove the alias if nothing needs it. What the listed host serves under this name is not"
+" known."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Listed alias"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Address on a blocklist"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s resolves to %(addresses)s, which is listed by %(lists)s for %(listed_for)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Find out whether the address is the vendor's own server or shared with others. An address that a "
+"botnet or malware list names can mean that the server behind it is compromised; one on a phishing"
+" list may belong to a neighbour on shared hosting. Ask the vendor to look at the server."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Listed addresses"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Alias points nowhere"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid ""
+"%(host)s is an alias for %(target)s, which does not exist; if the target can be claimed, the name"
+" can be taken over."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Remove the alias, or check that the target cannot be registered by someone else."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Missing target"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Alias may be taken over"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid ""
+"%(host)s is an alias for %(target)s at %(service)s, and the name behind it looks unclaimed: "
+"%(takeover_how)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Remove the DNS record if the alias is no longer needed, or create the resource at the service "
+"again before somebody else does. Ask the vendor how its aliases are reviewed when a service is "
+"switched off."
+msgstr ""
+
+#: app/rules/host.py app/templates/assessments/checks/ports.html
+msgid "Service"
+msgstr ""
+
+#: app/rules/host.py app/templates/assessments/checks/takeover.html
+msgid "Alias for"
+msgstr ""
+
+#: app/rules/host.py
+msgid "HTTP status"
+msgstr ""
+
+#: app/rules/host.py
+msgid "The page says"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Can a stranger claim the name?"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Also an alias for"
+msgstr ""
+
+#: app/rules/host.py
+msgid "Public name points to a private address"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s resolves to non-public addresses: %(addresses)s."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Public DNS should not publish internal addresses; they reveal the network layout."
+msgstr ""
+
+#: app/rules/host.py
+msgid "Host located outside the allowed area"
+msgstr ""
+
+#: app/rules/host.py
+#, python-format
+msgid "%(host)s resolves to an address located in %(countries)s, outside the allowed area."
+msgstr ""
+
+#: app/rules/host.py
+msgid ""
+"Ask the vendor where the data is processed and stored; the address location is only a first "
+"indication."
+msgstr ""
+
+#: app/rules/host.py app/templates/assessments/_summary.html
+msgid "Countries"
+msgstr ""
+
+#: app/rules/host.py app/templates/assessments/checks/domain_dns.html
+#: app/templates/assessments/report.html
+msgid "Addresses"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Risky service reachable from the internet"
+msgstr ""
+
+#: app/rules/ip.py
+#, python-format
+msgid "A scanner saw %(service)s (port %(port)s) open on %(ip)s."
+msgstr ""
+
+#: app/rules/ip.py
+msgid ""
+"Databases, remote administration and file sharing should not be reachable from the internet; ask "
+"the vendor to restrict them."
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Hosts on this address"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Product"
+msgstr ""
+
+#: app/rules/ip.py app/templates/assessments/checks/tech.html
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "Version"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Known vulnerabilities reported"
+msgstr ""
+
+#: app/rules/ip.py
+#, python-format
+msgid ""
+"%(count)s CVEs are reported for software seen on %(ip)s; they are leads to verify, not confirmed "
+"vulnerabilities."
+msgstr ""
+
+#: app/rules/ip.py
+msgid ""
+"Ask the vendor which of these apply and how patching is tracked, starting with the ones that are "
+"known to be exploited."
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Examples"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Known to be exploited (CISA KEV)"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Used in ransomware campaigns"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Highest EPSS score"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Highest CVSS score"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Ranked by"
+msgstr ""
+
+#: app/rules/ip.py
+msgid "Exploitation data out of date"
+msgstr ""
+
+#: app/service/assessments.py
+msgid ""
+"This installation does not assess this domain: it is on the list of blocked domains. Ask an "
+"administrator if that is a mistake."
+msgstr ""
+
+#: app/service/audit.py
+msgid "Signed in"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Failed sign-in"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Signed out"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Changed the password"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Changed the two-factor setup"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Created the assessment"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Shared the assessment with everyone here"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Made the assessment private"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Archived the assessment"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Restored the assessment from the archive"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Deleted the assessment"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Added hosts"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Removed a host"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Started a scan"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Cancelled the scan"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Was refused a scan: too many in the last hour"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Accepted a finding"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Marked a finding as a false positive"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Reopened a finding"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Opened the report"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Exported the scan as JSON"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Exported the hosts as CSV"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Exported the findings as CSV"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Created an account"
+msgstr ""
+
+#: app/service/audit.py app/templates/accounts/accept.html
+msgid "Set a new password"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Switched an account on"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Switched an account off"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Made an account an administrator"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Took the administrator role from an account"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Forgot the authenticator of an account"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Invited a person"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Set a password with a link"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Withdrew a link"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Made a reset link"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Signed an account out everywhere"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Changed their own profile"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Sign-in"
+msgstr ""
+
+#: app/service/audit.py app/templates/assessments/compare.html app/templates/assessments/delete.html
+#: app/templates/assessments/detail.html app/templates/assessments/domain.html
+#: app/templates/assessments/findings.html app/templates/assessments/history.html
+#: app/templates/assessments/host.html app/templates/assessments/index.html
+#: app/templates/assessments/new.html app/templates/components/nav.html
+msgid "Assessments"
+msgstr ""
+
+#: app/service/audit.py app/templates/assessments/delete.html
+msgid "Scans"
+msgstr ""
+
+#: app/service/audit.py app/templates/assessments/_findings.html
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/delete.html
+#: app/templates/assessments/findings.html app/templates/assessments/history.html
+msgid "Findings"
+msgstr ""
+
+#: app/service/audit.py
+msgid "Exports"
+msgstr ""
+
+#: app/service/decisions.py
+msgid "The review date is not a valid date (use YYYY-MM-DD)."
+msgstr ""
+
+#: app/service/decisions.py
+msgid "The review date must be after today."
+msgstr ""
+
+#: app/service/decisions.py
+msgid "Choose a review date within the next five years."
+msgstr ""
+
+#: app/service/decisions.py
+msgid ""
+"Somebody else decided about this finding at the same moment. Reload the page and look at their "
+"decision."
+msgstr ""
+
+#: app/service/decisions.py
+msgid "Choose a decision: accept the finding or mark it as a false positive."
+msgstr ""
+
+#: app/service/decisions.py
+msgid "Give a reason: the next reader needs it."
+msgstr ""
+
+#: app/service/decisions.py
+#, python-format
+msgid "The reason is too long (at most %(max)s characters)."
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Mozilla's HTTP Observatory"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid ""
+"The domain name. Mozilla's scanner then requests the home page and a few well-known files from "
+"the domain's own servers, which see Mozilla; the scan and its grade are public on MDN and cannot "
+"be hidden"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "An independent grade of the security headers"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The registry's RDAP service"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The domain name (the registry is found through IANA's bootstrap file)"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Registrar, expiry, locks and DNSSEC"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The domain name"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Whether the domain is on the HSTS preload list"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Public breaches of services on the domain"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "the registry (RDAP)"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Shodan InternetDB"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Shodan (host API)"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The public IP addresses of the hosts, not their names"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Open ports and known vulnerabilities"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Shodan InternetDB for open ports and known vulnerabilities"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "free for non-commercial use only"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The URLhaus blocklist of abuse.ch"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "free under fair use; use by companies may need a paid licence"
+msgstr ""
+
+#: app/service/disclosure.py app/service/export.py
+#, python-format
+msgid "Security DNS resolvers: %(names)s"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Every host name of the assessment, as a plain DNS question like the DNS check's"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Whether they block a host as malicious (malware, phishing, botnet control)"
+msgstr ""
+
+#: app/service/disclosure.py
+#, python-format
+msgid "Certificate Transparency sources: %(names)s"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Finding the host names that certificates were issued for"
+msgstr ""
+
+#: app/service/disclosure.py app/service/export.py
+#, python-format
+msgid "DNS resolvers: %(names)s"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The system's DNS resolver"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "Every host name that is looked up: the domain, its hosts and the mail and policy names"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The DNS, e-mail and domain checks"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The assessed domain's own servers"
+msgstr ""
+
+#: app/service/disclosure.py
+#, python-format
+msgid ""
+"TLS handshakes and HTTP requests (the home page, security.txt, the MTA-STS policy), with the "
+"User-Agent %(agent)s: the owner can see the scan in their logs"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "The TLS, TLS versions, HTTP, subdomain takeover and e-mail checks"
+msgstr ""
+
+#: app/service/disclosure.py
+#, python-format
+msgid "the Certificate Transparency sources (%(names)s)"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "the DNS resolvers"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "the system's DNS resolver"
+msgstr ""
+
+#: app/service/disclosure.py
+#, python-format
+msgid "the security DNS resolvers (%(names)s)"
+msgstr ""
+
+#: app/service/disclosure.py
+msgid "the security DNS resolvers"
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "Enter the vendor's domain, for example example.com."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "The domain has an empty part: two dots in a row, or a dot at the start. Check the spelling."
+msgstr ""
+
+#: app/service/discovery/scope.py
+#, python-format
+msgid ""
+"A part of the domain (\"%(start)s...\") has more than 63 characters, which a domain name cannot "
+"have. Check the spelling."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "A domain must be text."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid ""
+"That is an IP address, not a domain name. Enter the vendor's domain name instead, for example "
+"example.com."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "Enter the domain only, without \"https://\" or another scheme."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "Enter the domain only, without a path. Remove the slash and everything after it."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "Enter the domain only. Remove the \"@\" and everything before it."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "Enter the domain only, without a port number. Remove the colon and what follows it."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "Enter the domain only. Remove the \"?\" or \"#\" and everything after it."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "Enter a single domain, such as example.com. A wildcard such as \"*.example.com\" is not accepted."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "This is not a valid internationalised domain name. Check the spelling."
+msgstr ""
+
+#: app/service/discovery/scope.py
+#, python-format
+msgid ""
+"\"%(domain)s\" is a top-level domain or public suffix, not one organisation's domain. Enter the "
+"vendor's own domain, for example vendor.%(domain)s."
+msgstr ""
+
+#: app/service/discovery/scope.py
+#, python-format
+msgid "The domain has %(length)s characters. A domain name has at most 253. Check what you entered."
+msgstr ""
+
+#: app/service/discovery/scope.py
+msgid "Enter a full domain name with at least two parts, for example example.com."
+msgstr ""
+
+#: app/service/discovery/scope.py
+#, python-format
+msgid ""
+"\"%(part)s\" cannot be part of a domain name. Use letters, digits and hyphens, with no hyphen at "
+"the start or end of a part."
+msgstr ""
+
+#: app/service/export.py
+#, python-format
+msgid "Certificate Transparency: %(names)s"
+msgstr ""
+
+#: app/service/export.py
+msgid "The host names of the domain"
+msgstr ""
+
+#: app/service/export.py
+msgid "Public logs. The domain name is sent to them, each under its own terms."
+msgstr ""
+
+#: app/service/export.py
+msgid "the operating system's resolver"
+msgstr ""
+
+#: app/service/export.py
+msgid "The DNS records of the hosts and of the domain"
+msgstr ""
+
+#: app/service/export.py
+msgid "The host names are sent to the resolvers."
+msgstr ""
+
+#: app/service/export.py
+msgid "The assessed hosts themselves"
+msgstr ""
+
+#: app/service/export.py
+msgid "TLS certificate, HTTP response headers, security.txt and the MTA-STS policy"
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"Standard requests: a TLS handshake and two HTTP requests per host, our own User-Agent, no "
+"credentials, only ports 80 and 443. Five more handshakes ask which TLS versions and kinds of "
+"suites the server accepts (nothing is sent after a handshake). A host that is an alias for a "
+"hosted service is asked for its home page once or twice more."
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"Which hosted services show which page for a name nobody has claimed, to recognise aliases that "
+"could be taken over"
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"CC BY 4.0, adapted: only services that were seen to behave that way again are kept, and the texts"
+" are the ones the services show today. The list is part of the program; nothing about the "
+"assessment was sent for it."
+msgstr ""
+
+#: app/service/export.py
+msgid "Whether they block the host names as malicious"
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"Public resolvers, asked as any client would. The host names of the assessment are sent to them as"
+" plain DNS questions. Blocking is their own classification, and a name that is not blocked is not"
+" a clean bill of health."
+msgstr ""
+
+#: app/service/export.py
+#, python-format
+msgid ""
+"Whether the host names, aliases and addresses of the assessment are listed by this provider "
+"(%(about)s), looked up offline"
+msgstr ""
+
+#: app/service/export.py
+#, python-format
+msgid ""
+"Terms: %(licence)s. Installed on the server that ran the scan: nothing about the assessment was "
+"sent. A listing is the maintainers' classification at some time, and a name or address that is "
+"not listed is not a clean bill of health."
+msgstr ""
+
+#: app/service/export.py
+msgid "Location and network of IP addresses, looked up offline"
+msgstr ""
+
+#: app/service/export.py
+msgid "CC BY 4.0: IP geolocation by DB-IP.com."
+msgstr ""
+
+#: app/service/export.py
+msgid "Open ports and CVE identifiers that a scanner saw on IP addresses"
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"Free for non-commercial use only. A snapshot of what a scanner saw: nothing was scanned from "
+"here, and a port that is not listed may still be open."
+msgstr ""
+
+#: app/service/export.py
+msgid "Open ports and CVE identifiers that Shodan observed on IP addresses"
+msgstr ""
+
+#: app/service/export.py
+msgid "Used under the licence of whoever ran the scan. A snapshot, no port scan."
+msgstr ""
+
+#: app/service/export.py
+msgid "Which of the reported CVEs are known to be exploited, looked up offline"
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"Published by CISA for anyone to use. Installed on the server that ran the scan: nothing about the"
+" assessment was sent."
+msgstr ""
+
+#: app/service/export.py
+msgid "The estimated probability that a reported CVE is exploited within 30 days, looked up offline"
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"Free to use; FIRST asks to be named as the source. Installed on the server that ran the scan: "
+"nothing about the assessment was sent."
+msgstr ""
+
+#: app/service/export.py
+msgid "Registry RDAP services (found through IANA's bootstrap file)"
+msgstr ""
+
+#: app/service/export.py
+msgid "Registrar, dates, status flags and DNSSEC of the domain"
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"Public registry data; registrant, technical and abuse contacts are never read. The domain name is"
+" sent to the registry."
+msgstr ""
+
+#: app/service/export.py
+msgid "Public breaches of the domain's own services"
+msgstr ""
+
+#: app/service/export.py
+msgid "CC BY 4.0. The domain name is sent to haveibeenpwned.com."
+msgstr ""
+
+#: app/service/export.py
+msgid "HSTS preload status of the domain"
+msgstr ""
+
+#: app/service/export.py
+msgid "Public API. The domain name is sent to hstspreload.org."
+msgstr ""
+
+#: app/service/export.py app/templates/assessments/checks/_links.html
+msgid "Mozilla HTTP Observatory"
+msgstr ""
+
+#: app/service/export.py
+msgid "An independent grade of the security headers of the domain's home page"
+msgstr ""
+
+#: app/service/export.py
+msgid ""
+"Used because this installation switched it on. The domain name is sent to Mozilla, whose scanner "
+"requests the home page and a few well-known files from the domain's servers; the scan and its "
+"grade are public on MDN and cannot be hidden. The grade is Mozilla's: a second opinion, not part "
+"of the findings."
+msgstr ""
+
+#: app/service/export.py
+msgid "domain"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Critical"
+msgstr ""
+
+#: app/service/findings.py
+msgid "High"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Medium"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Low"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Informational"
+msgstr ""
+
+#: app/service/findings.py
+msgid "High confidence"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Medium confidence"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Low confidence"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Confidence unknown"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Confirmed for this hostname"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Seen on the address only"
+msgstr ""
+
+#: app/service/findings.py app/service/host_view.py app/templates/assessments/checks/ports.html
+msgid "Shared infrastructure"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Whole domain"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/_findings.html
+#: app/templates/assessments/report.html
+msgid "Open"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/_findings.html
+#: app/templates/assessments/checks/tls_protocols.html app/templates/assessments/report.html
+msgid "Accepted"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/_findings.html
+#: app/templates/assessments/report.html
+msgid "False positive"
+msgstr ""
+
+#: app/service/findings.py
+msgid "All"
+msgstr ""
+
+#: app/service/findings.py
+msgid "no all term"
+msgstr ""
+
+#: app/service/findings.py
+msgid "CISA KEV and EPSS"
+msgstr ""
+
+#: app/service/findings.py
+msgid "CISA KEV only (EPSS is not installed)"
+msgstr ""
+
+#: app/service/findings.py
+msgid "EPSS only (the KEV catalogue is not installed)"
+msgstr ""
+
+#: app/service/findings.py
+msgid "not ranked: the exploitation data is not installed"
+msgstr ""
+
+#: app/service/findings.py
+msgid "the service shows its \"nothing here\" page for the name"
+msgstr ""
+
+#: app/service/findings.py
+msgid "the name does not exist and anyone can register it"
+msgstr ""
+
+#: app/service/findings.py
+msgid "Yes, anyone can register it"
+msgstr ""
+
+#: app/service/findings.py
+msgid "It depends on checks the service makes"
+msgstr ""
+
+#: app/service/findings.py
+msgid "a server header"
+msgstr ""
+
+#: app/service/findings.py
+msgid "the generator tag"
+msgstr ""
+
+#: app/service/findings.py
+msgid "a file name"
+msgstr ""
+
+#: app/service/findings.py
+msgid "a cookie"
+msgstr ""
+
+#: app/service/findings.py
+msgid "a script call"
+msgstr ""
+
+#: app/service/findings.py app/service/host_view.py app/templates/assessments/checks/tech.html
+msgid "redirect"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/tech.html
+msgid "script"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/tech.html
+msgid "frame"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/tech.html
+msgid "style sheet or link"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/tech.html
+msgid "image"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/tech.html
+msgid "form"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/tech.html
+msgid "named in an inline script"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/reputation.html
+msgid "the name does not resolve for it"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/reputation.html
+msgid "it answers 0.0.0.0 (or ::) instead of the address"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/reputation.html
+msgid "it says that the name is blocked"
+msgstr ""
+
+#: app/service/findings.py
+msgid "serving malware"
+msgstr ""
+
+#: app/service/findings.py
+msgid "phishing"
+msgstr ""
+
+#: app/service/findings.py
+msgid "controlling a botnet"
+msgstr ""
+
+#: app/service/findings.py app/templates/accounts/index.html app/templates/assessments/checks/http.html
+#: app/templates/assessments/checks/tls.html
+msgid "Yes"
+msgstr ""
+
+#: app/service/findings.py app/templates/accounts/index.html app/templates/assessments/checks/http.html
+#: app/templates/assessments/checks/tls.html
+msgid "No"
+msgstr ""
+
+#: app/service/findings.py app/templates/assessments/checks/email.html
+#, python-format
+msgid "and %(count)s more"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+msgid "DNS"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "IP addresses and location"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Open ports and CVEs"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "TLS certificate"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "TLS versions and suites"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+#: app/templates/assessments/report.html
+msgid "HTTP"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Technologies"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Subdomain takeover"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Reputation (security DNS)"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Blocklists"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Email security"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Domain registration"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Name servers and CAA"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "security.txt"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "HSTS preload list"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Public breach history"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Mozilla Observatory grade"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+msgid "Timed out"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Connection refused"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Resolver error"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Network error"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+msgid "Connection failed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "TLS handshake failed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "TLS error"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Certificate not trusted"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Blocked destination"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "DNS lookup failed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Protocol error"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "HTTP error"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/takeover.html
+msgid "Name does not exist"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No records"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No web server"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No public address to connect to"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No hostname"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No certificate"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not a TLS service"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No handshake succeeded"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+msgid "Internal error"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Gave up after repeated failures"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Scan cancelled"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Unknown check"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Scan no longer exists"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Too many redirects"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "CNAME loop"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "CNAME chain too long"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Location data not installed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Location data unreadable"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not in the location database"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The provider knows nothing about this address"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+msgid "Rate limited"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+msgid "API key rejected"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Needs a paid Shodan plan"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No API key configured"
+msgstr ""
+
+#: app/service/host_view.py app/templates/accounts/index.html
+msgid "Switched off"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not asked after an earlier failure"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+msgid "Unexpected response"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+msgid "Took too long"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The registry offers no RDAP service"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The registry has no such domain"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "IANA's list of RDAP servers could not be read"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not a registrable domain"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The registry refused the request"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No security.txt found"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "A page was served, but it is not a security.txt"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No public breach known to Have I Been Pwned"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "This check did not run"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "This part of the check could not be answered"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The location database knows the network but not the country"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No web page could be read, so the services it loads are not known"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The host has no address record to ask about"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No resolver gave a verdict"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No security resolver answered"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The name cannot be asked about"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not asked: it had not answered the last questions"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The resolver refused the question"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Said the name does not exist, without saying why"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Answered without an address"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The answer came from the wrong source or was malformed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "An answer that means nothing here"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Mozilla could not resolve the name"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Mozilla does not accept the name"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Mozilla does not scan IP addresses"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Mozilla's scan failed: the site did not answer as expected"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Mozilla could not scan the site"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The blocklists are not installed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The blocklists could not be read"
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"The IP location databases are not installed. Run `flask datasets update` once (about 65 MB from "
+"DB-IP.com) and scan again."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"The IP location databases could not be read. Run `flask datasets update --force` to download them"
+" again."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"The blocklists of malware, phishing and botnet hosts are not installed. Run `flask datasets "
+"update` once (about 11 MB from abuse.ch and GitHub) and scan again; schedule it every few hours "
+"to keep them current. Nothing about the assessment is sent."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"A blocklist file is there but could not be read. Run `flask datasets update --force` to download "
+"it again."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"PORTS_PROVIDER is set to shodan but SHODAN_API_KEY is empty. Add the key to `.env`, or set "
+"PORTS_PROVIDER=internetdb to use the keyless InternetDB (free for non-commercial use only), and "
+"scan again."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"None of the questions got a handshake. The server may offer only versions or suites this program "
+"cannot speak (SSLv3, RC4, 3DES, export suites), refuse clients like this one, or be having "
+"trouble. Nothing can be concluded: use a dedicated tester."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"The port answered, but not with TLS (a plain web server, for example). Nothing can be concluded "
+"about TLS versions."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"The host answered over HTTPS with a certificate that could not be verified (one for another name,"
+" for example). This tool never turns certificate verification off, so the page could not be read."
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Shodan rejected the API key. Check SHODAN_API_KEY in `.env`."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"Shodan says this lookup needs a paid membership. Check the plan of your key, or set "
+"PORTS_PROVIDER=internetdb."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"This lookup is switched off: ports and CVEs by PORTS_PROVIDER=off, or by PORTS_PROVIDER=auto "
+"without a SHODAN_API_KEY (the keyless InternetDB is free for non-commercial use only, so it runs "
+"only when PORTS_PROVIDER=internetdb asks for it), lookups of the domain at a third party by "
+"EXTERNAL_DOMAIN_LOOKUPS, the security DNS resolvers by REPUTATION_RESOLVERS, the blocklists by "
+"BLOCKLIST_PROVIDERS (the URLhaus list is not in the default; add it once you have read its "
+"terms)."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"The resolvers answered, but not in a way that says whether they block the name (an error such as "
+"a failed DNSSEC validation, for example). Nothing can be concluded about this host: it is not a "
+"clean result."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"None of the security resolvers answered. This network may not let DNS questions through to them "
+"(9.9.9.9 and 1.1.1.2): set REPUTATION_RESOLVERS=none to switch the check off, or allow the "
+"traffic."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"IANA's list has no RDAP server for this top-level domain (many country registries only run "
+"WHOIS). The registration details have to be looked up by hand."
+msgstr ""
+
+#: app/service/host_view.py
+msgid ""
+"The provider's rate limit was reached. Lower SHODAN_RATE_PER_SECOND or "
+"INTERNETDB_RATE_PER_SECOND, or scan again later."
+msgstr ""
+
+#: app/service/host_view.py
+msgid "More than one record: receivers treat this as an error"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Neither an 'all' term nor a redirect: the default result is neutral"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "More than 10 DNS lookups: receivers may reject the record"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Uses 'ptr', which is deprecated"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Contains a term that is not valid SPF"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Contains a modifier that is not defined in SPF"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The policy (p=) is missing or not valid"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The subdomain policy (sp=) is not valid"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The percentage (pct=) is not a number from 0 to 100"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No Contact field: nobody is named to report to"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No Expires field, which the RFC requires"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "More than one Expires field"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The Expires value is not a valid date-time"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The file has expired"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not served as text/plain"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Served without HTTPS"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Served from another domain than the one assessed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The file is not at any of its own Canonical addresses"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Fewer than two name servers"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "All name servers belong to one operator"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "All name server addresses are in one network"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "A name server has no address"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Expired"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not yet valid"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Name mismatch"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not trusted"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Verification failed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "The certificate could not be read"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Other error"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Unsupported DNSKEY algorithm"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Unsupported DS digest type"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Stale answer"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Forged answer"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "DNSSEC indeterminate"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "DNSSEC bogus"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Signature expired"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Signature not yet valid"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "DNSKEY missing"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "RRSIGs missing"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No zone key bit set"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "NSEC missing"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Cached error"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not ready"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/reputation.html
+msgid "Blocked"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Censored"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Filtered"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Prohibited"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Stale NXDOMAIN answer"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not authoritative"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not supported"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No reachable authority"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Invalid data"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "hosts that serve malware"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "phishing hosts and addresses"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "botnet command-and-control servers"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "error %(code)s"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Skipped: %(checks)s did not succeed"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+#, python-format
+msgid "HTTP error %(code)s"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/dns.html
+msgid "Dangling CNAME"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Only private addresses"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(num)s address, %(blocked)s private"
+msgid_plural "%(num)s addresses, %(blocked)s private"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+msgid "No address records"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/blocklists.html
+#, python-format
+msgid "%(num)s address"
+msgid_plural "%(num)s addresses"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+msgid "Network known, location not"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(network)s edge"
+msgstr ""
+
+#: app/service/host_view.py app/service/report.py
+msgid "incl. CDN edge"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/ports.html
+msgid "No data"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(num)s port"
+msgid_plural "%(num)s ports"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(num)s CVE"
+msgid_plural "%(num)s CVEs"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+msgid "No open ports seen"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "plus shared"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "incomplete"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "without all"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No SPF"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "SPF unknown"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "invalid"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No DMARC"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "DMARC unknown"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Expired %(num)s day ago"
+msgid_plural "Expired %(num)s days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Expires in %(num)s day"
+msgid_plural "Expires in %(num)s days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+msgid "No dates published"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Present"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(num)s problem"
+msgid_plural "%(num)s problems"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+msgid "Preloaded"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Pending"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Rejected"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Removed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Not on the list"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/tls_protocols.html
+msgid "Unknown"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(num)s public breach"
+msgid_plural "%(num)s public breaches"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py app/templates/assessments/checks/domain_dns.html
+#, python-format
+msgid "%(num)s name server"
+msgid_plural "%(num)s name servers"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py app/templates/assessments/checks/domain_dns.html
+#, python-format
+msgid "%(num)s operator"
+msgid_plural "%(num)s operators"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+msgid "No name servers found"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Name servers unknown"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "no CAA"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "CAA unknown"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/tls.html
+msgid "Valid"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Valid · %(num)s day left"
+msgid_plural "Valid · %(num)s days left"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+msgid "Accepts suites without encryption or authentication"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Only outdated TLS: %(versions)s"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Accepts TLS %(versions)s"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "TLS %(versions)s"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Done"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+#: app/templates/assessments/report.html
+msgid "Answered"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(status)s · HTTP only"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(status)s · redirect not followed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "CDN, proxy or WAF"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Hosting platform"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Web server"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Language or runtime"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Framework"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "CMS or site generator"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "E-commerce"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "JavaScript library"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Library CDN"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Analytics"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Tag manager"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Advertising"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Marketing and CRM"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Chat and help desk"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Payments"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Bot check"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Consent"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Fonts and icons"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Maps"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Video"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Monitoring"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Social widgets"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/tech.html
+msgid "Loads code from a host that served malware"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Old software: %(names)s"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "None recognised"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(num)s technology"
+msgid_plural "%(num)s technologies"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Can be taken over: %(service)s"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "No alias for a hosted service"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Alias for a hosted service, not fully tested"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Alias for %(service)s, in use"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/checks/reputation.html
+#, python-format
+msgid "Blocked by %(names)s"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Not blocked by %(num)s resolver"
+msgid_plural "Not blocked by %(num)s resolvers"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Host name on %(lists)s"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Address on %(lists)s"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Alias on %(lists)s"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "Not on %(num)s blocklist"
+msgid_plural "Not on %(num)s blocklists"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py
+msgid "a shared address is listed"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "old lists"
+msgstr ""
+
+#: app/service/host_view.py
+#, python-format
+msgid "%(failed)s of %(num)s test failed"
+msgid_plural "%(failed)s of %(num)s tests failed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+#: app/templates/assessments/compare.html app/templates/assessments/history.html
+msgid "Queued"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+#: app/templates/assessments/compare.html app/templates/assessments/history.html
+msgid "Running"
+msgstr ""
+
+#: app/service/host_view.py
+msgid "Skipped"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+#: app/templates/assessments/checks/ports.html app/templates/assessments/report.html
+msgid "Unavailable"
+msgstr ""
+
+#: app/service/host_view.py app/templates/assessments/_scan_panel.html
+#: app/templates/assessments/checks/ports.html app/templates/assessments/compare.html
+#: app/templates/assessments/history.html app/templates/assessments/report.html
+msgid "Failed"
+msgstr ""
+
+#: app/service/images.py
+#, python-format
+msgid "The picture is larger than %(max)d MB. Choose a smaller one."
+msgstr ""
+
+#: app/service/images.py
+msgid "The file could not be read as a JPEG, PNG or WebP picture. Choose another file."
+msgstr ""
+
+#: app/service/images.py
+#, python-format
+msgid "The picture has more than %(max)d million pixels. Reduce its size and try again."
+msgstr ""
+
+#: app/service/invitations.py
+#, python-format
+msgid "Too many links work at the moment (%(limit)s). Withdraw some, or wait until they have expired."
+msgstr ""
+
+#: app/service/invitations.py
+msgid "This account is switched off. Switch it on first."
+msgstr ""
+
+#: app/service/profile.py
+#, python-format
+msgid "The name has more than %(max)d characters. Shorten it."
+msgstr ""
+
+#: app/service/profile.py
+msgid "The name contains a character that cannot be shown, such as a text-direction mark. Remove it."
+msgstr ""
+
+#: app/service/profile.py
+msgid "That language is not available. Choose one from the list."
+msgstr ""
+
+#: app/service/report.py app/templates/assessments/report.html
+msgid "Not checked"
+msgstr ""
+
+#: app/service/users.py
+msgid ""
+"This account is the last active administrator, so it cannot be switched off. Make another account"
+" an administrator first. A person who was invited counts once they have set a password."
+msgstr ""
+
+#: app/service/users.py
+msgid ""
+"This account is the last active administrator, so it cannot lose the administrator role. Make "
+"another account an administrator first. A person who was invited counts once they have set a "
+"password."
+msgstr ""
+
+#: app/service/users.py
+msgid "Enter a valid e-mail address."
+msgstr ""
+
+#: app/service/users.py
+#, python-format
+msgid "The password is too short. Use at least %(length)s characters."
+msgstr ""
+
+#: app/service/users.py
+msgid "There is no account for this e-mail address."
+msgstr ""
+
+#: app/service/users.py
+msgid "An account for this e-mail address exists already."
+msgstr ""
+
+#: app/templates/accounts/accept.html
+msgid "Set a password"
+msgstr ""
+
+#: app/templates/accounts/accept.html
+msgid "This link is for"
+msgstr ""
+
+#: app/templates/accounts/accept.html
+msgid "Your authenticator will be forgotten when you set the password."
+msgstr ""
+
+#: app/templates/accounts/accept.html
+msgid "You will set up a new one when you sign in."
+msgstr ""
+
+#: app/templates/accounts/accept.html app/templates/security/change_password.html
+msgid "New password"
+msgstr ""
+
+#: app/templates/accounts/accept.html app/templates/security/change_password.html
+#, python-format
+msgid "At least %(num)d characters."
+msgstr ""
+
+#: app/templates/accounts/accept.html app/templates/security/change_password.html
+msgid "The same password again"
+msgstr ""
+
+#: app/templates/accounts/accept.html
+msgid "Set the password"
+msgstr ""
+
+#: app/templates/accounts/index.html app/templates/accounts/link.html app/templates/audit/index.html
+msgid "Administration"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid ""
+"Invite a person, send a link to set a new password, switch an account off, and give or take the "
+"administrator role. A link works once and Gaprism does not send it: you pass it on through your "
+"own channel. Every change is written to the audit log."
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Invite a person"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid ""
+"The person gets an account and a link where they set their own password. Nobody else ever knows "
+"it."
+msgstr ""
+
+#: app/templates/accounts/index.html app/templates/profile/index.html
+msgid "E-mail address"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Make this person an administrator"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Invite"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "The accounts: administrators first"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Account"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Role"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "State"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Authenticator"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Last sign-in"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Actions"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "you"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Member"
+msgstr ""
+
+#: app/templates/accounts/index.html app/templates/components/account.html
+msgid "Administrator"
+msgstr ""
+
+#: app/templates/accounts/index.html
+#, python-format
+msgid "Invited, link valid until %(when)s UTC"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Invited, link expired"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Invited, link withdrawn"
+msgstr ""
+
+#: app/templates/accounts/index.html app/templates/assessments/index.html
+msgid "Active"
+msgstr ""
+
+#: app/templates/accounts/index.html
+#, python-format
+msgid "Reset link valid until %(when)s UTC"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Reset link expired"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Reset link withdrawn"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "never"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "and forget the authenticator"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "New invitation link"
+msgstr ""
+
+#: app/templates/accounts/index.html app/templates/accounts/link.html
+msgid "Reset link"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Withdraw the link"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Switch off"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Switch on"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Remove administrator"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Make administrator"
+msgstr ""
+
+#: app/templates/accounts/index.html
+msgid "Sign out everywhere"
+msgstr ""
+
+#: app/templates/accounts/link.html
+msgid "Invitation link"
+msgstr ""
+
+#: app/templates/accounts/link.html app/templates/assessments/_disclosure.html
+msgid "For"
+msgstr ""
+
+#: app/templates/accounts/link.html
+msgid "This link is shown only now."
+msgstr ""
+
+#: app/templates/accounts/link.html
+#, python-format
+msgid "It works once, until %(when)s UTC. Gaprism sends no mail: pass it on through your own channel."
+msgstr ""
+
+#: app/templates/accounts/link.html
+msgid "Link"
+msgstr ""
+
+#: app/templates/accounts/link.html
+msgid ""
+"When it is used, the authenticator of this account will be forgotten; its person sets up a new "
+"one at the next sign-in."
+msgstr ""
+
+#: app/templates/accounts/link.html
+msgid "Back to the accounts"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "What leaves your network when you scan"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Scanning sends the domain name to"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Each of them also sees the address this server connects from."
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Switched off in this installation:"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Not enabled, because their terms need your decision:"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "turned on with"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Details: docs/deploy.md, section \"What leaves your network\"."
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Show who receives what"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Who receives what when a scan runs"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Recipient"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Receives"
+msgstr ""
+
+#: app/templates/assessments/_disclosure.html
+msgid "Setting"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+#, python-format
+msgid "Show the evidence for: %(title)s"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Show the evidence"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Findings by severity"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "The rules run when the scan has finished."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid ""
+"The scan finished, but turning its results into findings failed. Scan again, or run `flask "
+"findings evaluate`; the log has the details."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid ""
+"This scan has no findings: scans that were cancelled, or that ran before the rules existed, are "
+"not evaluated. Start a new scan."
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/report.html
+#, python-format
+msgid "review by %(date)s"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/report.html
+msgid "Acceptance expired"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/report.html
+msgid "Accepted, but the review date has passed: the finding is open again."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Marked as a false positive"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/report.html
+#, python-format
+msgid "by %(who)s on %(when)s"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Change the decision"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Decide"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Decision"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Accept"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "the team knows about this and accepts the risk"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "the finding is wrong"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Reason"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Required. Whoever reads this finding next will see it."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Review by (optional)"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "For accepted findings only: after this day the finding is open again."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Save the decision"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Reopen the finding"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/checks/email.html
+#: app/templates/assessments/checks/tech.html app/templates/assessments/compare.html
+#: app/templates/assessments/findings.html app/templates/assessments/report.html
+msgid "Host"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/checks/blocklists.html
+#: app/templates/assessments/checks/ip.html app/templates/assessments/compare.html
+#: app/templates/assessments/report.html
+msgid "Address"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/_scan_panel.html
+#: app/templates/assessments/compare.html app/templates/assessments/host.html
+#: app/templates/assessments/report.html
+msgid "The domain itself"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/report.html
+msgid "What to do"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+#, python-format
+msgid "%(n)s open"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "All findings"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Some rules could not run"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+#, python-format
+msgid "%(rules)s failed and produced no findings; the log has the details."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Some findings are not kept"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+#, python-format
+msgid "%(count)s findings beyond the limit per scan were dropped, the least serious first."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "No open findings: the team decided about every finding that fired."
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/_summary.html
+msgid "No rule fired on what was collected."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Not counted as open:"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/_summary.html
+#, python-format
+msgid "%(n)s accepted"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/_summary.html
+#, python-format
+msgid "%(num)s false positive"
+msgid_plural "%(num)s false positives"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_findings.html
+msgid "The rules only judge what the checks collected."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+#, python-format
+msgid "%(count)s checks failed or were unavailable, so what they would have shown is not judged."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "The rules that fired"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "Finding"
+msgstr ""
+
+#: app/templates/assessments/_findings.html app/templates/assessments/findings.html
+msgid "Severity"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+#, python-format
+msgid "%(count)s more rules fired, with lower severity."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "All findings of this host, with their status"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid ""
+"No rule fired for this host. The rules only judge what the checks below collected; a check that "
+"failed or found nothing proves nothing."
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid "On the addresses of this host"
+msgstr ""
+
+#: app/templates/assessments/_findings.html
+msgid ""
+"Reported for the IP addresses this name resolves to. They can concern other services on the same "
+"address, not only this hostname."
+msgstr ""
+
+#: app/templates/assessments/_host_check.html
+msgid "This check has not finished yet. Reload the page in a moment."
+msgstr ""
+
+#: app/templates/assessments/_host_check.html
+msgid "Raw data (JSON)"
+msgstr ""
+
+#: app/templates/assessments/_host_check.html
+msgid "Shortened to the first 100,000 characters."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/compare.html
+#: app/templates/assessments/history.html app/templates/assessments/report.html
+msgid "Completed"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/compare.html
+#: app/templates/assessments/history.html app/templates/assessments/report.html
+msgid "Completed with gaps"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/compare.html
+#: app/templates/assessments/history.html app/templates/assessments/report.html
+msgid "Cancelled"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Not allowed without a valid key"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Response too large"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Paging did not advance"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "No scan has run yet. Start one to discover and review the hosts of this domain."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Latest scan"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "finished"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/history.html
+msgid "What changed since the scan before"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Checks done"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Checks with problems"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Scan progress"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Cancel scan"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Waiting for a worker"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "No worker has picked this scan up yet. Start one with: flask worker"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "IP location data is not installed"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid ""
+"Run `flask datasets update` once (about 65 MB from DB-IP.com), then scan again to see where the "
+"hosts are."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "No certificate source answered"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid ""
+"Only the domain itself and www were reviewed. Add hosts by hand below, or run the scan again "
+"later."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Discovery may be incomplete"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+#, python-format
+msgid ""
+"Not every certificate source delivered everything (%(sources)s). Hosts that only those sources "
+"know are missing from this list; run the scan again later to fill the gap."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Some hosts were not reviewed"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+#, python-format
+msgid "%(count)s hosts exceeded the limit of %(limit)s per scan."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Report and export"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid ""
+"Made from this scan as it is now, including what the team decided about the findings. The report "
+"is laid out for printing (your browser saves it as PDF); the JSON file holds everything that was "
+"collected; the CSV files open in a spreadsheet."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Open the report"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "JSON · everything"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "CSV · hosts"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "CSV · findings"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/domain.html
+msgid "Domain checks"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/audit/index.html
+msgid "Details"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Checks of the domain itself"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Check"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/checks/blocklists.html
+#: app/templates/assessments/checks/tls_protocols.html app/templates/assessments/report.html
+msgid "Result"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Discovery sources"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+#, python-format
+msgid ""
+"%(names)s certificate names seen · %(out)s outside the domain ignored · %(wild)s wildcard "
+"patterns noted, not scanned"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "What each Certificate Transparency source reported"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/findings.html
+#: app/templates/audit/index.html
+msgid "Pages"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/report.html
+msgid "Source"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/report.html
+msgid "Names"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/report.html
+msgid "partial"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Filter hosts"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Filter by hostname"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Show"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/findings.html
+msgid "All hosts"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "With check problems"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Still being checked"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/findings.html
+#: app/templates/audit/index.html
+msgid "Filter"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Hosts of the latest scan"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Hostname"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/report.html
+msgid "Ports"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/report.html
+msgid "TLS"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/checks/ip.html
+#: app/templates/assessments/report.html
+msgid "Location"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/host.html
+msgid "Added by hand"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/host.html
+msgid "Fallback (no source answered)"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "None"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/findings.html
+#: app/templates/audit/index.html
+#, python-format
+msgid "Page %(page)s of %(pages)s"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/findings.html
+#: app/templates/audit/index.html
+msgid "Previous"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/findings.html
+#: app/templates/audit/index.html
+msgid "Next"
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "No host matches this filter."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html
+msgid "Hosts appear here as discovery finishes."
+msgstr ""
+
+#: app/templates/assessments/_scan_panel.html app/templates/assessments/report.html
+msgid "This scan has no hosts."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Coverage"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Names seen"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "in certificates"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Hosts reviewed"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "%(done)s fully checked"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "%(gaps)s with gaps"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Answer on HTTPS"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+#, python-format
+msgid "%(n)s on plain HTTP only"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "no public address: %(a)s · no web server: %(b)s"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/checks/http.html
+#: app/templates/assessments/report.html
+msgid "Not reachable"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Not reviewed"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "outside the domain: %(a)s · wildcard patterns: %(b)s · over the limit: %(c)s"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+#, python-format
+msgid "%(num)s host could not be classified: its web check failed or did not run."
+msgid_plural "%(num)s hosts could not be classified: their web check failed or did not run."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html
+msgid "Where"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid ""
+"Shows where the addresses of the hosts are announced, not where data is stored or processed. Ask "
+"the vendor for that."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Where is the data?"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "%(num)s host has an address outside the allowed area"
+msgid_plural "%(num)s hosts have an address outside the allowed area"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html
+#, python-format
+msgid "%(num)s of them only through a CDN or anycast edge."
+msgid_plural "%(num)s of them only through a CDN or anycast edge."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html
+msgid "Show the findings"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Outside the allowed area"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/checks/blocklists.html
+#: app/templates/assessments/report.html
+#, python-format
+msgid "%(num)s host"
+msgid_plural "%(num)s hosts"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "and %(num)s more country"
+msgid_plural "and %(num)s more countries"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "The allowed area has %(num)s country."
+msgid_plural "The allowed area has %(num)s countries."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "No host could be placed in a country."
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+#, python-format
+msgid "%(num)s host sits behind a CDN or anycast network"
+msgid_plural "%(num)s hosts sit behind a CDN or anycast network"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html
+msgid ""
+"The location of such an address is the edge, not the data centre, so these hosts are not placed "
+"in a country."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "%(num)s host could not be located"
+msgid_plural "%(num)s hosts could not be located"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+#, python-format
+msgid "and %(num)s more"
+msgid_plural "and %(num)s more"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Not determined"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "CDN"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Cloud"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Hosting"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid ""
+"Providers seen from outside in addresses, DNS and mail records and in the first page of each "
+"host. This is not a list of the vendor’s legal processors or sub-processors."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Who processes it?"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/audit/index.html
+msgid "Who"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Hosting and networks"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "The databases know no network for these addresses."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "No host has a public address to look up."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "CDN, proxy or WAF in front"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "None was recognised."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Services the pages load"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "No service of another organisation was recognised in the pages that could be read."
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+#, python-format
+msgid ""
+"The first page was read for %(read)s of %(total)s hosts; the others are judged from headers, DNS "
+"and network alone. Scripts that load other scripts later are not seen."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "DNS operators"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "No name servers found."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Mail"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "The domain publishes no mail servers."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "Services allowed to send mail"
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "The SPF record names no sending service."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "The registry does not publish it."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/checks/registration.html
+#: app/templates/assessments/report.html
+msgid "Registrar"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Secure"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid ""
+"A view from outside at the time of the scan. It is not a certification, an audit or a penetration"
+" test; a check that failed or found nothing proves nothing."
+msgstr ""
+
+#: app/templates/assessments/_summary.html app/templates/assessments/report.html
+msgid "How secure is the external posture?"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "open finding"
+msgid_plural "open findings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/_summary.html
+msgid "Open findings by severity"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Decided by the team; not counted as open."
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Most serious"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+#, python-format
+msgid "%(done)s of %(total)s hosts fully checked."
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Show hosts with failed checks"
+msgstr ""
+
+#: app/templates/assessments/_summary.html
+msgid "Summary"
+msgstr ""
+
+#: app/templates/assessments/checks/_links.html
+msgid "Qualys SSL Labs server test"
+msgstr ""
+
+#: app/templates/assessments/checks/_links.html
+msgid ""
+"opens their website; the test then runs from their servers against this host and takes minutes, "
+"and the result stays off their public boards. Use it only where you may test the host."
+msgstr ""
+
+#: app/templates/assessments/checks/_links.html
+msgid "Second opinion"
+msgstr ""
+
+#: app/templates/assessments/checks/_links.html
+msgid ""
+"opens their website; its scanner then requests this host’s home page, and the scan and its grade "
+"are public there and cannot be hidden."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "The name of this host is on a blocklist"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid ""
+"A list of hosts that serve malware or phishing names this host. That is a third party’s "
+"classification, and it can be out of date or mistaken. Find out what the host serves and who "
+"controls it."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "A name this host is an alias for is on a blocklist"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid ""
+"The host points at a name that a list of malware or phishing hosts names. What the vendor’s host "
+"serves under its own name is not known."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "An address of this host is on a blocklist"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid ""
+"A list of botnet, malware or phishing servers names an address that the host resolves to. On "
+"shared hosting that can be about a neighbour on the same address."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+#, python-format
+msgid ""
+"The name of this host, the names it is an alias for and its public addresses were looked up in "
+"%(num)s blocklist that is installed on this server. Nothing was sent anywhere."
+msgid_plural ""
+"The name of this host, the names it is an alias for and its public addresses were looked up in "
+"%(num)s blocklists that are installed on this server. Nothing was sent anywhere."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "What was looked up, and whether a blocklist names it"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "Looked up"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html app/templates/assessments/checks/tech.html
+#: app/templates/audit/index.html
+msgid "Kind"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "Host name"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "Alias of the host (CNAME target)"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "Not listed"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "shared edge"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid ""
+"Not held against this host: the address is shared, so the listing can come from any site behind "
+"it."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+#, python-format
+msgid "The host has %(total)s public addresses; the first %(shown)s were looked up."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "Lists consulted"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+#, python-format
+msgid "downloaded %(date)s"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+#, python-format
+msgid "written %(date)s"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid "old"
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid ""
+"A list that is more than three days old may miss what appeared since. Run `flask datasets update`"
+" and scan again."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+#, python-format
+msgid ""
+"Not consulted, because they are not installed: %(names)s. Run `flask datasets update` and scan "
+"again."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+#, python-format
+msgid "Not consulted, because the file could not be read: %(names)s. Run `flask datasets update --force`."
+msgstr ""
+
+#: app/templates/assessments/checks/blocklists.html
+msgid ""
+"An entry says that somebody reported or measured the host at some time and the maintainers kept "
+"it; it does not say what is there today. A name or an address that is not listed is not shown to "
+"be clean: the lists hold only what their maintainers have seen."
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "What this is"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid ""
+"Have I Been Pwned lists documented breaches of services by their domain. Finding none does not "
+"prove that nothing happened, and a listed breach says nothing about the vendor's own security "
+"today. Scraped and spam-list entries are marked."
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+#, python-format
+msgid "Public breaches of %(domain)s"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Breach"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Happened"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Data"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html app/templates/assessments/checks/email.html
+msgid "Notes"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Unverified"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html app/templates/assessments/checks/tls.html
+msgid "Verified"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Fabricated"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Spam list"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Malware"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Stealer log"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Sensitive"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "Retired"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+#, python-format
+msgid "%(count)s more are in the raw data."
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html
+msgid "the domain name was sent to Have I Been Pwned"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html app/templates/assessments/checks/hsts_preload.html
+#: app/templates/assessments/checks/observatory.html
+msgid "from the cache; fetched"
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html app/templates/assessments/checks/hsts_preload.html
+#: app/templates/assessments/checks/observatory.html
+msgid "fetched"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+#, python-format
+msgid ""
+"This name is an alias for %(target)s, which does not exist. Whoever can register that name could "
+"serve content under this host."
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+msgid "Private or reserved addresses in public DNS"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+#, python-format
+msgid "These addresses were not connected to: %(addresses)s"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+msgid "Some record types could not be read"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+msgid "DNS records of this host"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+msgid "Type"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+msgid "TTL"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html app/templates/assessments/checks/domain_dns.html
+#: app/templates/assessments/checks/http.html
+msgid "Value"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+msgid "not connected to"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+msgid "No records."
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+#, python-format
+msgid "Long record lists were cut after 50 entries: %(types)s"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+#, python-format
+msgid "Asked: %(resolvers)s"
+msgstr ""
+
+#: app/templates/assessments/checks/dns.html
+msgid "the system resolver"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html app/templates/assessments/checks/email.html
+msgid "Could not be checked"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+#, python-format
+msgid "Name servers of %(zone)s"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+#, python-format
+msgid "%(num)s network"
+msgid_plural "%(num)s networks"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/domain_dns.html app/templates/assessments/checks/email.html
+#: app/templates/assessments/checks/security_txt.html
+msgid "Problem"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "Note"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "Name server"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "Operator"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid ""
+"An operator is the registered domain of a name server's name; a network is an IPv4 /24 or IPv6 "
+"/48. Several servers of one operator or in one network fail together."
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+#, python-format
+msgid "Found at %(name)s; the closest name that has any CAA record decides."
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "Tag"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "Flags"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "No certificate authority may issue"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "May issue certificates:"
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "No issuer is restricted by an issue record."
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html
+msgid "Without CAA records any certificate authority may issue certificates for this domain."
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Hard fail (-all)"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Soft fail (~all)"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Neutral (?all)"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Allows everyone (+all)"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "relaxed"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "strict"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "What is checked"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+#, python-format
+msgid ""
+"The mail-related DNS records of %(domain)s and, if it publishes MTA-STS, its policy file. Nothing"
+" is sent to a mail server. A part that could not be asked says so; it is never shown as absent."
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Mail servers (MX)"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Does not receive mail"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "The domain publishes a null MX record (RFC 7505)."
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Priority"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Mail is handled by"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Everything else"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+#, python-format
+msgid "decided by the redirect to %(domain)s"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+#, python-format
+msgid "decided by the redirect to %(domain)s, which could not be read"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html app/templates/assessments/checks/registration.html
+msgid "Not stated"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "of 10 allowed"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "at least; not every include could be followed"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Services allowed to send"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Includes"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Not valid"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html app/templates/assessments/checks/security_txt.html
+msgid "Policy"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Policy for subdomains"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Applied to"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Alignment"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Aggregate reports (rua)"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Failure reports (ruf)"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Selector"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html app/templates/assessments/checks/tls.html
+#: app/templates/security/two_factor_setup.html
+msgid "Key"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "bits"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "weak"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "short"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Revoked"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Test mode"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "No selector found"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+#, python-format
+msgid "Revoked selectors (empty key): %(names)s"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+#, python-format
+msgid "%(num)s common selector name was tried."
+msgid_plural "%(num)s common selector names were tried."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Selectors cannot be listed, so a domain may use DKIM with a name that is not tried here."
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Some lookups failed, so the list may be incomplete."
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "DNS record"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Policy file"
+msgstr ""
+
+#: app/templates/assessments/checks/email.html
+msgid "Could not be fetched"
+msgstr ""
+
+#: app/templates/assessments/checks/hsts_preload.html
+msgid ""
+"Browsers ship this domain on their HSTS preload list: they only ever connect to it over HTTPS, "
+"even on the first visit."
+msgstr ""
+
+#: app/templates/assessments/checks/hsts_preload.html
+msgid "The domain was submitted and accepted, and is waiting to be shipped in browser releases."
+msgstr ""
+
+#: app/templates/assessments/checks/hsts_preload.html
+msgid "The domain was submitted and rejected: it did not meet the preload requirements."
+msgstr ""
+
+#: app/templates/assessments/checks/hsts_preload.html
+msgid "The domain used to be on the preload list and has been removed."
+msgstr ""
+
+#: app/templates/assessments/checks/hsts_preload.html
+msgid ""
+"The domain is not on the HSTS preload list. Browsers can still be told to use HTTPS through the "
+"Strict-Transport-Security header after a first visit."
+msgstr ""
+
+#: app/templates/assessments/checks/hsts_preload.html
+#, python-format
+msgid "Covered through %(name)s."
+msgstr ""
+
+#: app/templates/assessments/checks/hsts_preload.html
+msgid "From hstspreload.org"
+msgstr ""
+
+#: app/templates/assessments/checks/hsts_preload.html
+msgid "the domain name was sent to hstspreload.org"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "HTTPS could not be reached"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+#, python-format
+msgid "Reason: %(reason)s. The answer below is what plain HTTP returned."
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "A redirect was not followed"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+#, python-format
+msgid "Stopped at %(url)s (%(reason)s)."
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Response"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html app/templates/assessments/checks/tls.html
+msgid "Connected to"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Plain HTTP (port 80)"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Redirects to HTTPS"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Answers without redirecting to HTTPS"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Server"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Page title"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Time and size"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "bytes"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "cut at 512 KB"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Redirects"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "To"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Security headers"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Header"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Not present"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Cookies"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Lifetime"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html app/templates/assessments/checks/takeover.html
+#: app/templates/profile/index.html
+msgid "Name"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Session"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Persistent"
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "Cookie values are never stored."
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+msgid "No cookies were set."
+msgstr ""
+
+#: app/templates/assessments/checks/http.html
+#, python-format
+msgid "All response headers (%(count)s)"
+msgstr ""
+
+#: app/templates/assessments/checks/ip.html
+msgid "CDN or anycast network"
+msgstr ""
+
+#: app/templates/assessments/checks/ip.html
+msgid ""
+"For addresses of a content delivery network the location shows where the address is announced (an"
+" edge site), not where data is processed or stored."
+msgstr ""
+
+#: app/templates/assessments/checks/ip.html
+msgid "Location and network of the host addresses"
+msgstr ""
+
+#: app/templates/assessments/checks/ip.html
+msgid "Network"
+msgstr ""
+
+#: app/templates/assessments/checks/ip.html
+msgid "Reverse DNS"
+msgstr ""
+
+#: app/templates/assessments/checks/ip.html
+msgid "edge"
+msgstr ""
+
+#: app/templates/assessments/checks/ip.html
+msgid "Location is where an address is registered or announced; city accuracy for servers is limited."
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid "Grade"
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid "Score"
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+#, python-format
+msgid "%(num)s point"
+msgid_plural "%(num)s points"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid "Tests"
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+#, python-format
+msgid "%(passed)s passed, %(failed)s failed, of %(total)s"
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid "Scanned host"
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid "Scanned"
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+#, python-format
+msgid "%(first)s could not be scanned, so %(second)s was."
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid ""
+"This is Mozilla’s grade for the security headers of the home page. It is an independent second "
+"opinion, not part of our findings, and it can differ from them: the two scan from different "
+"places with different tests. 100 points is the starting score, an A+ needs 100 or more, and the "
+"scale ends at 145."
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid "The tests, one by one, at Mozilla"
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid "From Mozilla’s HTTP Observatory"
+msgstr ""
+
+#: app/templates/assessments/checks/observatory.html
+msgid ""
+"the domain name was sent to Mozilla, whose scanner requested the home page from the domain’s "
+"servers; the scan and its grade are public on MDN"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Host name listed"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Address only"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "listed as a CDN"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "many host names on this address"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "this host name is listed for the address"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid "network: %(name)s"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid "owner: %(name)s"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "A snapshot, not a port scan"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid ""
+"This is what %(provider)s, an internet-wide scanner, last observed on the addresses of this host."
+" Nothing was sent to the host. A port that is not listed may still be open, and a listed one may "
+"have been closed since."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Some addresses could not be checked"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "The results below are incomplete. See the reason shown for each address."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Only some addresses were looked up"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid "The host has %(total)s addresses; the first %(count)s were checked."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "from the cache"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid ""
+"This address belongs to a CDN or other shared network. The ports and CVEs describe that network, "
+"not servers of this host."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "The provider lists this host name for the address."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Observed on the address this host resolves to; nothing but DNS ties it to this host."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid "Ports seen on %(ip)s"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Port"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid "%(count)s more ports are in the raw data."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "No open ports were seen."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid "%(num)s CVE reported"
+msgid_plural "%(num)s CVEs reported"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/ports.html
+msgid ""
+"The provider derives these from software versions it read; they are leads to verify, not "
+"confirmed vulnerabilities."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid ""
+"Listed first when known to be exploited (CISA KEV, as of %(kev)s) or likely to be (EPSS, as of "
+"%(epss)s)."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "This data is out of date: run `flask datasets update`."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Not ranked: the exploitation data (CISA KEV, EPSS) is not installed. Run `flask datasets update`."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "known exploited (CISA KEV)"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "used in ransomware"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "verified by Shodan"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid "%(count)s more CVEs are in the raw data."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Tags"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Host names the provider lists"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+#, python-format
+msgid "%(count)s more"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Software (CPE)"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "Data by Shodan."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid ""
+"Shodan InternetDB is updated weekly, is free for non-commercial use only and lists ports and CVE "
+"IDs without versions or scores. Set SHODAN_API_KEY for details."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "CVEs ranked with"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "the Known Exploited Vulnerabilities Catalog of CISA"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "and"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "the Exploit Prediction Scoring System (EPSS) of FIRST.Org, Inc."
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html
+msgid "They are installed on this server: nothing about this assessment was sent for the ranking."
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "From the registry"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+#, python-format
+msgid ""
+"Registration data from the RDAP service of the registry (%(server)s). Registrant and contact "
+"details are not collected."
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+#, python-format
+msgid "The registry knows this domain as %(name)s."
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "Not published"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+#, python-format
+msgid "%(num)s year"
+msgid_plural "%(num)s years"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/registration.html
+#, python-format
+msgid "expired %(num)s day ago"
+msgid_plural "expired %(num)s days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/registration.html
+#: app/templates/assessments/checks/security_txt.html
+#, python-format
+msgid "in %(num)s day"
+msgid_plural "in %(num)s days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "Last changed"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+#: app/templates/assessments/checks/security_txt.html
+msgid "Signed"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+#: app/templates/assessments/checks/security_txt.html
+msgid "Not signed"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "Transfer lock"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "Locked"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "Not locked"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "No status published"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "Name servers at the registry"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "This registry does not publish registration or expiry dates."
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "From the cache; fetched"
+msgstr ""
+
+#: app/templates/assessments/checks/registration.html
+msgid "Fetched"
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+msgid ""
+"These resolvers refuse names that their threat intelligence flags as malicious (malware, "
+"phishing, botnet control), although the DNS check resolved this one. That is a third party’s "
+"classification, and it can be wrong."
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+#, python-format
+msgid ""
+"The name of this host was asked of %(n)s security resolvers (the %(type)s record), as a plain DNS"
+" question. Nothing was sent to the host itself."
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+msgid "What each security resolver answered"
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+msgid "Resolver"
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+msgid "Verdict"
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+msgid "What it answered"
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+msgid "Not blocked"
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+msgid "No verdict"
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+msgid "says"
+msgstr ""
+
+#: app/templates/assessments/checks/reputation.html
+#, python-format
+msgid ""
+"A resolver that does not block a name says little: each of them knows only part of the bad names "
+"of the internet, and blocking is its own classification. A resolver that did not answer, or "
+"answered without saying why, is not counted as a block. Compared with: %(addresses)s (what the "
+"DNS check found)."
+msgstr ""
+
+#: app/templates/assessments/checks/security_txt.html
+#, python-format
+msgid "after %(num)s redirect"
+msgid_plural "after %(num)s redirects"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/security_txt.html
+#, python-format
+msgid "%(num)s day ago"
+msgid_plural "%(num)s days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/security_txt.html
+msgid "Contact"
+msgstr ""
+
+#: app/templates/assessments/checks/security_txt.html
+msgid "Encryption key"
+msgstr ""
+
+#: app/templates/assessments/checks/security_txt.html
+msgid "Acknowledgments"
+msgstr ""
+
+#: app/templates/assessments/checks/security_txt.html
+msgid "Canonical"
+msgstr ""
+
+#: app/templates/assessments/checks/security_txt.html
+msgid "Hiring"
+msgstr ""
+
+#: app/templates/assessments/checks/security_txt.html
+msgid "Preferred languages"
+msgstr ""
+
+#: app/templates/assessments/checks/security_txt.html
+msgid "The addresses in the file are shown as text and are not followed."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid "Unclaimed"
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid "In use"
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html app/templates/assessments/checks/tls_protocols.html
+msgid "Not tested"
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid ""
+"This host is not an alias (it has no CNAME record), so there is no hosted service whose name "
+"could be taken over through it."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid "The alias chain of this host"
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid ""
+"None of these targets belongs to a hosted service that this check knows, so nothing was tested. A"
+" dangling alias for any other name is reported by the DNS check."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+#, python-format
+msgid ""
+"The service answered this host with its page for a name that nobody has claimed (HTTP %(status)s:"
+" \"%(signature)s\")."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+#, python-format
+msgid ""
+"The alias ends in %(target)s, which does not exist. The service lets anyone register names in "
+"that space, so a stranger could register it and serve content under this host."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+#, python-format
+msgid "%(target)s exists, so the alias does not point at a free name."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+#, python-format
+msgid ""
+"The service answered with something other than its page for an unclaimed name (HTTP %(status)s). "
+"That the page was not seen is not a guarantee that the name is claimed."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+#, python-format
+msgid "This host could not be tested: %(reason)s."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid ""
+"The service sent the visitor to HTTPS and presented a certificate for another name. This tool "
+"never turns certificate verification off, so the page cannot be read."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid "Anyone can register the name at this service."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid "Whether a stranger can claim the name depends on checks the service makes."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid "asked"
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+#, python-format
+msgid "%(num)s more service in the chain was not looked at."
+msgid_plural "%(num)s more services in the chain were not looked at."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid ""
+"The check asks for the home page like any visitor and claims nothing. It cannot see services that"
+" are not on its list, an abandoned name that is not reached through a CNAME (a delegated zone, a "
+"record for an address), or a page that a service only shows over HTTPS with a certificate for "
+"another name."
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+msgid "The list of services and of the pages they show for an unclaimed name is adapted from"
+msgstr ""
+
+#: app/templates/assessments/checks/takeover.html
+#, python-format
+msgid "and was checked again on %(date)s."
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "response header"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "cookie"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "generator tag"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "host named"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "file"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "script call"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "network of the address"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "CNAME"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "comes with"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "past its end of life upstream"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "known vulnerabilities"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+#, python-format
+msgid ""
+"The page references %(hosts)s. These hosts are known to have delivered malicious code to the "
+"visitors of the pages that load from them (the supply chain attack of 2024). Whoever controls "
+"them can run code in the visitor’s browser."
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "This host sends visitors elsewhere"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+#, python-format
+msgid ""
+"The page that answers is the one of %(host)s. What it shows belongs to that host, so it is not "
+"read as this host’s: only DNS, the network of the addresses and the name of the host it leads to "
+"speak here."
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "The page was not read"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid ""
+"No web page could be read from this host, so only response headers (if any), DNS and the network "
+"speak. What the page itself would show is not listed."
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "The page is larger than what is read of it; the list below may be incomplete."
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "In front of the site:"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "No CDN, proxy or WAF was recognised. That is not the same as none."
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Old versions"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Versions that are old or known to be vulnerable"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Why"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Technology"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "read from a server header: a distribution may still patch it"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Technologies recognised"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Technologies recognised on this host"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "How it showed"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "probable"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "No technology was recognised from what could be read."
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Other hosts the page loads from"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Hosts of other organisations that the page names"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "Operated by"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "As"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+msgid "not recognised"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html
+#, python-format
+msgid ""
+"This is read from what the first page and the response headers name, nothing was requested for "
+"it. Scripts that load other scripts later are not seen (a browser would see more), a technology "
+"that is not listed is not recognised rather than absent, and a listed one can be hidden or "
+"imitated. Only some products are judged for old versions (those the ruleset has dates or known "
+"flaws for), so a version that is not marked is not necessarily current. The ruleset is a small "
+"own list, last looked at %(date)s."
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Certificate read without trust"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid ""
+"The certificate could not be verified, so its details were read through a separate, unverified "
+"connection and are shown for information only."
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Not verified"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Subject"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Issuer"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+#, python-format
+msgid "%(num)s day left"
+msgid_plural "%(num)s days left"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/checks/tls.html
+#, python-format
+msgid "expired %(num)s days ago"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Signature"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Wildcard certificate"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Protocol"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Cipher"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Certificate chain"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+#, python-format
+msgid "Names in the certificate (%(count)s)"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "Serial number is not positive"
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+#, python-format
+msgid ""
+"RFC 5280 requires the serial number of a certificate to be a positive integer. Its serial number "
+"is %(serial)s, which an old or faulty certificate authority can produce. Libraries and browsers "
+"may refuse such certificates in the future."
+msgstr ""
+
+#: app/templates/assessments/checks/tls.html
+msgid "SHA-256 fingerprint"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "Suites without authentication or without encryption"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "Anyone could pose as the server, or nothing is encrypted."
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "answered with an alert"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "closed the connection"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "did not speak TLS"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "did not answer in time"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "refused the connection"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "the connection failed"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "the handshake failed in an unexpected way"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "this build of OpenSSL cannot offer it"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "not asked: out of time"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "Not accepted"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "TLS versions this server accepts"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "retired in 2021"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "no forward secrecy"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "Kinds of cipher suites this server accepts"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid "Kind of suites"
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+msgid ""
+"Each row is one handshake in which only that version, or only that kind of suites, was offered. "
+"Nothing is sent after the handshake, and the certificate is not verified here (the TLS section "
+"does that)."
+msgstr ""
+
+#: app/templates/assessments/checks/tls_protocols.html
+#, python-format
+msgid ""
+"Not tested: %(list)s. The OpenSSL this program asks with (%(openssl)s) cannot offer them, so "
+"\"not accepted\" above says nothing about them. Use a dedicated tester for these."
+msgstr ""
+
+#: app/templates/assessments/compare.html app/templates/assessments/detail.html
+#: app/templates/assessments/history.html
+msgid "Scan history"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "What changed"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "was unavailable"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "failed"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "was skipped"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "had not run"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "had not finished"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "What this finding rests on was not recorded."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "The %(check)s check of %(host)s was not run again: the host is not in the newer scan."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "The %(check)s check of the domain was not run again."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "The %(check)s check of %(host)s %(answer)s in the newer scan%(why)s."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "The %(check)s check of the domain %(answer)s in the newer scan%(why)s."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "and %(count)s more: the report and the JSON file of the scan list them all."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "these certificate sources did not deliver everything: %(sources)s"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "%(num)s host was over the limit of %(limit)s per scan"
+msgid_plural "%(num)s hosts were over the limit of %(limit)s per scan"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/compare.html
+msgid ""
+"A comparison needs two scans that ran to the end. Scan again, and this page shows what changed "
+"between the two."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "From the scan of %(older)s to the scan of %(newer)s."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid ""
+"Hosts are matched by name and findings by what they are about; nothing is judged that was not "
+"checked in both scans."
+msgstr ""
+
+#: app/templates/assessments/checks/breaches.html app/templates/assessments/checks/http.html
+#: app/templates/assessments/compare.html app/templates/audit/index.html
+msgid "From"
+msgstr ""
+
+#: app/templates/assessments/compare.html app/templates/assessments/history.html
+msgid "to"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Compare"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "The older scan did not finish everywhere"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid ""
+"It ended as: %(status)s. What it could not check is not a change; the lists below say so where "
+"they can."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "The newer scan did not finish everywhere"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Findings are not compared"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid ""
+"A scan that was cancelled, or that ran before the rules existed, has no findings to compare. "
+"Compare two scans that were evaluated."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "The scans were judged by different rules"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "A finding can appear or disappear because a rule changed, not because the vendor did."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Not every finding was kept"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid ""
+"A scan keeps a limited number of findings; the ones beyond the limit are not compared, so a "
+"finding can seem to be new or resolved only because it was cut."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Discovery of the newer scan was incomplete"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "A host that is listed as no longer found may still exist: %(why)s."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Discovery of the older scan was incomplete"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "A host that is listed as new may have been there before: %(why)s."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Summary of the changes"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "New hosts"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Hosts no longer found"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "New findings"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Resolved findings"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Changed severity"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Not re-checked"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Unchanged findings"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "Unchanged hosts"
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid ""
+"%(num)s of the unchanged findings was accepted or marked as a false positive; decisions carry "
+"over from scan to scan."
+msgid_plural ""
+"%(num)s of the unchanged findings were accepted or marked as false positives; decisions carry "
+"over from scan to scan."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/compare.html
+msgid "Not in the older scan."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid ""
+"In the older scan, not in the newer one, and what they rested on was checked again and answered. "
+"Open the evidence to see the older scan."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+#, python-format
+msgid "Was %(was)s, now %(now)s."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid ""
+"In the older scan, not in the newer one, but what they rested on did not answer again. They are "
+"not reported as resolved: nobody has looked."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid "No finding appeared, disappeared or changed its severity between the two scans."
+msgstr ""
+
+#: app/templates/assessments/compare.html
+msgid ""
+"In the older scan, not in the newer one. That does not mean the host is gone: only that discovery"
+" did not list it this time."
+msgstr ""
+
+#: app/templates/assessments/delete.html
+msgid "Delete assessment"
+msgstr ""
+
+#: app/templates/assessments/delete.html
+msgid "Delete this assessment?"
+msgstr ""
+
+#: app/templates/assessments/delete.html
+msgid "This cannot be undone."
+msgstr ""
+
+#: app/templates/assessments/delete.html
+#, python-format
+msgid ""
+"Deleting %(domain)s removes it for good, with everything listed below. No report or export can be"
+" made from it afterwards. The audit log keeps that it happened, who did it and these numbers."
+msgstr ""
+
+#: app/templates/assessments/delete.html
+msgid "Decisions about findings"
+msgstr ""
+
+#: app/templates/assessments/delete.html
+msgid "A scan is queued or running"
+msgstr ""
+
+#: app/templates/assessments/delete.html
+msgid "Cancel it, or wait for it to finish, before deleting this assessment."
+msgstr ""
+
+#: app/templates/assessments/delete.html app/templates/assessments/report.html
+msgid "Back to the assessment"
+msgstr ""
+
+#: app/templates/assessments/delete.html
+msgid "Type the domain to confirm"
+msgstr ""
+
+#: app/templates/assessments/delete.html
+#, python-format
+msgid "Type %(domain)s, then delete."
+msgstr ""
+
+#: app/templates/assessments/delete.html
+msgid "Delete permanently"
+msgstr ""
+
+#: app/templates/assessments/delete.html app/templates/assessments/new.html
+msgid "Cancel"
+msgstr ""
+
+#: app/templates/assessments/detail.html app/templates/assessments/index.html
+msgid "Shared"
+msgstr ""
+
+#: app/templates/assessments/detail.html app/templates/assessments/index.html
+msgid "Private"
+msgstr ""
+
+#: app/templates/assessments/detail.html app/templates/assessments/index.html
+msgid "Created"
+msgstr ""
+
+#: app/templates/assessments/checks/ports.html app/templates/assessments/detail.html
+#: app/templates/assessments/index.html
+msgid "Owner"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Every signed-in user can open this assessment."
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Make private"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Only the owner and the administrators can open this assessment."
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Share with everyone here"
+msgstr ""
+
+#: app/templates/assessments/detail.html app/templates/assessments/history.html
+msgid "Re-scan"
+msgstr ""
+
+#: app/templates/assessments/detail.html app/templates/assessments/history.html
+msgid "Start scan"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "This assessment is archived."
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid ""
+"It is hidden from the list and read-only: it cannot be scanned or changed, but the reports, the "
+"exports and the scan history stay available."
+msgstr ""
+
+#: app/templates/assessments/detail.html app/templates/assessments/index.html
+msgid "Archived"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Restore"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Additional hosts"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid ""
+"Hosts that Certificate Transparency does not show, or that you want reviewed even when the logs "
+"are unavailable. They join every new scan."
+msgstr ""
+
+#: app/templates/assessments/detail.html
+#, python-format
+msgid "Remove %(host)s"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Hostnames"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+#, python-format
+msgid "One or more hostnames below %(domain)s, separated by spaces, commas or new lines."
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Add hosts"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Archive or delete"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid ""
+"A scan is queued or running. Cancel it, or wait for it to finish, before archiving or deleting "
+"this assessment."
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Archive"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid ""
+"Hide this assessment from the list. It stays readable and can be restored; its scans, hosts and "
+"decisions are kept. An archived assessment cannot be scanned or changed."
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Delete"
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid ""
+"Delete this assessment with its scans, hosts, findings and decisions. This cannot be undone; the "
+"audit log keeps that it happened."
+msgstr ""
+
+#: app/templates/assessments/detail.html
+msgid "Delete…"
+msgstr ""
+
+#: app/templates/assessments/domain.html
+msgid "What was collected about the domain itself, as opposed to one of its hosts."
+msgstr ""
+
+#: app/templates/assessments/domain.html app/templates/assessments/findings.html
+#: app/templates/assessments/host.html
+msgid "scan of"
+msgstr ""
+
+#: app/templates/assessments/domain.html
+msgid "No domain checks have been recorded for this scan yet."
+msgstr ""
+
+#: app/templates/assessments/domain.html
+msgid "No scan has run yet. Start one to collect the domain checks."
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid "No scan has run yet. Start one to see findings."
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid ""
+"What the rules found in the latest scan, most serious first. Each finding points at the evidence "
+"it rests on; the team can accept a finding or mark it as a false positive, and the decision "
+"carries over to later scans."
+msgstr ""
+
+#: app/templates/assessments/checks/http.html app/templates/assessments/findings.html
+#: app/templates/assessments/history.html
+msgid "Status"
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid "Results"
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid "All severities"
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid "Rule"
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid "All rules"
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid "No finding matches this filter."
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid ""
+"No open findings: the team decided about every finding that fired. They stay visible under "
+"Accepted and False positive."
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid "Nobody has decided about a finding of this kind yet."
+msgstr ""
+
+#: app/templates/assessments/findings.html
+msgid ""
+"No rule fired on what was collected. That is not proof that nothing is wrong: the rules only "
+"judge what the checks could see."
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid ""
+"Every scan stays as it was when it ended; a new scan never changes an old one. What the team "
+"decided about a finding belongs to the assessment and counts in every scan, so the report of an "
+"older scan shows the decisions of today."
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "No scan has run yet"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "Start one to discover and review the hosts of this domain."
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "What changed from"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "Show what changed"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "The scans of this assessment, newest first"
+msgstr ""
+
+#: app/templates/assessments/history.html app/templates/assessments/report.html
+msgid "Scan"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "Started by"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "Took"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "Report and files"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "latest"
+msgstr ""
+
+#: app/templates/assessments/history.html
+#, python-format
+msgid "%(minutes)s min %(seconds)s s"
+msgstr ""
+
+#: app/templates/assessments/history.html
+#, python-format
+msgid "%(seconds)s s"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "not evaluated"
+msgstr ""
+
+#: app/templates/assessments/history.html
+#, python-format
+msgid "%(count)s high or critical"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "Report"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "CSV hosts"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "CSV findings"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "Follow the scan"
+msgstr ""
+
+#: app/templates/assessments/history.html
+msgid "The newest 50 scans are listed."
+msgstr ""
+
+#: app/templates/assessments/host.html
+msgid "Found in Certificate Transparency"
+msgstr ""
+
+#: app/templates/assessments/host.html
+msgid "last seen in certificates"
+msgstr ""
+
+#: app/templates/assessments/host.html
+msgid "No checks have been recorded for this host."
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "Team workspace"
+msgstr ""
+
+#: app/templates/assessments/index.html app/templates/assessments/new.html
+msgid "New assessment"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "Which assessments to show"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "Archived assessments you can open"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "Assessments you can open"
+msgstr ""
+
+#: app/templates/assessments/index.html app/templates/assessments/new.html
+msgid "Domain"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "Label"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "Visibility"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "You"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "Nothing is archived"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid ""
+"Archive an assessment from its page to hide it from the list. It stays readable and can be "
+"restored."
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "No assessments yet"
+msgstr ""
+
+#: app/templates/assessments/index.html
+msgid "Create an assessment to review a vendor domain."
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "An assessment for this domain already exists:"
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "archived: restore it from its page to work on it again"
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "The vendor domain, for example example.com. No URL, no IP address, no wildcard."
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "Label (optional)"
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "A name to recognise the assessment, for example the vendor or the project."
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "Who can see it"
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "Only me"
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "Administrators can always see it."
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "Everyone here"
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "Every signed-in user can open it."
+msgstr ""
+
+#: app/templates/assessments/new.html
+msgid "Create assessment"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Evidence"
+msgstr ""
+
+#: app/templates/assessments/checks/tech.html app/templates/assessments/report.html
+#, python-format
+msgid "and %(n)s more"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Accepted by the team"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Marked as a false positive by the team"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Print or save as PDF"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Technical due diligence · external view"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Assessed domain"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Report generated"
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid ""
+"This scan did not finish everywhere (%(status)s). The coverage in the summary says what is "
+"missing; findings can only be as complete as what was collected."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"This report states what could be observed from outside at the time of the scan. It is not a "
+"certification, an audit or a penetration test. A check that failed, or found nothing, proves "
+"nothing. A location is where an address is announced, not where data is stored or processed; the "
+"providers named are those seen in public records, not the vendor’s legal processors."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "1. Summary"
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "%(num)s open finding"
+msgid_plural "%(num)s open findings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid ""
+"The team accepted %(a)s and marked %(f)s as false positives; they are listed in section 3 and not"
+" counted as open."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Country"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Places"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Allowed area"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Inside"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Outside"
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "%(n)s of them only through a CDN or anycast edge"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "No host has an address outside the allowed area."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid ""
+"%(num)s host sits behind a CDN or anycast network (%(names)s): the location of such an address is"
+" the edge, not the data centre, so it is not placed in a country."
+msgid_plural ""
+"%(num)s hosts sit behind a CDN or anycast network (%(names)s): the location of such an address is"
+" the edge, not the data centre, so they are not placed in a country."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid ""
+"first page read for %(read)s of %(total)s hosts; scripts that load other scripts later are not "
+"seen"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Certificate names seen"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Answering on HTTPS"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Answering on plain HTTP only"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Web state not determined"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "2. Open findings"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"No open findings. That is not proof that nothing is wrong: the rules only judge what the checks "
+"could see."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "3. Findings the team decided about"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"Accepted findings and false positives are not counted as open. Each carries its reason, who "
+"decided and when; an acceptance can carry a review date after which the finding is open again."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Nobody has accepted a finding or marked one as a false positive."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "4. Hosts"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "checks incomplete"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "5. The domain itself"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "No domain checks were recorded for this scan."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "6. Method and limits"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Discovery"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"The host names come from Certificate Transparency logs, plus the domain itself and any hosts "
+"added by hand. Names that only appear in wildcard certificates, in certificates that were never "
+"logged, or on no certificate at all cannot be seen this way."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "At most %(limit)s hosts are reviewed per scan."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "%(num)s host beyond the limit was not reviewed."
+msgid_plural "%(num)s hosts beyond the limit were not reviewed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/assessments/report.html
+msgid "Checks"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "DNS: addresses, aliases and the records of the domain, asked of public resolvers."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"IP location and network: where an address is announced and which network it belongs to, from "
+"offline databases."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"Open ports and CVE identifiers: what an internet-wide scanner last saw on the addresses; nothing "
+"is scanned from here."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"TLS certificate and HTTP: one handshake and two requests per host (HTTPS and plain HTTP), our own"
+" User-Agent, no credentials, ports 443 and 80 only."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"TLS versions and suites: five more handshakes per host, each offering only one version or one "
+"kind of cipher suites, to see what the server accepts. Nothing is sent after a handshake, and the"
+" certificate is not verified for these (the certificate check does that)."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"Subdomain takeover: a host that is an alias for a hosted service is asked for its home page once "
+"or twice more, to see whether the service shows its page for an unclaimed name; an alias for a "
+"name that does not exist is judged from DNS alone. Nothing is claimed."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid ""
+"Reputation: the name of every host is asked of security DNS resolvers (%(names)s), which refuse "
+"names that their threat intelligence flags as malicious. A plain DNS question; nothing is sent to"
+" the host. A name that is not blocked is not a clean bill of health."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid ""
+"Blocklists: the name of every host, the names it is an alias for and its addresses were looked up"
+" in lists of hosts that serve malware or phishing or run botnets (%(lists)s, with the day each "
+"list is from). The lists are files on the server that ran the scan, so nothing was sent anywhere."
+" A listing is the maintainers’ classification at some time, and a name or an address that is not "
+"listed is not a clean bill of health."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "Switched off in this installation, so not looked at: %(names)s."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"Independent grade: the domain name was sent to Mozilla’s HTTP Observatory, whose scanner "
+"requested the home page and a few well-known files from the domain’s servers; the scan and its "
+"grade are public on MDN. The grade is Mozilla’s second opinion and not part of the findings."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"Domain: email security (SPF, DMARC, DKIM, MTA-STS), registration (RDAP), name servers and CAA, "
+"security.txt, HSTS preload status and public breaches."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Rules"
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "Findings are drawn from the stored check results by %(n)s versioned rules (rule set %(set)s)."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "The rules ran on %(when)s."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "These rules failed and produced no findings: %(rules)s."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "Limits"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"This is the view from outside, at the time of the scan. Internal controls, processes and "
+"contracts are not covered."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"A location is where an address is announced. CDN and anycast addresses show an edge, not a data "
+"centre, and data may be stored or processed elsewhere."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"Ports and vulnerabilities are a scanner’s snapshot and can be out of date; a port that is not "
+"listed may still be open, and a listed CVE is a lead to verify, not a confirmed vulnerability."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid ""
+"No finding is not a clean bill of health: the rules only judge what the checks collected, and a "
+"check that failed or was unavailable is not judged at all."
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "7. Data sources and attributions"
+msgstr ""
+
+#: app/templates/assessments/report.html
+msgid "This scan recorded no sources."
+msgstr ""
+
+#: app/templates/assessments/report.html
+#, python-format
+msgid "Gaprism · report of %(domain)s · scan of %(scan)s · generated %(when)s"
+msgstr ""
+
+#: app/templates/audit/index.html app/templates/components/nav.html
+msgid "Audit log"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid ""
+"Who did what, when, and to which assessment: sign-ins, scans, exports, decisions about findings, "
+"sharing and the accounts. An entry is added together with the change it records and is never "
+"edited; the oldest are removed when the retention period has passed."
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "Everything"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "Action"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "Any"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "Person"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "When"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "Ever"
+msgstr ""
+
+#: app/templates/audit/index.html
+#, python-format
+msgid "The last %(num)s days"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "Show every assessment"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "Entries"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "The audit log, newest first"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "What"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "Assessment"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "command line"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "removed"
+msgstr ""
+
+#: app/templates/audit/index.html
+msgid "No entry matches."
+msgstr ""
+
+#: app/templates/base.html app/templates/layout.html app/templates/public.html
+msgid "Gaprism"
+msgstr ""
+
+#: app/templates/base.html
+msgid "Main navigation"
+msgstr ""
+
+#: app/templates/base.html
+msgid "Collapse the navigation"
+msgstr ""
+
+#: app/templates/base.html
+msgid "Expand the navigation"
+msgstr ""
+
+#: app/templates/base.html
+msgid "Collapse"
+msgstr ""
+
+#: app/templates/base.html
+msgid "Menu"
+msgstr ""
+
+#: app/templates/base.html
+msgid "Account menu"
+msgstr ""
+
+#: app/templates/assessments/checks/ip.html app/templates/base.html
+msgid "IP geolocation by DB-IP.com"
+msgstr ""
+
+#: app/templates/components/account.html
+msgid "Signed in as"
+msgstr ""
+
+#: app/templates/components/account.html app/templates/profile/index.html
+msgid "Profile"
+msgstr ""
+
+#: app/templates/components/account.html app/templates/profile/index.html
+#: app/templates/security/login_user.html app/templates/security/verify.html
+msgid "Password"
+msgstr ""
+
+#: app/templates/components/account.html app/templates/profile/index.html
+msgid "Two-factor"
+msgstr ""
+
+#: app/templates/components/account.html
+msgid "Language"
+msgstr ""
+
+#: app/templates/components/account.html
+msgid "Sign out"
+msgstr ""
+
+#: app/templates/components/nav.html
+msgid "Breadcrumb"
+msgstr ""
+
+#: app/templates/errors/error.html
+#, python-format
+msgid "Please try again in about %(num)d minute."
+msgid_plural "Please try again in about %(num)d minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/templates/errors/error.html
+msgid "Back to start"
+msgstr ""
+
+#: app/templates/assessments/report.html app/templates/layout.html
+msgid "Technical due diligence"
+msgstr ""
+
+#: app/templates/layout.html
+msgid "Skip to content"
+msgstr ""
+
+#: app/templates/profile/index.html
+msgid ""
+"Your name and picture are shown with your e-mail address in the account menu, and in the list of "
+"accounts that administrators see."
+msgstr ""
+
+#: app/templates/profile/index.html
+#, python-format
+msgid "Optional. Up to %(max)d characters."
+msgstr ""
+
+#: app/templates/profile/index.html
+msgid "Save"
+msgstr ""
+
+#: app/templates/profile/index.html
+msgid "Picture"
+msgstr ""
+
+#: app/templates/profile/index.html
+#, python-format
+msgid ""
+"JPEG, PNG or WebP, up to %(max)d MB. It is cropped to a square, and details such as where it was "
+"taken are removed."
+msgstr ""
+
+#: app/templates/profile/index.html
+msgid "Choose a picture"
+msgstr ""
+
+#: app/templates/profile/index.html
+msgid "Upload picture"
+msgstr ""
+
+#: app/templates/profile/index.html
+msgid "Remove picture"
+msgstr ""
+
+#: app/templates/profile/index.html
+msgid "More about your account:"
+msgstr ""
+
+#: app/templates/security/change_password.html
+msgid "Change password"
+msgstr ""
+
+#: app/templates/security/change_password.html
+msgid "Current password"
+msgstr ""
+
+#: app/templates/security/login_user.html
+msgid "Sign in"
+msgstr ""
+
+#: app/templates/security/login_user.html
+msgid "Email address"
+msgstr ""
+
+#: app/templates/security/login_user.html
+msgid "Remember me"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html app/templates/security/two_factor_verify_code.html
+msgid "Two-factor authentication"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html app/templates/security/two_factor_verify_code.html
+msgid "Set up two-factor authentication"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "Open an authenticator app on your phone."
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "Scan this code with the app, or type the key in by hand."
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "Code to scan with your authenticator app"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "Enter the code that the app shows."
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html app/templates/security/two_factor_verify_code.html
+msgid "Authentication code"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html app/templates/security/two_factor_verify_code.html
+msgid "Verify code"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html app/templates/security/two_factor_verify_code.html
+msgid "The code is not working?"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html app/templates/security/two_factor_verify_code.html
+msgid "Start again"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html app/templates/security/two_factor_verify_code.html
+msgid "to get a new code."
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid ""
+"Set up an authenticator app to finish signing in. From then on you enter a code from it each time"
+" you sign in."
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid ""
+"Two-factor authentication is on for your account. You enter a code from your authenticator app "
+"each time you sign in."
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid ""
+"Two-factor authentication is off for your account. Turn it on to enter a code from an "
+"authenticator app each time you sign in."
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "Set up a new authenticator app"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "Set up an authenticator app"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "Turn off two-factor authentication"
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "Your current authenticator keeps working until you finish."
+msgstr ""
+
+#: app/templates/security/two_factor_setup.html
+msgid "It is required in this installation, so it cannot be turned off."
+msgstr ""
+
+#: app/templates/security/two_factor_verify_code.html
+msgid "Enter the code that your authenticator app shows to finish the setup."
+msgstr ""
+
+#: app/templates/security/two_factor_verify_code.html
+msgid "Enter the code from your authenticator app."
+msgstr ""
+
+#: app/templates/security/two_factor_verify_code.html
+msgid "Lost your authenticator? Ask an administrator to reset it."
+msgstr ""
+
+#: app/templates/security/verify.html
+msgid "Confirm your password"
+msgstr ""
+
+#: app/templates/security/verify.html
+msgid "Enter your password again to continue."
+msgstr ""
+
+#: app/templates/security/verify.html
+msgid "Continue"
+msgstr ""
+
+#: app/web.py
+msgid "Request not accepted"
+msgstr ""
+
+#: app/web.py
+msgid "The request could not be processed. Reload the page and retry."
+msgstr ""
+
+#: app/web.py
+msgid "Sign in required"
+msgstr ""
+
+#: app/web.py
+msgid "Please sign in to continue."
+msgstr ""
+
+#: app/web.py
+msgid "Access denied"
+msgstr ""
+
+#: app/web.py
+msgid "You do not have access to this page."
+msgstr ""
+
+#: app/web.py
+msgid "This page does not exist, or you do not have access to it."
+msgstr ""
+
+#: app/templates/assessments/checks/domain_dns.html app/templates/assessments/checks/email.html
+#: app/web.py
+msgid "Not found"
+msgstr ""
+
+#: app/web.py
+msgid "Method not allowed"
+msgstr ""
+
+#: app/web.py
+msgid "This action is not available here."
+msgstr ""
+
+#: app/web.py
+msgid "Request too large"
+msgstr ""
+
+#: app/web.py
+msgid ""
+"The request was larger than this installation accepts. If you were sending a picture, choose a "
+"smaller one."
+msgstr ""
+
+#: app/web.py
+msgid "Too many attempts"
+msgstr ""
+
+#: app/web.py
+msgid "Sign-in is paused after repeated failed attempts."
+msgstr ""
+
+#: app/web.py
+msgid "Something went wrong"
+msgstr ""
+
+#: app/web.py
+msgid "The request could not be completed."
+msgstr ""
+

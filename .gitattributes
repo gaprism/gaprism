@@ -3,3 +3,9 @@ Dockerfile text eol=lf
 .dockerignore text eol=lf
 docker-compose.yml text eol=lf
 deploy/* text eol=lf
+
+# The message catalogues: scripts/translations.py writes them with Unix line endings, and the
+# compiled ones are binary.
+*.po text eol=lf
+*.pot text eol=lf
+*.mo binary

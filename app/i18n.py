@@ -130,15 +130,32 @@ def ngettext(singular: str, plural: str, n: int, **variables: object) -> str:
     return text % {"num": n, **variables}
 
 
+class SecurityDomain:
+    """Flask-Security's translation domain, with our catalogue behind it. The library words every
+    message it shows (``get_message``) through ``i18n_domain.gettext``, and without Flask-Babel its
+    own domain returns the text as it is, in every language."""
+
+    def gettext(self, string: str, **variables: object) -> str:
+        return gettext(string, **variables)
+
+    def ngettext(self, singular: str, plural: str, num: int, **variables: object) -> str:
+        return ngettext(singular, plural, num, **variables)
+
+
 def init_i18n(app: Flask) -> None:
     """Enable ``{{ _('...') }}`` in templates, and expose the active locale as ``locale`` and the
-    languages to choose between as ``languages`` (empty with one language)."""
+    languages to choose between as ``languages`` (empty with one language). Flask-Security, when it
+    is installed in ``app``, is put on the same catalogue."""
     app.jinja_env.add_extension("jinja2.ext.i18n")
     app.jinja_env.install_gettext_callables(  # type: ignore[attr-defined]
         lambda message: _translations().gettext(message),
         lambda singular, plural, n: _translations().ngettext(singular, plural, n),
         newstyle=True,
     )
+    security = app.extensions.get("security")
+    if security is not None:
+        security.i18n_domain = SecurityDomain()
+        app.jinja_env.globals["_fsdomain"] = security.i18n_domain.gettext  # bound at its init
 
     @app.before_request
     def remember_supported_locales() -> None:

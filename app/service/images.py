@@ -15,6 +15,7 @@ import zlib
 
 from PIL import Image, ImageOps
 
+from app.messages import N_
 from app.service.users import UserAdminError
 
 MAX_PICTURE_BYTES = 2 * 1024 * 1024  # what is read at all
@@ -27,11 +28,11 @@ _MEGABYTE = 1024 * 1024
 _ALPHA_MODES = {"RGBA", "LA", "PA"}
 _DECODE_ERRORS = (OSError, ValueError, SyntaxError, EOFError, struct.error, zlib.error)
 
-PICTURE_TOO_LARGE = "The picture is larger than %(max)d MB. Choose a smaller one."
-PICTURE_UNREADABLE = (
+PICTURE_TOO_LARGE = N_("The picture is larger than %(max)d MB. Choose a smaller one.")
+PICTURE_UNREADABLE = N_(
     "The file could not be read as a JPEG, PNG or WebP picture. Choose another file."
 )
-PICTURE_TOO_MANY_PIXELS = (
+PICTURE_TOO_MANY_PIXELS = N_(
     "The picture has more than %(max)d million pixels. Reduce its size and try again."
 )
 

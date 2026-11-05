@@ -1,10 +1,13 @@
 """Helpers shared by test modules (fixtures live in ``conftest.py``)."""
 
+import importlib.util
 import re
+import sys
 import uuid
 from datetime import UTC, datetime
 from gettext import NullTranslations
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 from flask import Flask, g, has_app_context
@@ -20,6 +23,18 @@ from app.models import Assessment, AuditEvent, User
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS_DIRECTORY = PROJECT_ROOT / "migrations"
 NEUTRAL_BADGE = "bg-subtle text-muted"  # the info and muted tones: a fact, or nothing to report
+
+
+def load_script(name: str) -> ModuleType:
+    """``scripts/<name>.py`` as a module. The scripts are no package, so they are loaded by path."""
+    spec = importlib.util.spec_from_file_location(
+        f"script_{name}", PROJECT_ROOT / "scripts" / f"{name}.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # a dataclass looks its own module up
+    spec.loader.exec_module(module)
+    return module
 
 
 class Marked(NullTranslations):
