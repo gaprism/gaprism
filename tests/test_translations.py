@@ -100,6 +100,22 @@ def test_the_extraction_finds_what_a_screen_shows(tree: Path) -> None:
     assert sentences(tr.extract(tree)) == EVERYTHING
 
 
+def test_a_sentence_inside_an_f_string_is_found_whatever_the_version_of_python() -> None:
+    """Babel reads tokens, and before Python 3.12 an f-string is one token: the sentence in
+    ``{_('...')}`` was found on 3.12 and not on 3.11, so the template depended on the Python that
+    wrote it (the first CI run of the German catalogue failed on 3.11 for that). The syntax tree is
+    the same on every version, so the sentences are read from it."""
+    source = b"""text = f"{_('inside')} and {ngettext('one', 'many', n)}"\n"""
+    found = [
+        (name, messages)
+        for _line, name, messages, _comments in tr.extract_python(
+            BytesIO(source), tr.KEYWORDS.keys(), (), {}
+        )
+    ]
+    assert found == [("_", ["inside"]), ("ngettext", ["one", "many", None])]
+    assert tr.METHODS[0] == ("**.py", tr.extract_python)
+
+
 def test_a_sentence_knows_its_files_and_the_written_file_has_no_line_numbers(
     tree: Path, tmp_path: Path
 ) -> None:

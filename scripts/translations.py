@@ -17,13 +17,15 @@ file names without line numbers, and no header holds a date of today.
 from __future__ import annotations
 
 import argparse
+import ast
 import datetime
 import difflib
 import re
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from io import BytesIO
 from pathlib import Path
+from typing import IO
 
 from babel import Locale
 from babel.messages import Catalog, Message
@@ -42,8 +44,47 @@ PROJECT = "Gaprism"
 CATALOGUE_VERSION = "1"  # of the catalogues, not of the application: it must not change per release
 FIXED_DATE = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)  # a header holds no date of today
 
+
+def extract_python(
+    fileobj: IO[bytes],
+    keywords: Collection[str],
+    comment_tags: Collection[str],
+    options: Mapping[str, object],
+) -> Iterator[tuple[int, str, list[str | None], list[str]]]:
+    """Babel's extraction method for Python code, reading the syntax tree instead of the tokens.
+
+    Babel's own method reads tokens, and before Python 3.12 an f-string is one token: a sentence in
+    ``f"{_('...')}"`` was found on 3.12 and not on 3.11, so the template depended on the version of
+    Python that wrote it (and CI, which runs 3.11 and 3.13, refused the one that 3.14 had written).
+    The syntax tree holds the same calls on every version. A call is a sentence when its function is
+    one of ``keywords`` and the argument is a plain string; Babel picks the right argument.
+    """
+    found: list[tuple[int, int, str, list[str | None]]] = []
+    for node in ast.walk(ast.parse(fileobj.read())):
+        if not isinstance(node, ast.Call):
+            continue
+        function = node.func
+        if isinstance(function, ast.Name):
+            name = function.id
+        elif isinstance(function, ast.Attribute):
+            name = function.attr
+        else:
+            continue
+        if name not in keywords:
+            continue
+        strings = [
+            arg if isinstance(arg, ast.Constant) and isinstance(arg.value, str) else None
+            for arg in node.args
+        ]
+        messages = [arg.value if arg is not None else None for arg in strings]
+        line = next((arg.lineno for arg in strings if arg is not None), node.lineno)
+        found.append((line, node.col_offset, name, messages))
+    for line, _column, name, messages in sorted(found, key=lambda item: item[:2]):
+        yield line, name, messages, []
+
+
 # What the extraction reads: code, and the templates (relative to the application folder).
-METHODS = [("**.py", "python"), ("templates/**.html", "jinja2")]
+METHODS = [("**.py", extract_python), ("templates/**.html", "jinja2")]
 OPTIONS = {"templates/**.html": {"extensions": "jinja2.ext.i18n"}}
 # The calls whose argument is a sentence that is translated later, when a screen shows it: an error
 # or a validator carries it (the argument it is, counted from 1). The sentence has to be written
@@ -65,7 +106,6 @@ KEYWORDS: dict[str, tuple[int, ...] | None] = {
     "N_": None,  # marks a sentence that is translated later, where it is shown (app/messages.py)
     **{name: (index,) for name, index in CARRIERS.items()},
 }
-COMMENT_TAG = "TRANSLATORS:"  # a comment that starts with this, above a sentence, goes to the file
 
 POT_HEADER = (
     "# Gaprism, message template.\n"
@@ -146,8 +186,6 @@ def extract(source: Path | None = None) -> Catalog:
         method_map=METHODS,
         options_map=OPTIONS,
         keywords=KEYWORDS,
-        comment_tags=(COMMENT_TAG,),
-        strip_comment_tags=True,
         directory_filter=_descend,
     )
     for filename, lineno, message, comments, context in found:
