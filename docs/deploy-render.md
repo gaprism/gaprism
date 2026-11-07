@@ -27,7 +27,7 @@
 ## Before you start
 
 - **A Render account.** A free workspace is enough. Render may ask for a payment method.
-- **Access for Render to the repository.** Render's GitHub app needs access to `stalpers/web_due_diligence` (private): on GitHub's authorisation screen choose that repository only. The Blueprint is read from the branch you choose (`mvp`) and deploys that branch.
+- **Access for Render to the repository.** Render's GitHub app needs access to `gaprism/gaprism` (private). The `gaprism` organisation owns it, so an owner of the organisation installs the app there: on GitHub's authorisation screen choose the organisation, then that repository only. The Blueprint is read from the branch you choose (`mvp`) and deploys that branch.
 - **A Neon account.**
 - **This repository on your machine**, with `uv sync` done: the accounts are created from there.
 

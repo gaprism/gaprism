@@ -4,7 +4,7 @@
 
 Please report security problems privately, not in a public issue. Use GitHub's private
 vulnerability reporting: open the repository's **Security** tab and choose **Report a
-vulnerability** (<https://github.com/stalpers/web_due_diligence/security/advisories/new>). Say what
+vulnerability** (<https://github.com/gaprism/gaprism/security/advisories/new>). Say what
 you found, how to reproduce it and which version or commit you looked at.
 
 We acknowledge a report as soon as we can, work on a fix with you and credit you in the release notes
