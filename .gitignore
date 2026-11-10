@@ -28,6 +28,7 @@ node_modules/
 .junie/
 .aiassistant/
 .claude/settings.local.json
+.superpowers
 
 # OS
 .DS_Store
